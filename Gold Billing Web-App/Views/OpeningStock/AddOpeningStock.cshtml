@@ -1,0 +1,75 @@
+﻿
+
+@{
+    ViewBag.Title = "Gold Billing";
+}
+
+<div class="container p-3" style="background-color: #f8d7da; border-radius: 10px;">
+    <h3 class="text-center">Gold Billing</h3>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label>Date</label>
+            <input type="date" class="form-control"/>
+        </div>
+        <div class="col-md-3">
+            <label>Bill No</label>
+            <input type="text" class="form-control"/>
+        </div>
+        <div class="col-md-6">
+            <label>Narration</label>
+            <input type="text" class="form-control">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead class="bg-light">
+                <tr>
+                    <th>Item Name</th>
+                    <th>Stamp</th>
+                    <th>Pc</th>
+                    <th>Gr.Wt.</th>
+                    <th>Less</th>
+                    <th>Net.Wt.</th>
+                    <th>Tunch</th>
+                    <th>Wstg</th>
+                    <th>Rate</th>
+                    <th>Gold Fine</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <select class="form-control">
+                            <option value="">Select Item</option>
+                            <option value="Item1">Item 1</option>
+                            <option value="Item2">Item 2</option>
+                            <option value="Item3">Item 3</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control" /></td>
+                    <td><input type="text" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="text" class="form-control" /></td>
+                    <td><input type="text" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-12 text-center">
+            <button class="btn btn-success">Save</button>
+            <button class="btn btn-danger">Cancel</button>
+            <button class="btn btn-warning">Delete</button>
+            <button class="btn btn-primary">New</button>
+            <button class="btn btn-info">Print</button>
+            <button class="btn btn-secondary">Export</button>
+        </div>
+    </div>
+</div>

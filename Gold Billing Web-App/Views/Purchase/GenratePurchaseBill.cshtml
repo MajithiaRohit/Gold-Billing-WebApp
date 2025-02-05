@@ -1,0 +1,132 @@
+﻿@{
+    ViewBag.Title = "Purchase Voucher";
+}
+
+<div class="container p-3" style="background-color: #fff3cd; border-radius: 10px;">
+    <h3 class="text-center">Purchase Voucher</h3>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label>Date</label>
+            <input type="date" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <label>Bill No</label>
+            <input type="text" class="form-control" disabled />
+        </div>
+        <div class="col-md-3">
+            <label>Account Name</label>
+            <select class="form-control">
+                <option>Select Account</option>
+                <option>Account 1</option>
+                <option>Account 2</option>
+            </select>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label>Narration</label>
+            <input type="text" class="form-control" />
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead class="bg-light">
+                <tr>
+                    <th>Type</th>
+                    <th>Item Name</th>
+                    <th>Pc</th>
+                    <th>Gr.Wt.</th>
+                    <th>Less</th>
+                    <th>Net.Wt.</th>
+                    <th>Tunch</th>
+                    <th>Wstg</th>
+                    <th>T+W</th>
+                    <th>Rate</th>
+                    <th>Fine</th>
+                    <th>Total Amt</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <select class="form-control">
+                            <option value="p">P</option>
+                            <option value="pr">PR</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-control">
+                            <option>Select Item</option>
+                            <option>Gold Ring</option>
+                            <option>Gold Chain</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="text" class="form-control" /></td>
+                    <td><input type="text" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                    <td><input type="number" class="form-control" /></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <button class="btn btn-primary mb-3" onclick="addNewRow()">Add New Row</button>
+
+    <div class="row justify-content-end mt-3">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="bg-light">
+                    <tr>
+                        <th></th>
+                        <th>Fine</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="col-md-4">
+                        <td>Total Previous Balance</td>
+                        <td><input type="text" class="form-control" readonly disabled /></td>
+                        <td><input type="text" class="form-control" readonly /></td>
+                    </tr>
+                    <tr class="col-md-4">
+                        <td>Total New Balance</td>
+                        <td><input type="text" class="form-control" readonly disabled /></td>
+                        <td><input type="text" class="form-control" readonly disabled /></td>
+                    </tr>
+                    <tr class="col-md-4">
+                        <td>Total Balance</td>
+                        <td><input type="text" class="form-control" readonly disabled /></td>
+                        <td><input type="text" class="form-control" readonly disabled /></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-12 text-center">
+            <button class="btn btn-success">Save</button>
+            <button class="btn btn-danger">Cancel</button>
+            <button class="btn btn-primary">Ledger</button>
+            <button class="btn btn-warning">Delete</button>
+            <button class="btn btn-primary">New</button>
+            <button class="btn btn-info">Print</button>
+            <button class="btn btn-secondary">Export</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function addNewRow() {
+        let table = document.querySelector(".table tbody");
+        let newRow = table.rows[0].cloneNode(true);
+        table.appendChild(newRow);
+    }
+</script>
