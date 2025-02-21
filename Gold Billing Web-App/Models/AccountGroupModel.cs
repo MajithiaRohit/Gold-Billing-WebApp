@@ -2,5 +2,7 @@
 {
     public class AccountGroupModel
     {
+        public int? Id { get; set; }
+        public required string GroupName { get; set; }
     }
 }

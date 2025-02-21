@@ -1,5 +1,38 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
-}
+﻿﻿@using System.Data;
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Bills</h5>
+        <!-- Table with stripped rows -->
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Group Name</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (DataRow GA in Model.Rows)
+                {
+                    <tr>
+                        <td>@GA["Id"]</td>
+                        <td>@GA["GroupName"]</td>
+                        <td>
+                            <form asp-action="AddEditAccountGroup" asp-controller="AccountGroup" method="post" class="d-inline">
+                                <input type="hidden" name="Id" value="@GA["Id"]" />
+                                <button type="submit" class="btn btn-outline-primary">Edit</button>
+                            </form>
+                            <form asp-action="DeleteAccountGroup" asp-controller="AccountGroup" method="post" class="d-inline">
+                                <input type="hidden" name="Id" value="@GA["Id"]" />
+                                <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to delete this Account Group?');">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <!-- End Table with stripped rows -->
+
+    </div>
+</div>
