@@ -1,5 +1,32 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@using System.Data
+@model DataTable
 @{
+    ViewData["Title"] = "Item List";
 }
+
+<h2>Item List</h2>
+<a class="btn btn-primary" asp-action="AddEditItem">Add New Item</a>
+<table class="table table-bordered mt-3">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Group Name</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (DataRow row in Model.Rows)
+        {
+            <tr>
+                <td>@row["Id"]</td>
+                <td>@row["Name"]</td>
+                <td>@row["GroupName"]</td>
+                <td>
+                    <a class="btn btn-warning" asp-action="AddEditItem" asp-route-Id="@row["Id"]">Edit</a>
+                    <a class="btn btn-danger" asp-action="DeleteItem" asp-route-Id="@row["Id"]" onclick="return confirm('Are you sure?')">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

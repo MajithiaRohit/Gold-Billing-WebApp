@@ -6,7 +6,7 @@ namespace Gold_Billing_Web_App.Models
     {
         [Required]
         public int? Id { get; set; }
-        public required string Name { get; set; }
+        public string? Name { get; set; }
         public int ItemGroupId { get; set; }
     }
 }
