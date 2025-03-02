@@ -1,0 +1,62 @@
+﻿@using System.Data
+@model DataTable
+
+<div class="card">
+    <div class="card-body">
+        <h3 class="mt-5 text-center">Opening Stock</h3>
+        <hr />
+        <a href="@Url.Action("AddOpeningStock", "OpeningStock")" class="btn btn-primary mt-3 mb-3">Add New Stock</a>
+        <!-- Scrollable Table Container -->
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto; width: 100%;">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark text-center">
+                    <tr>
+                        <th style="white-space: nowrap;">Date</th>
+                        <th style="white-space: nowrap;">Bill No</th>
+                        <th style="white-space: nowrap;">Narration</th>
+                        <th style="white-space: nowrap;">Item Name</th>
+                        <th style="white-space: nowrap;">Pc</th>
+                        <th style="white-space: nowrap;">Weight</th>
+                        <th style="white-space: nowrap;">Less</th>
+                        <th style="white-space: nowrap;">Net Weight</th>
+                        <th style="white-space: nowrap;">Tunch</th>
+                        <th style="white-space: nowrap;">Wastage</th>
+                        <th style="white-space: nowrap;">TW</th>
+                        <th style="white-space: nowrap;">Rate</th>
+                        <th style="white-space: nowrap;">Fine</th>
+                        <th style="white-space: nowrap;">Amount</th>
+                        <th style="white-space: nowrap;" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (DataRow row in Model.Rows)
+                    {
+                        <tr>
+                            <td style="white-space: nowrap;">@Convert.ToDateTime(row["Date"]).ToString("yyyy-MM-dd")</td>
+                            <td style="white-space: nowrap;">@row["BillNo"]</td>
+                            <td style="white-space: nowrap;">@row["Narration"]</td>
+                            <td style="white-space: nowrap;">@row["Name"]</td>
+                            <td style="white-space: nowrap;">@row["Pc"]</td>
+                            <td style="white-space: nowrap;">@row["Weight"]</td>
+                            <td style="white-space: nowrap;">@row["Less"]</td>
+                            <td style="white-space: nowrap;">@row["NetWt"]</td>
+                            <td style="white-space: nowrap;">@row["Tunch"]</td>
+                            <td style="white-space: nowrap;">@row["Wastage"]</td>
+                            <td style="white-space: nowrap;">@row["TW"]</td>
+                            <td style="white-space: nowrap;">@row["Rate"]</td>
+                            <td style="white-space: nowrap;">@row["Fine"]</td>
+                            <td style="white-space: nowrap;">@row["Amount"]</td>
+                            <td class="text-center" style="white-space: nowrap;">
+                                <div class="btn-group" role="group">
+                                    <a href="@Url.Action("AddOpeningStock", "OpeningStock", new { id = row["Id"] })" class="btn btn-outline-primary btn-sm">Edit</a>
+                                    <a href="@Url.Action("DeleteOpeningStock", "OpeningStock", new { id = row["Id"] })" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to delete this stock?');">Delete</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <!-- End Scrollable Table Container -->
+    </div>
+</div>
