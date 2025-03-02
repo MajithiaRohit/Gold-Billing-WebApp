@@ -3,6 +3,7 @@
     public class ItemGroupModel
     {
         public int? Id { get; set; }
-        public required string Name { get; set; }
+        public string? Name { get; set; }
+        public DateTime Date { get; set; }
     }
 }
