@@ -12,7 +12,7 @@
                         <th scope="col" style="white-space: nowrap;">Account Id</th>
                         <th scope="col" style="white-space: nowrap;">Date</th>
                         <th scope="col" style="white-space: nowrap;">Account Name</th>
-                        <th scope="col" style="white-space: nowrap;">Account Group</th>
+                        <th scope="col" style="white-space: nowrap;">Account Group Name</th>
                         <th scope="col" style="white-space: nowrap;">Address</th>
                         <th scope="col" style="white-space: nowrap;">City</th>
                         <th scope="col" style="white-space: nowrap;">Pincode</th>
@@ -42,12 +42,12 @@
                             <td style="white-space: nowrap;">@a["Amount"]</td>
                             <td class="text-center" style="white-space: nowrap;">
                                 <div class="btn-group" role="group">
-                                    <form asp-action="AddEditAccount" asp-controller="Account" method="post">
-                                        <input type="hidden" name="AccountId" value="@a["AccountId"]" />
-                                        <button type="submit" class="btn btn-outline-primary btn-sm me-3">Edit</button>
+                                    <form asp-action="AddEditAccountGroup" asp-controller="AccountGroup" method="post">
+                                        <input type="hidden" name="Id" value="@a["AccountId"]" />
+                                        <button type="submit" class="btn btn-outline-primary btn-sm">Edit</button>
                                     </form>
-                                    <form asp-action="DeleteAccount" asp-controller="Account" method="post">
-                                        <input type="hidden" name="AccountId" value="@a["AccountId"]" />
+                                    <form asp-action="DeleteAccountGroup" asp-controller="AccountGroup" method="post">
+                                        <input type="hidden" name="Id" value="@a["AccountId"]" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to delete this Account?');">Delete</button>
                                     </form>
                                 </div>
