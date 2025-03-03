@@ -88,40 +88,76 @@ namespace Gold_Billing_Web_App.Controllers
         [HttpPost]
         public IActionResult SaveItem(ItemModel item)
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
-            using SqlConnection connection = new SqlConnection(connectionString);
-            connection.Open();
-            using SqlCommand command = connection.CreateCommand();
-            command.CommandType = CommandType.StoredProcedure;
-
-            if (item.Id == null)
+            try
             {
-                command.CommandText = "SP_Item_Insert";
+                string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+                using SqlConnection connection = new SqlConnection(connectionString);
+                connection.Open();
+                using SqlCommand command = connection.CreateCommand();
+                command.CommandType = CommandType.StoredProcedure;
+
+                if (item.Id == null)
+                {
+                    command.CommandText = "SP_Item_Insert";
+                    command.Parameters.AddWithValue("@Name", item.Name);
+                    command.Parameters.AddWithValue("@ItemGroupID", item.ItemGroupId);
+                    command.ExecuteNonQuery();
+                    TempData["SuccessMessage"] = "Item successfully added!";
+                }
+                else
+                {
+                    command.CommandText = "SP_Item_Update";
+                    command.Parameters.AddWithValue("@Id", item.Id);
+                    command.Parameters.AddWithValue("@Name", item.Name);
+                    command.Parameters.AddWithValue("@ItemGroupID", item.ItemGroupId);
+                    command.ExecuteNonQuery();
+                    TempData["SuccessMessage"] = "Item successfully updated!";
+                }
+
+                return RedirectToAction("ItemList");
             }
-            else
+            catch (Exception ex)
             {
-                command.CommandText = "SP_Item_Update";
-                command.Parameters.AddWithValue("@Id", item.Id);
+                TempData["ErrorMessage"] = "An error occurred while saving the item: " + ex.Message;
+                return RedirectToAction("AddEditItem", new { Id = item.Id });
             }
-
-            command.Parameters.AddWithValue("@Name", item.Name);
-            command.Parameters.AddWithValue("@ItemGroupID", item.ItemGroupId);
-            command.ExecuteNonQuery();
-
-            return RedirectToAction("ItemList");
         }
 
         // Delete Item
+        [HttpPost]
         public IActionResult DeleteItem(int Id)
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
-            using SqlConnection connection = new SqlConnection(connectionString);
-            using SqlCommand command = new SqlCommand("Sp_Item_Delete", connection);
-            command.CommandType = CommandType.StoredProcedure;
-            command.Parameters.AddWithValue("@Id", Id);
-            connection.Open();
-            command.ExecuteNonQuery();
-            return RedirectToAction("ItemList");
+            try
+            {
+                string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+                using SqlConnection connection = new SqlConnection(connectionString);
+                connection.Open();
+                using SqlCommand command = new SqlCommand("Sp_Item_Delete", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.AddWithValue("@Id", Id);
+
+                try
+                {
+                    command.ExecuteNonQuery();
+                    return Json(new { success = true, message = "Item successfully deleted!" });
+                }
+                catch (SqlException ex) when (ex.Number == 547) // Foreign key constraint violation
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Cannot delete this item because it is referenced in other records."
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "An error occurred while deleting the item: " + ex.Message
+                });
+            }
         }
     }
 }
