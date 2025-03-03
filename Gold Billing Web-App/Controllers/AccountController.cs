@@ -5,119 +5,119 @@ using System.Data;
 
 public class AccountController : Controller
 {
-    private readonly IConfiguration configuration;
-    public AccountController(IConfiguration _configuration)
+    private readonly IConfiguration _configuration;
+    private readonly string _connectionString;
+
+    public AccountController(IConfiguration configuration)
     {
-        configuration = _configuration;
+        _configuration = configuration;
+        _connectionString = configuration.GetConnectionString("ConnectionString")
+            ?? throw new ArgumentNullException(nameof(configuration), "Connection string is missing.");
     }
 
     private List<AccountGroupDropDownModel> SetGroupDropDown()
     {
-        string? connectionString = configuration.GetConnectionString("ConnectionString");
-        using (SqlConnection connection = new SqlConnection(connectionString))
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        using var command = new SqlCommand("SP_AccountGroupDropDown", connection)
         {
-            connection.Open();
-            SqlCommand command = connection.CreateCommand();
-            command.CommandType = CommandType.StoredProcedure;
-            command.CommandText = "SP_AccountGroupDropDown";
-            SqlDataReader reader = command.ExecuteReader();
-            DataTable dataTable = new DataTable();
-            dataTable.Load(reader);
+            CommandType = CommandType.StoredProcedure
+        };
 
-            List<AccountGroupDropDownModel> group = new List<AccountGroupDropDownModel>();
-            foreach (DataRow dataRow in dataTable.Rows)
+        using var reader = command.ExecuteReader();
+        var dataTable = new DataTable();
+        dataTable.Load(reader);
+
+        return dataTable.AsEnumerable()
+            .Select(row => new AccountGroupDropDownModel
             {
-                group.Add(new AccountGroupDropDownModel
-                {
-                    Id = Convert.ToInt32(dataRow["Id"]),
-                    GroupName = dataRow["GroupName"].ToString()!
-                });
-            }
-            return group;
-        }
+                Id = row.Field<int>("Id"),
+                GroupName = row.Field<string>("GroupName") ?? string.Empty
+            })
+            .ToList();
     }
 
     public IActionResult AccountList()
     {
-        string? connectionString = configuration.GetConnectionString("ConnectionString");
-        if (string.IsNullOrEmpty(connectionString))
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        using var command = new SqlCommand("SP_Account_SelectAll", connection)
         {
-            throw new Exception("Database connection string is missing or invalid.");
-        }
+            CommandType = CommandType.StoredProcedure
+        };
 
-        using (SqlConnection connection = new SqlConnection(connectionString))
-        {
-            connection.Open();
-            SqlCommand command = connection.CreateCommand();
-            command.CommandType = CommandType.StoredProcedure;
-            command.CommandText = "SP_Account_SelectAll";
-            SqlDataReader reader = command.ExecuteReader();
-            DataTable table = new DataTable();
-            table.Load(reader);
-            return View(table);
-        }
-    }
-
-    public IActionResult DeleteAccount(int AccountId)
-    {
-        string? connectionString = configuration.GetConnectionString("ConnectionString");
-        using (SqlConnection con = new SqlConnection(connectionString))
-        {
-            SqlCommand cmd = new SqlCommand("SP_Account_Delete", con);
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@AccountId", AccountId);
-            con.Open();
-            cmd.ExecuteNonQuery();
-        }
-        return RedirectToAction("AccountList");
+        using var reader = command.ExecuteReader();
+        var table = new DataTable();
+        table.Load(reader);
+        return View(table);
     }
 
     public IActionResult AddEditAccount(int AccountId)
     {
         ViewBag.groupList = SetGroupDropDown();
 
-        if (AccountId > 0)
+        if (AccountId <= 0) return View(new AccountModel());
+
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        using var command = new SqlCommand("SP_Account_SelectByID", connection)
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.AddWithValue("@AccountId", AccountId);
+
+        using var reader = command.ExecuteReader();
+        var table = new DataTable();
+        table.Load(reader);
+
+        if (table.Rows.Count == 0) return NotFound();
+
+        var row = table.Rows[0];
+        return View(new AccountModel
+        {
+            AccountId = row.Field<int>("AccountId"),
+            AccountName = row.Field<string>("AccountName") ?? string.Empty,
+            AccountGroupId = row.Field<int>("AccountGroupId"),
+            Address = row.Field<string>("Address")!,
+            City = row.Field<string>("City")!,
+            Pincode = row.Field<string>("Pincode"),
+            MobileNo = row.Field<string>("MobileNo") ?? string.Empty,
+            PhoneNo = row.Field<string>("PhoneNo")!,
+            Email = row.Field<string>("Email")!,
+            Fine = row.Field<decimal>("Fine"),
+            Amount = row.Field<decimal>("Amount")
+        });
+    }
+
+    public IActionResult DeleteAccount(int AccountId)
+    {
+        try
+        {
+            using var connection = new SqlConnection(_connectionString);
+            connection.Open();
+            using var command = new SqlCommand("SP_Account_Delete", connection)
             {
-                connection.Open();
-                SqlCommand command = connection.CreateCommand();
-                command.CommandType = CommandType.StoredProcedure;
-                command.CommandText = "SP_Account_SelectByID";
-                command.Parameters.AddWithValue("@AccountId", AccountId);
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable table = new DataTable();
-                table.Load(reader);
+                CommandType = CommandType.StoredProcedure
+            };
+            command.Parameters.AddWithValue("@AccountId", AccountId);
+            command.ExecuteNonQuery();
 
-                if (table.Rows.Count == 0)
-                {
-                    return NotFound();
-                }
-
-                AccountModel accountModel = new AccountModel
-                {
-                    AccountId = Convert.ToInt32(table.Rows[0]["AccountId"]),
-                    AccountName = table.Rows[0]["AccountName"].ToString()!,
-                    AccountGroupId = Convert.ToInt32(table.Rows[0]["AccountGroupId"]),
-                    Address = table.Rows[0]["Address"].ToString()!,
-                    City = table.Rows[0]["City"].ToString()!,
-                    Pincode = table.Rows[0]["Pincode"].ToString()!,
-                    MobileNo = table.Rows[0]["MobileNo"].ToString()!,
-                    PhoneNo = table.Rows[0]["PhoneNo"].ToString()!,
-                    Email = table.Rows[0]["Email"].ToString()!,
-                    Fine = Convert.ToDecimal(table.Rows[0]["Fine"]),
-                    Amount = Convert.ToDecimal(table.Rows[0]["Amount"])
-                };
-                return View(accountModel);
-            }
+            TempData["SuccessMessage"] = "Account deleted successfully!";
         }
-        return View(new AccountModel());
+        catch (SqlException ex) when (ex.Number == 547) // FK constraint violation
+        {
+            TempData["ErrorMessage"] = "Cannot delete this account because it is referenced by other records.";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"Deletion failed: {ex.Message}";
+        }
+        return RedirectToAction("AccountList");
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult saveAddEditAccount(AccountModel account)
+    public IActionResult SaveAddEditAccount(AccountModel account)
     {
         if (!ModelState.IsValid)
         {
@@ -125,45 +125,43 @@ public class AccountController : Controller
             return View("AddEditAccount", account);
         }
 
-        string? connectionString = configuration.GetConnectionString("ConnectionString");
         try
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using var connection = new SqlConnection(_connectionString);
+            connection.Open();
+            using var command = new SqlCommand(
+                account.AccountId == null ? "SP_Account_Insert" : "SP_Account_Update",
+                connection)
             {
-                connection.Open();
-                SqlCommand command = connection.CreateCommand();
-                command.CommandType = CommandType.StoredProcedure;
+                CommandType = CommandType.StoredProcedure
+            };
 
-                if (account.AccountId == null)
-                {
-                    command.CommandText = "SP_Account_Insert";
-                }
-                else
-                {
-                    command.CommandText = "SP_Account_Update";
-                    command.Parameters.AddWithValue("@AccountId", account.AccountId);
-                }
+            if (account.AccountId.HasValue)
+                command.Parameters.AddWithValue("@AccountId", account.AccountId);
 
-                command.Parameters.AddWithValue("@Date", DateTime.Now);
-                command.Parameters.AddWithValue("@AccountName", account.AccountName);
-                command.Parameters.AddWithValue("@AccountGroupId", account.AccountGroupId);
-                command.Parameters.AddWithValue("@Address", account.Address ?? (object)DBNull.Value);
-                command.Parameters.AddWithValue("@City", account.City ?? (object)DBNull.Value);
-                command.Parameters.AddWithValue("@Pincode", account.Pincode ?? (object)DBNull.Value);
-                command.Parameters.AddWithValue("@MobileNo", account.MobileNo);
-                command.Parameters.AddWithValue("@PhoneNo", account.PhoneNo ?? (object)DBNull.Value);
-                command.Parameters.AddWithValue("@Email", account.Email ?? (object)DBNull.Value);
-                command.Parameters.AddWithValue("@Fine", account.Fine);
-                command.Parameters.AddWithValue("@Amount", account.Amount);
+            command.Parameters.AddWithValue("@Date", DateTime.Now);
+            command.Parameters.AddWithValue("@AccountName", account.AccountName);
+            command.Parameters.AddWithValue("@AccountGroupId", account.AccountGroupId);
+            command.Parameters.AddWithValue("@Address", account.Address ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@City", account.City ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Pincode", account.Pincode ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@MobileNo", account.MobileNo);
+            command.Parameters.AddWithValue("@PhoneNo", account.PhoneNo ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Email", account.Email ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Fine", account.Fine);
+            command.Parameters.AddWithValue("@Amount", account.Amount);
 
-                command.ExecuteNonQuery();
-            }
+            command.ExecuteNonQuery();
+
+            TempData["SuccessMessage"] = account.AccountId == null
+                ? "Account added successfully!"
+                : "Account updated successfully!";
             return RedirectToAction("AccountList");
         }
         catch (Exception ex)
         {
             ViewBag.groupList = SetGroupDropDown();
-            ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
+            ModelState.AddModelError("", $"Save failed: {ex.Message}");
             return View("AddEditAccount", account);
         }
     }

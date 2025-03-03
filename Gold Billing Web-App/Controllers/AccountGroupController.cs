@@ -5,128 +5,118 @@ using System.Data;
 
 public class AccountGroupController : Controller
 {
-    #region Configuration
-    private readonly IConfiguration configuration;
-    public AccountGroupController(IConfiguration _configuration)
-    {
-        configuration = _configuration;
-    }
-    #endregion
+    private readonly IConfiguration _configuration;
+    private readonly string _connectionString;
 
-    #region AccountGroupList
+    public AccountGroupController(IConfiguration configuration)
+    {
+        _configuration = configuration;
+        _connectionString = configuration.GetConnectionString("ConnectionString")
+            ?? throw new ArgumentNullException(nameof(configuration), "Connection string is missing.");
+    }
+
     public IActionResult AccountGroupList()
     {
-        string? connectionString = configuration.GetConnectionString("ConnectionString");
-
-        if (string.IsNullOrEmpty(connectionString))
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        using var command = new SqlCommand("SP_GroupAccount_SelectAll", connection)
         {
-            throw new Exception("Database connection string is missing or invalid.");
-        }
+            CommandType = CommandType.StoredProcedure
+        };
 
-        using (SqlConnection connection = new SqlConnection(connectionString))
-        {
-            connection.Open();
-            SqlCommand command = connection.CreateCommand();
-            command.CommandType = CommandType.StoredProcedure;
-            command.CommandText = "SP_GroupAccount_SelectAll";
-            SqlDataReader reader = command.ExecuteReader();
-            DataTable table = new DataTable();
-            table.Load(reader);
-            return View(table);
-        }
+        using var reader = command.ExecuteReader();
+        var table = new DataTable();
+        table.Load(reader);
+        return View(table);
     }
-    #endregion
 
-    #region Add/Edit
     public IActionResult AddEditAccountGroup(int Id)
     {
-        if (Id > 0)
+        if (Id <= 0) return View(new AccountGroupModel());
+
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        using var command = new SqlCommand("SP_GroupAccount_SelectByID", connection)
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = connection.CreateCommand();
-                command.CommandType = CommandType.StoredProcedure;
-                command.CommandText = "SP_GroupAccount_SelectByID";
-                command.Parameters.AddWithValue("@Id", Id);
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable table = new DataTable();
-                table.Load(reader);
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.AddWithValue("@Id", Id);
 
-                if (table.Rows.Count == 0)
-                {
-                    return NotFound();
-                }
+        using var reader = command.ExecuteReader();
+        var table = new DataTable();
+        table.Load(reader);
 
-                AccountGroupModel accountGroupModel = new AccountGroupModel
-                {
-                    Id = Convert.ToInt32(table.Rows[0]["Id"]),
-                    GroupName = table.Rows[0]["GroupName"].ToString()!
-                };
+        if (table.Rows.Count == 0) return NotFound();
 
-                return View(accountGroupModel);
-            }
-        }
-        return View(new AccountGroupModel());
+        var accountGroupModel = new AccountGroupModel
+        {
+            Id = table.Rows[0].Field<int>("Id"),
+            GroupName = table.Rows[0].Field<string>("GroupName") ?? string.Empty
+        };
+        return View(accountGroupModel);
     }
-    #endregion
 
-    #region Save Method
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult saveAddEditAccountGroup(AccountGroupModel accountGroup)
+    public IActionResult SaveAddEditAccountGroup(AccountGroupModel accountGroup)
     {
         if (!ModelState.IsValid)
         {
             return View("AddEditAccountGroup", accountGroup);
         }
 
-        string? connectionString = configuration.GetConnectionString("ConnectionString");
         try
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using var connection = new SqlConnection(_connectionString);
+            connection.Open();
+            using var command = new SqlCommand(
+                accountGroup.Id == null ? "SP_GroupAccount_Insert" : "SP_GroupAccount_Update",
+                connection)
             {
-                connection.Open();
-                SqlCommand command = connection.CreateCommand();
-                command.CommandType = CommandType.StoredProcedure;
+                CommandType = CommandType.StoredProcedure
+            };
 
-                if (accountGroup.Id == null)
-                {
-                    command.CommandText = "SP_GroupAccount_Insert";
-                }
-                else
-                {
-                    command.CommandText = "SP_GroupAccount_Update";
-                    command.Parameters.AddWithValue("@Id", accountGroup.Id);
-                }
+            if (accountGroup.Id.HasValue)
+                command.Parameters.AddWithValue("@Id", accountGroup.Id);
 
-                command.Parameters.AddWithValue("@GroupName", accountGroup.GroupName);
-                command.ExecuteNonQuery();
-            }
+            command.Parameters.AddWithValue("@GroupName", accountGroup.GroupName);
+            command.ExecuteNonQuery();
+
+            TempData["SuccessMessage"] = accountGroup.Id == null
+                ? "Account group added successfully!"
+                : "Account group updated successfully!";
             return RedirectToAction("AccountGroupList");
         }
         catch (Exception ex)
         {
-            ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
+            TempData["ErrorMessage"] = $"An error occurred while saving: {ex.Message}";
             return View("AddEditAccountGroup", accountGroup);
         }
     }
-    #endregion
 
-    #region Delete
     public IActionResult DeleteAccountGroup(int Id)
     {
-        string? connectionString = configuration.GetConnectionString("ConnectionString");
-        using (SqlConnection con = new SqlConnection(connectionString))
+        try
         {
-            SqlCommand cmd = new SqlCommand("SP_GroupAccount_Delete", con);
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@Id", Id);
-            con.Open();
-            cmd.ExecuteNonQuery();
+            using var connection = new SqlConnection(_connectionString);
+            connection.Open();
+            using var command = new SqlCommand("SP_GroupAccount_Delete", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+            command.Parameters.AddWithValue("@Id", Id);
+            command.ExecuteNonQuery();
+
+            TempData["SuccessMessage"] = "Account group deleted successfully!";
+        }
+        catch (SqlException ex) when (ex.Number == 547) // FK constraint violation
+        {
+            TempData["ErrorMessage"] = "Cannot delete this account group because it is referenced by other records.";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"Deletion failed: {ex.Message}";
         }
         return RedirectToAction("AccountGroupList");
     }
-    #endregion
 }
