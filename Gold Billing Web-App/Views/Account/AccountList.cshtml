@@ -42,12 +42,12 @@
                             <td style="white-space: nowrap;">@a["Amount"]</td>
                             <td class="text-center" style="white-space: nowrap;">
                                 <div class="btn-group" role="group">
-                                    <form asp-action="AddEditAccountGroup" asp-controller="AccountGroup" method="post">
-                                        <input type="hidden" name="Id" value="@a["AccountId"]" />
+                                    <form asp-action="AddEditAccount" asp-controller="Account" method="post">
+                                        <input type="hidden" name="AccountId" value="@a["AccountId"]" />
                                         <button type="submit" class="btn btn-outline-primary btn-sm">Edit</button>
                                     </form>
-                                    <form asp-action="DeleteAccountGroup" asp-controller="AccountGroup" method="post">
-                                        <input type="hidden" name="Id" value="@a["AccountId"]" />
+                                    <form asp-action="DeleteAccount" asp-controller="Account" method="post">
+                                        <input type="hidden" name="AccountId" value="@a["AccountId"]" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to delete this Account?');">Delete</button>
                                     </form>
                                 </div>
