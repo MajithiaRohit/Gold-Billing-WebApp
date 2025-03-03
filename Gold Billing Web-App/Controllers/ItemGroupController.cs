@@ -19,7 +19,7 @@ namespace Gold_Billing_Web_App.Controllers
         #region ItemGroup List
         public IActionResult ItemGroupList()
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
 
             if (string.IsNullOrEmpty(connectionString))
             {
@@ -47,7 +47,7 @@ namespace Gold_Billing_Web_App.Controllers
 
             if (Id.HasValue && Id > 0)
             {
-                string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+                string? connectionString = configuration.GetConnectionString("ConnectionString");
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
@@ -58,13 +58,17 @@ namespace Gold_Billing_Web_App.Controllers
                     SqlDataReader reader = command.ExecuteReader();
                     DataTable table = new DataTable();
                     table.Load(reader);
-                    connection.Close();
 
-                    foreach (DataRow dataRow in table.Rows)
+                    if (table.Rows.Count == 0)
                     {
-                        itemGroupModel.Id = Convert.ToInt32(dataRow["Id"]);
-                        itemGroupModel.Name = dataRow["Name"].ToString()!;
+                        return NotFound();
                     }
+
+                    itemGroupModel = new ItemGroupModel
+                    {
+                        Id = Convert.ToInt32(table.Rows[0]["Id"]),
+                        Name = table.Rows[0]["Name"].ToString()!
+                    };
                 }
             }
 
@@ -74,9 +78,15 @@ namespace Gold_Billing_Web_App.Controllers
 
         #region Save Method
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult SaveItemGroup(ItemGroupModel itemGroup)
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+            if (!ModelState.IsValid)
+            {
+                return View("AddEditItemGroup", itemGroup);
+            }
+
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
 
             try
             {
@@ -86,7 +96,6 @@ namespace Gold_Billing_Web_App.Controllers
                     SqlCommand command = connection.CreateCommand();
                     command.CommandType = CommandType.StoredProcedure;
 
-                   
                     if (!itemGroup.Id.HasValue || itemGroup.Id == 0)
                     {
                         command.CommandText = "SP_ItemGroup_Insert";
@@ -97,8 +106,8 @@ namespace Gold_Billing_Web_App.Controllers
                         command.Parameters.AddWithValue("@Id", itemGroup.Id);
                     }
 
-                    command.Parameters.AddWithValue("@Name", itemGroup.Name);
-                    command.Parameters.AddWithValue("@Date", DateTime.Now); 
+                    command.Parameters.AddWithValue("@Name", itemGroup.Name ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Date", DateTime.Now);
 
                     command.ExecuteNonQuery();
                 }
@@ -107,17 +116,16 @@ namespace Gold_Billing_Web_App.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occurred: " + ex.Message);
+                ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
                 return View("AddEditItemGroup", itemGroup);
             }
         }
         #endregion
 
-
         #region Delete
         public IActionResult DeleteItemGroup(int Id)
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
 
             using (SqlConnection con = new SqlConnection(connectionString))
             {

@@ -15,10 +15,9 @@ namespace Gold_Billing_Web_App.Controllers
             configuration = _configuration;
         }
 
-        #region Generate Sequential BillNo
         private string GenerateSequentialBillNo()
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
             string prefix = "BILL";
             int lastNumber = 0;
 
@@ -35,55 +34,41 @@ namespace Gold_Billing_Web_App.Controllers
                     lastNumber = Convert.ToInt32(result);
                 }
 
-                lastNumber += 1; // Increment by 1
-                connection.Close();
+                lastNumber += 1;
+                return $"{prefix}{lastNumber:D4}";
             }
-
-            return $"{prefix}{lastNumber:D4}"; // e.g., BILL0001, BILL0002
         }
-        #endregion
 
-        #region Dropdown for Items
-        public List<ItemDropDownModel> setItemDropDown()
+        public List<ItemDropDownModel> SetItemDropDown()
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
-            SqlConnection connection = new SqlConnection(connectionString);
-            connection.Open();
-            SqlCommand command = connection.CreateCommand();
-            command.CommandType = CommandType.StoredProcedure;
-            command.CommandText = "SP_ItemDropDown";
-
-            SqlDataReader reader = command.ExecuteReader();
-            DataTable dataTable = new DataTable();
-            dataTable.Load(reader);
-            connection.Close();
-
-            List<ItemDropDownModel> items = new List<ItemDropDownModel>();
-
-            foreach (DataRow dataRow in dataTable.Rows)
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                ItemDropDownModel item = new ItemDropDownModel
+                connection.Open();
+                SqlCommand command = connection.CreateCommand();
+                command.CommandType = CommandType.StoredProcedure;
+                command.CommandText = "SP_ItemDropDown";
+
+                SqlDataReader reader = command.ExecuteReader();
+                DataTable dataTable = new DataTable();
+                dataTable.Load(reader);
+
+                return dataTable.AsEnumerable().Select(row => new ItemDropDownModel
                 {
-                    Id = Convert.ToInt32(dataRow["Id"]),
-                    ItemName = dataRow["Name"].ToString()!
-                };
-                items.Add(item);
+                    Id = row.Field<int>("Id"),
+                    ItemName = row.Field<string>("Name")!
+                }).ToList();
             }
-
-            return items;
         }
-        #endregion
 
-        #region Add Opening Stock
         public IActionResult AddOpeningStock()
         {
-            ViewBag.itemDropDown = setItemDropDown();
+            ViewBag.itemDropDown = SetItemDropDown();
             var model = new OpeningStockModel
             {
                 BillNo = GenerateSequentialBillNo(),
                 Date = DateTime.Now
             };
-            // Set default calculated values (optional, can be left blank for user input)
             CalculateDerivedFields(model);
             return View(model);
         }
@@ -92,10 +77,15 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult AddOpeningStock(OpeningStockModel model)
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+            if (!ModelState.IsValid)
+            {
+                ViewBag.itemDropDown = SetItemDropDown();
+                return View(model);
+            }
+
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
             try
             {
-                // Calculate derived fields before saving
                 CalculateDerivedFields(model);
 
                 using (SqlConnection connection = new SqlConnection(connectionString))
@@ -108,37 +98,34 @@ namespace Gold_Billing_Web_App.Controllers
                     command.Parameters.AddWithValue("@Date", model.Date);
                     command.Parameters.AddWithValue("@BillNo", model.BillNo);
                     command.Parameters.AddWithValue("@Narration", model.Narration ?? (object)DBNull.Value);
-                   command.Parameters.AddWithValue("@ItemId", model.ItemId);
-                    command.Parameters.AddWithValue("@Pc", model.Pc);
-                    command.Parameters.AddWithValue("@Weight", model.Weight);
-                    command.Parameters.AddWithValue("@Less", model.Less);
-                    command.Parameters.AddWithValue("@NetWt", model.NetWt);
+                    command.Parameters.AddWithValue("@ItemId", model.ItemId);
+                    command.Parameters.AddWithValue("@Pc", model.Pc ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Weight", model.Weight ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Less", model.Less ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@NetWt", model.NetWt ?? (object)DBNull.Value);
                     command.Parameters.AddWithValue("@Tunch", model.Tunch);
                     command.Parameters.AddWithValue("@Wastage", model.Wastage);
                     command.Parameters.AddWithValue("@TW", model.TW);
-                    command.Parameters.AddWithValue("@Rate", model.Rate);
-                    command.Parameters.AddWithValue("@Fine", model.Fine);
-                    command.Parameters.AddWithValue("@Amount", model.Amount);
+                    command.Parameters.AddWithValue("@Rate", model.Rate ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Fine", model.Fine ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Amount", model.Amount ?? (object)DBNull.Value);
 
                     command.ExecuteNonQuery();
-                    connection.Close();
                 }
                 return RedirectToAction("ViewStock");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occurred: " + ex.Message);
-                ViewBag.itemDropDown = setItemDropDown();
+                ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
+                ViewBag.itemDropDown = SetItemDropDown();
                 return View(model);
             }
         }
-        #endregion
 
-        #region Edit Opening Stock
         public IActionResult EditOpeningStock(int id)
         {
             string? connectionString = configuration.GetConnectionString("ConnectionString");
-            ViewBag.itemDropDown = setItemDropDown();
+            ViewBag.itemDropDown = SetItemDropDown();
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
@@ -151,44 +138,49 @@ namespace Gold_Billing_Web_App.Controllers
                 SqlDataReader reader = command.ExecuteReader();
                 DataTable table = new DataTable();
                 table.Load(reader);
-                connection.Close();
 
-                if (table.Rows.Count > 0)
+                if (table.Rows.Count == 0)
                 {
-                    DataRow row = table.Rows[0];
-                    var model = new OpeningStockModel
-                    {
-                        Id = Convert.ToInt32(row["Id"]),
-                        BillNo = row["BillNo"].ToString()!,
-                        Date = Convert.ToDateTime(row["Date"]),
-                        Narration = row["Narration"].ToString(),
-                        //ItemId = Convert.ToInt32(row["ItemId"]),
-                        //ItemName = row["Name"].ToString()!, // From the JOIN with Item
-                        Pc = Convert.ToInt32(row["Pc"]),
-                        Weight = Convert.ToDecimal(row["Weight"]),
-                        Less = Convert.ToDecimal(row["Less"]),
-                        NetWt = Convert.ToDecimal(row["NetWt"]),
-                        Tunch = Convert.ToDecimal(row["Tunch"]),
-                        Wastage = Convert.ToDecimal(row["Wastage"]),
-                        TW = Convert.ToDecimal(row["TW"]),
-                        Rate = Convert.ToDecimal(row["Rate"]),
-                        Fine = Convert.ToDecimal(row["Fine"]),
-                        Amount = Convert.ToDecimal(row["Amount"])
-                    };
-                    return View("AddOpeningStock", model); // Reuse the same view for editing
+                    return NotFound();
                 }
+
+                DataRow row = table.Rows[0];
+                var model = new OpeningStockModel
+                {
+                    Id = row.Field<int>("Id"),
+                    BillNo = row.Field<string>("BillNo")!,
+                    Date = row.Field<DateTime>("Date"),
+                    Narration = row.Field<string>("Narration"),
+                    ItemId = row.Field<int>("ItemId"),
+                    ItemName = row.Field<string>("Name")!, // Assuming join with Item table
+                    Pc = row["Pc"] != DBNull.Value ? row.Field<int>("Pc") : null,
+                    Weight = row["Weight"] != DBNull.Value ? row.Field<decimal>("Weight") : null,
+                    Less = row["Less"] != DBNull.Value ? row.Field<decimal>("Less") : null,
+                    NetWt = row["NetWt"] != DBNull.Value ? row.Field<decimal>("NetWt") : null,
+                    Tunch = row.Field<decimal>("Tunch"),
+                    Wastage = row.Field<decimal>("Wastage"),
+                    TW = row.Field<decimal>("TW"),
+                    Rate = row["Rate"] != DBNull.Value ? row.Field<decimal>("Rate") : null,
+                    Fine = row["Fine"] != DBNull.Value ? row.Field<decimal>("Fine") : null,
+                    Amount = row["Amount"] != DBNull.Value ? row.Field<decimal>("Amount") : null
+                };
+                return View("AddOpeningStock", model);
             }
-            return NotFound();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult EditOpeningStock(OpeningStockModel model)
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+            if (!ModelState.IsValid)
+            {
+                ViewBag.itemDropDown = SetItemDropDown();
+                return View("AddOpeningStock", model);
+            }
+
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
             try
             {
-                // Calculate derived fields before updating
                 CalculateDerivedFields(model);
 
                 using (SqlConnection connection = new SqlConnection(connectionString))
@@ -202,36 +194,33 @@ namespace Gold_Billing_Web_App.Controllers
                     command.Parameters.AddWithValue("@Date", model.Date);
                     command.Parameters.AddWithValue("@BillNo", model.BillNo);
                     command.Parameters.AddWithValue("@Narration", model.Narration ?? (object)DBNull.Value);
-                   // command.Parameters.AddWithValue("@ItemId", model.ItemId);
-                    command.Parameters.AddWithValue("@Pc", model.Pc);
-                    command.Parameters.AddWithValue("@Weight", model.Weight);
-                    command.Parameters.AddWithValue("@Less", model.Less);
-                    command.Parameters.AddWithValue("@NetWt", model.NetWt);
+                    command.Parameters.AddWithValue("@ItemId", model.ItemId);
+                    command.Parameters.AddWithValue("@Pc", model.Pc ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Weight", model.Weight ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Less", model.Less ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@NetWt", model.NetWt ?? (object)DBNull.Value);
                     command.Parameters.AddWithValue("@Tunch", model.Tunch);
                     command.Parameters.AddWithValue("@Wastage", model.Wastage);
                     command.Parameters.AddWithValue("@TW", model.TW);
-                    command.Parameters.AddWithValue("@Rate", model.Rate);
-                    command.Parameters.AddWithValue("@Fine", model.Fine);
-                    command.Parameters.AddWithValue("@Amount", model.Amount);
+                    command.Parameters.AddWithValue("@Rate", model.Rate ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Fine", model.Fine ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Amount", model.Amount ?? (object)DBNull.Value);
 
                     command.ExecuteNonQuery();
-                    connection.Close();
                 }
                 return RedirectToAction("ViewStock");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occurred: " + ex.Message);
-                ViewBag.itemDropDown = setItemDropDown();
+                ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
+                ViewBag.itemDropDown = SetItemDropDown();
                 return View("AddOpeningStock", model);
             }
         }
-        #endregion
 
-        #region Delete Opening Stock
         public IActionResult DeleteOpeningStock(int id)
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 SqlCommand command = new SqlCommand("SP_OpeningStock_Delete", connection);
@@ -242,9 +231,7 @@ namespace Gold_Billing_Web_App.Controllers
             }
             return RedirectToAction("ViewStock");
         }
-        #endregion
 
-        #region View Stock List
         public IActionResult ViewStock()
         {
             string? connectionString = configuration.GetConnectionString("ConnectionString");
@@ -259,16 +246,13 @@ namespace Gold_Billing_Web_App.Controllers
                 return View(table);
             }
         }
-        #endregion
 
-        #region Helper Method for Calculations
         private void CalculateDerivedFields(OpeningStockModel model)
         {
-            model.NetWt = model.Weight - model.Less;
+            model.NetWt = (model.Weight ?? 0) - (model.Less ?? 0);
             model.TW = model.Tunch + model.Wastage;
-            model.Fine = model.NetWt * (model.TW / 100); // Assuming TW is a percentage
-            model.Amount = model.Fine * model.Rate;
+            model.Fine = (model.NetWt ?? 0) * (model.TW / 100);
+            model.Amount = (model.Fine ?? 0) * (model.Rate ?? 0);
         }
-        #endregion
     }
 }

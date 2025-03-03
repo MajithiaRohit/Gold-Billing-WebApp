@@ -1,31 +1,34 @@
 ﻿@model Gold_Billing_Web_App.Models.OpeningStockModel
-
 @{
-    ViewBag.Title = "Gold Billing";
+    ViewBag.Title = Model.Id == 0 ? "Add Opening Stock" : "Edit Opening Stock";
 }
 
 <div class="container p-3" style="background-color: #f8d7da; border-radius: 10px;">
-    <h3 class="text-center">Gold Billing</h3>
-    <form asp-action="AddOpeningStock" method="post">
+    <h3 class="text-center">@ViewBag.Title</h3>
+    <form asp-action="@(Model.Id == 0 ? "AddOpeningStock" : "EditOpeningStock")" method="post">
+        @Html.AntiForgeryToken()
+        @Html.HiddenFor(m => m.Id)
+
         <div class="row mb-3">
             <div class="col-md-3">
-                <label asp-for="Date"></label>
+                <label asp-for="Date" class="form-label"></label>
                 <input asp-for="Date" type="date" class="form-control" />
                 <span asp-validation-for="Date" class="text-danger"></span>
             </div>
             <div class="col-md-3 form-group">
-                <label asp-for="BillNo"></label>
+                <label asp-for="BillNo" class="form-label"></label>
                 <input asp-for="BillNo" class="form-control" readonly />
+                <span asp-validation-for="BillNo" class="text-danger"></span>
             </div>
             <div class="col-md-6">
-                <label asp-for="Narration"></label>
+                <label asp-for="Narration" class="form-label"></label>
                 <input asp-for="Narration" type="text" class="form-control" />
                 <span asp-validation-for="Narration" class="text-danger"></span>
             </div>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-bordered">
+            <table class="table table-bordered" id="stockTable">
                 <thead class="bg-light">
                     <tr>
                         <th>Item Name</th>
@@ -49,29 +52,63 @@
                             </select>
                             <span asp-validation-for="ItemId" class="text-danger"></span>
                         </td>
-                        <td><input asp-for="Pc" type="number" class="form-control pc-input" /></td>
-                        <td><input asp-for="Weight" type="number" step="0.01" class="form-control weight-input" onchange="calculateNetWeight(this)" /></td>
-                        <td><input asp-for="Less" type="number" step="0.01" class="form-control less-input" onchange="calculateNetWeight(this)" /></td>
-                        <td><input asp-for="NetWt" type="number" step="0.01" class="form-control netwt-input" readonly /></td>
-                        <td><input asp-for="Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateTW(this)" /></td>
-                        <td><input asp-for="Wastage" type="number" step="0.01" class="form-control wastage-input" onchange="calculateTW(this)" /></td>
-                        <td><input asp-for="TW" type="number" step="0.01" class="form-control tw-input" readonly /></td>
+                        <td>
+                            <input asp-for="Pc" type="number" class="form-control pc-input" />
+                            <span asp-validation-for="Pc" class="text-danger"></span>
+                        </td>
+                        <td>
+                            <input asp-for="Weight" type="number" step="0.01" class="form-control weight-input" onchange="calculateNetWeight(this)" />
+                            <span asp-validation-for="Weight" class="text-danger"></span>
+                        </td>
+                        <td>
+                            <input asp-for="Less" type="number" step="0.01" class="form-control less-input" onchange="calculateNetWeight(this)" />
+                            <span asp-validation-for="Less" class="text-danger"></span>
+                        </td>
+                        <td>
+                            <input asp-for="NetWt" type="number" step="0.01" class="form-control netwt-input" readonly />
+                            <span asp-validation-for="NetWt" class="text-danger"></span>
+                        </td>
+                        <td>
+                            <input asp-for="Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateTW(this)" />
+                            <span asp-validation-for="Tunch" class="text-danger"></span>
+                        </td>
+                        <td>
+                            <input asp-for="Wastage" type="number" step="0.01" class="form-control wastage-input" onchange="calculateTW(this)" />
+                            <span asp-validation-for="Wastage" class="text-danger"></span>
+                        </td>
+                        <td>
+                            <input asp-for="TW" type="number" step="0.01" class="form-control tw-input" readonly />
+                            <span asp-validation-for="TW" class="text-danger"></span>
+                        </td>
                         <td>
                             <input asp-for="Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateFineAndAmount(this.closest('tr'))" />
+                            <span asp-validation-for="Rate" class="text-danger"></span>
                         </td>
-                        <td><input asp-for="Fine" type="number" step="0.01" class="form-control fine-input" readonly /></td>
-                        <td><input asp-for="Amount" type="number" step="0.01" class="form-control amount-input" readonly /></td>
+                        <td>
+                            <input asp-for="Fine" type="number" step="0.01" class="form-control fine-input" readonly />
+                            <span asp-validation-for="Fine" class="text-danger"></span>
+                        </td>
+                        <td>
+                            <input asp-for="Amount" type="number" step="0.01" class="form-control amount-input" readonly />
+                            <span asp-validation-for="Amount" class="text-danger"></span>
+                        </td>
                     </tr>
                 </tbody>
             </table>
         </div>
-        <button class="btn btn-primary mb-3" onclick="addNewRow()">Add New Row</button>
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <button type="button" class="btn btn-primary mb-3" onclick="addNewRow()">Add New Row</button>
         <div class="row mt-3">
             <div class="col-md-12 text-center">
                 <button type="submit" class="btn btn-success">Save</button>
-                <button type="button" class="btn btn-danger" onclick="window.location.href='@Url.Action("ViewStock")'">Cancel</button>
-                <button type="button" class="btn btn-warning" onclick="deleteOpeningStock(@Model.Id)">Delete</button>
-                <button type="button" class="btn btn-primary" onclick="window.location.href='@Url.Action("AddOpeningStock")'">New</button>
+                <a href="@Url.Action("ViewStock")" class="btn btn-danger">Cancel</a>
+                @if (Model.Id != 0)
+                {
+                    <button type="button" class="btn btn-warning" onclick="deleteOpeningStock(@Model.Id)">Delete</button>
+                }
+                <a href="@Url.Action("AddOpeningStock")" class="btn btn-primary">New</a>
                 <button type="button" class="btn btn-info">Print</button>
                 <button type="button" class="btn btn-secondary">Export</button>
             </div>
@@ -83,14 +120,10 @@
     function calculateNetWeight(element) {
         let row = element.closest('tr');
         let grossWeight = parseFloat(row.querySelector('.weight-input').value) || 0;
-        console.log("Gross Weight:", grossWeight);
         let less = parseFloat(row.querySelector('.less-input').value) || 0;
-        console.log("Less:", less);
         let netWeight = grossWeight - less;
         row.querySelector('.netwt-input').value = netWeight.toFixed(2);
-        console.log("Net Weight:", netWeight);
-       calculateFineAndAmount(row);
-
+        calculateFineAndAmount(row);
     }
 
     function calculateTW(element) {
@@ -98,59 +131,32 @@
         let tunch = parseFloat(row.querySelector('.tunch-input').value) || 0;
         let wastage = parseFloat(row.querySelector('.wastage-input').value) || 0;
         let tw = tunch + wastage;
-        row.querySelector('.tw-input').value = tw.toFixed(2);calculateFineAndAmount(row);
-
+        row.querySelector('.tw-input').value = tw.toFixed(2);
+        calculateFineAndAmount(row);
     }
 
-            function calculateFineAndAmount(row) {
+    function calculateFineAndAmount(row) {
         let netWeight = parseFloat(row.querySelector('.netwt-input').value) || 0;
         let tw = parseFloat(row.querySelector('.tw-input').value) || 0;
         let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
 
-        // Ensure valid calculation
-        let fine = parseFloat((netWeight * (tw / 100)).toFixed(2)) || 0;
+        let fine = netWeight * (tw / 100);
         let amount = fine * rate;
 
-        // Prevent NaN issue
-        amount = isNaN(amount) ? 0 : amount.toFixed(2);
-
-        console.log("Net Weight:", netWeight, "TW:", tw, "Rate:", rate, "Fine:", fine, "Amount:", amount);
-
-        // Ensure input fields exist before updating
-        let fineInput = row.querySelector('.fine-input');
-        let amountInput = row.querySelector('.amount-input');
-
-        if (fineInput) fineInput.value = fine;
-        if (amountInput) amountInput.value = amount;
+        row.querySelector('.fine-input').value = fine.toFixed(2);
+        row.querySelector('.amount-input').value = amount.toFixed(2);
     }
 
-
     function addNewRow() {
-        let table = document.querySelector(".table tbody");
+        let table = document.getElementById('stockTable').querySelector('tbody');
         let rowCount = table.getElementsByTagName('tr').length;
         let newRow = table.rows[0].cloneNode(true);
 
-        // Update name attributes for model binding
         newRow.querySelectorAll("input, select").forEach(input => {
-            let name = input.name.replace("[0]", `[${rowCount}]`);
-            input.name = name;
-            input.value = ""; // Clear values in the new row
-        });
-
-        // Remove existing IDs and add classes for dynamic targeting
-        newRow.querySelectorAll("input, select").forEach(input => {
-            input.removeAttribute("id");
-            if (input.classList.contains("item-select")) input.classList.add("item-select");
-            if (input.classList.contains("pc-input")) input.classList.add("pc-input");
-            if (input.classList.contains("weight-input")) input.classList.add("weight-input");
-            if (input.classList.contains("less-input")) input.classList.add("less-input");
-            if (input.classList.contains("netwt-input")) input.classList.add("netwt-input");
-            if (input.classList.contains("tunch-input")) input.classList.add("tunch-input");
-            if (input.classList.contains("wastage-input")) input.classList.add("wastage-input");
-            if (input.classList.contains("tw-input")) input.classList.add("tw-input");
-            if (input.classList.contains("rate-input")) input.classList.add("rate-input");
-            if (input.classList.contains("fine-input")) input.classList.add("fine-input");
-            if (input.classList.contains("amount-input")) input.classList.add("amount-input");
+            let baseName = input.name.split('.')[1];
+            input.name = `OpeningStockModels[${rowCount}].${baseName}`;
+            input.id = `OpeningStockModels_${rowCount}__${baseName}`;
+            if (!input.readOnly) input.value = "";
         });
 
         // Reset calculated fields
@@ -158,6 +164,13 @@
         newRow.querySelector('.tw-input').value = "";
         newRow.querySelector('.fine-input').value = "";
         newRow.querySelector('.amount-input').value = "";
+
+        // Clone validation spans
+        newRow.querySelectorAll("span.text-danger").forEach(span => {
+            let baseFor = span.getAttribute('data-valmsg-for').split('.')[1];
+            span.setAttribute('data-valmsg-for', `OpeningStockModels[${rowCount}].${baseFor}`);
+            span.innerHTML = ""; // Clear any existing validation message
+        });
 
         table.appendChild(newRow);
     }

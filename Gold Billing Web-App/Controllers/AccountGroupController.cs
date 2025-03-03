@@ -1,31 +1,30 @@
-﻿using System.Data;
-using Gold_Billing_Web_App.Models;
+﻿using Gold_Billing_Web_App.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using System.Data;
 
-namespace Gold_Billing_Web_App.Controllers
+public class AccountGroupController : Controller
 {
-    public class AccountGroupController : Controller
+    #region Configuration
+    private readonly IConfiguration configuration;
+    public AccountGroupController(IConfiguration _configuration)
     {
-        #region Configration
-        private readonly IConfiguration configuration;
-        public AccountGroupController(IConfiguration _configuration)
+        configuration = _configuration;
+    }
+    #endregion
+
+    #region AccountGroupList
+    public IActionResult AccountGroupList()
+    {
+        string? connectionString = configuration.GetConnectionString("ConnectionString");
+
+        if (string.IsNullOrEmpty(connectionString))
         {
-            configuration = _configuration;
+            throw new Exception("Database connection string is missing or invalid.");
         }
-        #endregion
 
-        #region AccountGroupList
-        public IActionResult AccountGroupList()
+        using (SqlConnection connection = new SqlConnection(connectionString))
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
-
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                throw new Exception("Database connection string is missing or invalid.");
-            }
-            SqlConnection connection = new SqlConnection(connectionString);
             connection.Open();
             SqlCommand command = connection.CreateCommand();
             command.CommandType = CommandType.StoredProcedure;
@@ -35,13 +34,17 @@ namespace Gold_Billing_Web_App.Controllers
             table.Load(reader);
             return View(table);
         }
-        #endregion
-        public IActionResult AddEditAccountGroup(int Id)
+    }
+    #endregion
+
+    #region Add/Edit
+    public IActionResult AddEditAccountGroup(int Id)
+    {
+        if (Id > 0)
         {
-            if (Id > 0)
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                string? connectionString = this.configuration.GetConnectionString("ConnectionString");
-                SqlConnection connection = new SqlConnection(connectionString);
                 connection.Open();
                 SqlCommand command = connection.CreateCommand();
                 command.CommandType = CommandType.StoredProcedure;
@@ -50,75 +53,80 @@ namespace Gold_Billing_Web_App.Controllers
                 SqlDataReader reader = command.ExecuteReader();
                 DataTable table = new DataTable();
                 table.Load(reader);
-                connection.Close();
 
-                AccountGroupModel accountGroupModel = new AccountGroupModel();
-
-                foreach (DataRow dataRow in table.Rows)
+                if (table.Rows.Count == 0)
                 {
-                    accountGroupModel.Id = Convert.ToInt32(dataRow["Id"]);
-                    accountGroupModel.GroupName = dataRow["GroupName"].ToString()!;
+                    return NotFound();
                 }
+
+                AccountGroupModel accountGroupModel = new AccountGroupModel
+                {
+                    Id = Convert.ToInt32(table.Rows[0]["Id"]),
+                    GroupName = table.Rows[0]["GroupName"].ToString()!
+                };
 
                 return View(accountGroupModel);
             }
-            else
-            {
-                return View(new AccountGroupModel());
-            }
+        }
+        return View(new AccountGroupModel());
+    }
+    #endregion
+
+    #region Save Method
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult saveAddEditAccountGroup(AccountGroupModel accountGroup)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View("AddEditAccountGroup", accountGroup);
         }
 
-        #region save method
-        public IActionResult saveAddEditAccountGroup(AccountGroupModel accountGroup)
+        string? connectionString = configuration.GetConnectionString("ConnectionString");
+        try
         {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
-                try
-                {
-                    SqlConnection connection = new SqlConnection(connectionString);
-                    connection.Open();
-                    SqlCommand command = connection.CreateCommand();
-                    command.CommandType = CommandType.StoredProcedure;
-
-                    if (accountGroup.Id == null )
-                    {
-                        command.CommandText = "SP_GroupAccount_Insert";
-                    }
-                    else
-                    {
-                        command.CommandText = "SP_GroupAccount_Update";
-                        command.Parameters.AddWithValue("@Id", accountGroup.Id);
-                    }
-
-                    command.Parameters.AddWithValue("@GroupName", accountGroup.GroupName);
-
-                    command.ExecuteNonQuery();
-                    connection.Close();
-
-                    return RedirectToAction("AccountGroupList");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("An error occurred: " + ex.Message);
-                    return View("AccountGroupList", accountGroup);
-                }
-            
-        }
-        #endregion
-
-        #region Delete
-        public IActionResult DeleteAccountGroup(int Id)
-        {
-            string? connectionString = this.configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection con = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                SqlCommand cmd = new SqlCommand("SP_GroupAccount_Delete", con);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@Id", Id);
-                con.Open();
-                cmd.ExecuteNonQuery();
+                connection.Open();
+                SqlCommand command = connection.CreateCommand();
+                command.CommandType = CommandType.StoredProcedure;
+
+                if (accountGroup.Id == null)
+                {
+                    command.CommandText = "SP_GroupAccount_Insert";
+                }
+                else
+                {
+                    command.CommandText = "SP_GroupAccount_Update";
+                    command.Parameters.AddWithValue("@Id", accountGroup.Id);
+                }
+
+                command.Parameters.AddWithValue("@GroupName", accountGroup.GroupName);
+                command.ExecuteNonQuery();
             }
             return RedirectToAction("AccountGroupList");
         }
-        #endregion
+        catch (Exception ex)
+        {
+            ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
+            return View("AddEditAccountGroup", accountGroup);
+        }
     }
+    #endregion
+
+    #region Delete
+    public IActionResult DeleteAccountGroup(int Id)
+    {
+        string? connectionString = configuration.GetConnectionString("ConnectionString");
+        using (SqlConnection con = new SqlConnection(connectionString))
+        {
+            SqlCommand cmd = new SqlCommand("SP_GroupAccount_Delete", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Id", Id);
+            con.Open();
+            cmd.ExecuteNonQuery();
+        }
+        return RedirectToAction("AccountGroupList");
+    }
+    #endregion
 }
