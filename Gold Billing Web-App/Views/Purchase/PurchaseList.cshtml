@@ -1,0 +1,64 @@
+﻿@{
+    ViewBag.Title = "Purchase List";
+}
+
+<div class="container p-3" style="background-color: #fff3cd; border-radius: 10px;">
+    <h3 class="text-center">Purchase List</h3>
+    <div class="row mb-3">
+        <div class="col-md-12 text-right">
+            <a href="@Url.Action("GeneratePurchaseBill", "Purchase")" class="btn btn-primary">Add New Purchase</a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead class="bg-light">
+                <tr class="bg-dark text-white">
+                    <th>Date</th>
+                    <th>Account Name</th>
+                    <th>Narration</th>
+                    <th>Type</th>
+                    <th>Item Name</th>
+                    <th>Pc</th>
+                    <th>Gr.Wt.</th>
+                    <th>Less</th>
+                    <th>Net.Wt.</th>
+                    <th>Tunch</th>
+                    <th>Wstg</th>
+                    <th>T+W</th>
+                    <th>Rate</th>
+                    <th>Fine</th>
+                    <th>Total Amt</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var purchase in Model)
+                {
+                    foreach (var item in purchase.Items)
+                    {
+                        <tr>
+                            <td>@purchase.Date?.ToString("yyyy-MM-dd")</td>
+                            <td>@purchase.AccountId</td>
+                            <td>@purchase.Narration</td>
+                            <td>@item.TransactionType</td>
+                            <td>@item.ItemId</td>
+                            <td>@item.Pc</td>
+                            <td>@item.Weight.ToString("F2")</td>
+                            <td>@item.Less.ToString("F2")</td>
+                            <td>@item.NetWt.ToString("F2")</td>
+                            <td>@item.Tunch.ToString("F2")</td>
+                            <td>@item.Wastage.ToString("F2")</td>
+                            <td>@item.TW.ToString("F2")</td>
+                            <td>@item.Rate.ToString("F2")</td>
+                            <td>@item.Fine.ToString("F2")</td>
+                            <td>@item.Amount.ToString("F2")</td>
+                            
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
