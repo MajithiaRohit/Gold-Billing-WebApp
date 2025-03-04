@@ -1,27 +1,23 @@
-﻿@model Gold_Billing_Web_App.Models.OpeningStockModel
-@{
-    ViewBag.Title = Model.Id == 0 ? "Add Opening Stock" : "Edit Opening Stock";
-}
+﻿@model Gold_Billing_Web_App.Models.OpeningStockViewModel
 
 <div class="container p-3" style="background-color: #f8d7da; border-radius: 10px;">
     <h3 class="text-center">@ViewBag.Title</h3>
-    <form asp-action="@(Model.Id == 0 ? "AddOpeningStock" : "EditOpeningStock")" method="post">
+    <form asp-action="@ViewBag.Action" method="post">
         @Html.AntiForgeryToken()
-        @Html.HiddenFor(m => m.Id)
 
         <div class="row mb-3">
             <div class="col-md-3">
-                <label asp-for="Date" class="form-label"></label>
+                <label asp-for="Date" class="form-label">Date</label>
                 <input asp-for="Date" type="date" class="form-control" />
                 <span asp-validation-for="Date" class="text-danger"></span>
             </div>
             <div class="col-md-3 form-group">
-                <label asp-for="BillNo" class="form-label"></label>
+                <label asp-for="BillNo" class="form-label">Bill Number</label>
                 <input asp-for="BillNo" class="form-control" readonly />
                 <span asp-validation-for="BillNo" class="text-danger"></span>
             </div>
             <div class="col-md-6">
-                <label asp-for="Narration" class="form-label"></label>
+                <label asp-for="Narration" class="form-label">Narration</label>
                 <input asp-for="Narration" type="text" class="form-control" />
                 <span asp-validation-for="Narration" class="text-danger"></span>
             </div>
@@ -45,54 +41,57 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>
-                            <select asp-for="ItemId" asp-items="@(new SelectList(ViewBag.itemDropDown, "Id", "ItemName"))" class="form-control item-select">
-                                <option value="">Select Item</option>
-                            </select>
-                            <span asp-validation-for="ItemId" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="Pc" type="number" class="form-control pc-input" />
-                            <span asp-validation-for="Pc" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="Weight" type="number" step="0.01" class="form-control weight-input" onchange="calculateNetWeight(this)" />
-                            <span asp-validation-for="Weight" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="Less" type="number" step="0.01" class="form-control less-input" onchange="calculateNetWeight(this)" />
-                            <span asp-validation-for="Less" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="NetWt" type="number" step="0.01" class="form-control netwt-input" readonly />
-                            <span asp-validation-for="NetWt" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateTW(this)" />
-                            <span asp-validation-for="Tunch" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="Wastage" type="number" step="0.01" class="form-control wastage-input" onchange="calculateTW(this)" />
-                            <span asp-validation-for="Wastage" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="TW" type="number" step="0.01" class="form-control tw-input" readonly />
-                            <span asp-validation-for="TW" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateFineAndAmount(this.closest('tr'))" />
-                            <span asp-validation-for="Rate" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="Fine" type="number" step="0.01" class="form-control fine-input" readonly />
-                            <span asp-validation-for="Fine" class="text-danger"></span>
-                        </td>
-                        <td>
-                            <input asp-for="Amount" type="number" step="0.01" class="form-control amount-input" readonly />
-                            <span asp-validation-for="Amount" class="text-danger"></span>
-                        </td>
-                    </tr>
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <select asp-for="Items[i].ItemId" asp-items="@(new SelectList(ViewBag.ItemDropDown, "Id", "ItemName"))" class="form-control item-select">
+                                    <option value="">Select Item</option>
+                                </select>
+                                <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" />
+                                <span asp-validation-for="Items[i].Pc" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Weight" type="number" step="0.01" class="form-control weight-input" onchange="calculateNetWeight(this)" />
+                                <span asp-validation-for="Items[i].Weight" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Less" type="number" step="0.01" class="form-control less-input" onchange="calculateNetWeight(this)" />
+                                <span asp-validation-for="Items[i].Less" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].NetWt" type="number" step="0.01" class="form-control netwt-input" readonly />
+                                <span asp-validation-for="Items[i].NetWt" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateTW(this)" />
+                                <span asp-validation-for="Items[i].Tunch" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Wastage" type="number" step="0.01" class="form-control wastage-input" onchange="calculateTW(this)" />
+                                <span asp-validation-for="Items[i].Wastage" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].TW" type="number" step="0.01" class="form-control tw-input" readonly />
+                                <span asp-validation-for="Items[i].TW" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateFineAndAmount(this.closest('tr'))" />
+                                <span asp-validation-for="Items[i].Rate" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Fine" type="number" step="0.01" class="form-control fine-input" readonly />
+                                <span asp-validation-for="Items[i].Fine" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Amount" type="number" step="0.01" class="form-control amount-input" readonly />
+                                <span asp-validation-for="Items[i].Amount" class="text-danger"></span>
+                            </td>
+                        </tr>
+                    }
                 </tbody>
             </table>
         </div>
@@ -104,13 +103,9 @@
             <div class="col-md-12 text-center">
                 <button type="submit" class="btn btn-success">Save</button>
                 <a href="@Url.Action("ViewStock")" class="btn btn-danger">Cancel</a>
-                @if (Model.Id != 0)
-                {
-                    <button type="button" class="btn btn-warning" onclick="deleteOpeningStock(@Model.Id)">Delete</button>
-                }
-                <a href="@Url.Action("AddOpeningStock")" class="btn btn-primary">New</a>
-                <button type="button" class="btn btn-info">Print</button>
-                <button type="button" class="btn btn-secondary">Export</button>
+                <a href="@Url.Action("AddNewStock")" class="btn btn-primary">New Stock</a>
+                <a href="@Url.Action("PrintStock")" class="btn btn-info" target="_blank">Print</a>
+                <a href="@Url.Action("ExportToExcel")" class="btn btn-secondary">Export to Excel</a>
             </div>
         </div>
     </form>
@@ -154,31 +149,18 @@
 
         newRow.querySelectorAll("input, select").forEach(input => {
             let baseName = input.name.split('.')[1];
-            input.name = `OpeningStockModels[${rowCount}].${baseName}`;
-            input.id = `OpeningStockModels_${rowCount}__${baseName}`;
+            input.name = `Items[${rowCount}].${baseName}`;
+            input.id = `Items_${rowCount}__${baseName}`;
             if (!input.readOnly) input.value = "";
         });
 
-        // Reset calculated fields
-        newRow.querySelector('.netwt-input').value = "";
-        newRow.querySelector('.tw-input').value = "";
-        newRow.querySelector('.fine-input').value = "";
-        newRow.querySelector('.amount-input').value = "";
-
-        // Clone validation spans
         newRow.querySelectorAll("span.text-danger").forEach(span => {
             let baseFor = span.getAttribute('data-valmsg-for').split('.')[1];
-            span.setAttribute('data-valmsg-for', `OpeningStockModels[${rowCount}].${baseFor}`);
-            span.innerHTML = ""; // Clear any existing validation message
+            span.setAttribute('data-valmsg-for', `Items[${rowCount}].${baseFor}`);
+            span.innerHTML = "";
         });
 
         table.appendChild(newRow);
-    }
-
-    function deleteOpeningStock(id) {
-        if (confirm("Are you sure you want to delete this record?")) {
-            window.location.href = '@Url.Action("DeleteOpeningStock", "OpeningStock")?id=' + id;
-        }
     }
 </script>
 

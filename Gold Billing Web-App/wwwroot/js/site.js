@@ -17,3 +17,14 @@ Swal.fire({
         popup: 'animate__animated animate__fadeOutUp'
     }
 });
+if (format === 'pdf') {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.html(document.body, {
+        callback: function (doc) {
+            doc.save('Transaction.pdf');
+        },
+        x: 10,
+        y: 10
+    });
+}

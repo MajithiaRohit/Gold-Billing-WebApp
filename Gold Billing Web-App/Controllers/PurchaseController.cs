@@ -119,7 +119,7 @@ namespace Gold_Billing_Web_App.Controllers
                         parameter.SqlDbType = SqlDbType.Structured;
                         parameter.TypeName = "PurchaseItemType";
 
-                        billNo = cmd.ExecuteScalar()?.ToString();
+                        billNo = cmd.ExecuteScalar()?.ToString()!;
                     }
                 }
                 return Json(new { success = true, message = "Purchase saved successfully", billNo = billNo });
@@ -253,7 +253,7 @@ namespace Gold_Billing_Web_App.Controllers
 
     public class PurchaseItem
     {
-        public string TransactionType { get; set; }
+        public string? TransactionType { get; set; }
         public int ItemId { get; set; }
         public int Pc { get; set; }
         public decimal Weight { get; set; }

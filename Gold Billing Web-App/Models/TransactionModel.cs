@@ -2,13 +2,18 @@
 
 namespace Gold_Billing_Web_App.Models
 {
-    public class OpeningStockModel
+    public class TransactionModel
     {
         public int Id { get; set; }
+
+        [Required(ErrorMessage = "Transaction Type is required")]
+        public string TransactionType { get; set; } = "";
 
         [Required(ErrorMessage = "Date is required")]
         [DataType(DataType.Date)]
         public DateTime Date { get; set; }
+
+        public int? AccountId { get; set; }
 
         [Required(ErrorMessage = "Item is required")]
         [Range(1, int.MaxValue, ErrorMessage = "Please select a valid Item")]
@@ -46,12 +51,14 @@ namespace Gold_Billing_Web_App.Models
         [Range(0, double.MaxValue, ErrorMessage = "Amount cannot be negative")]
         public decimal? Amount { get; set; }
     }
-    public class OpeningStockViewModel
+    
+
+    public class TransactionViewModel
     {
         public string BillNo { get; set; } = "";
         public DateTime Date { get; set; }
+        public string TransactionType { get; set; } = "";
         public string? Narration { get; set; }
-        public List<OpeningStockModel> Items { get; set; } = new List<OpeningStockModel>();
+        public List<TransactionModel> Items { get; set; } = new List<TransactionModel>();
     }
-
 }

@@ -1,0 +1,435 @@
+﻿@model Gold_Billing_Web_App.Models.TransactionViewModel
+@{
+    ViewBag.Title = $"Generate {Model.TransactionType} Bill";
+
+    string bgColor = Model.TransactionType switch
+    {
+        "Purchase" => "#f8d7da",
+        "PurchaseReturn" => "#d4edda",
+        "Sale" => "#fff3cd",
+        "SaleReturn" => "#cce5ff",
+        _ => "#f8d7da"
+    };
+}
+
+<div class="container p-3" style="background-color: @bgColor; border-radius: 10px;">
+    <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
+    <form asp-action="AddTransaction" method="post" id="transactionForm">
+        @Html.AntiForgeryToken()
+        <hr class="mb-3 mt-3" />
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Account</label>
+                <select id="accountSelect" name="AccountId" class="form-control" onchange="fetchPreviousBalance()">
+                    <option value="">Select Account</option>
+                    @foreach (var account in ViewBag.AccountDropDown)
+                    {
+                        <option value="@account.Id" selected="@(ViewBag.SelectedAccountId == account.Id ? "selected" : null)">@account.AccountName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Date" class="form-label">Date</label>
+                <input asp-for="Date" type="date" class="form-control" />
+                <span asp-validation-for="Date" class="text-danger"></span>
+            </div>
+            <div class="col-md-4 form-group">
+                <label asp-for="BillNo" class="form-label">Bill Number</label>
+                <input asp-for="BillNo" class="form-control" readonly />
+                <span asp-validation-for="BillNo" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label asp-for="Narration" class="form-label">Narration</label>
+                <textarea asp-for="Narration" type="text" class="form-control"></textarea>
+                <span asp-validation-for="Narration" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered" id="transactionTable">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Pc</th>
+                        <th>Gr.Wt.</th>
+                        <th>Less</th>
+                        <th>Net.Wt.</th>
+                        <th>Tunch (%)</th>
+                        <th>Wstg (%)</th>
+                        <th>TW (%)</th>
+                        <th>Rate</th>
+                        <th>Gold Fine</th>
+                        <th>Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <input asp-for="Items[i].TransactionType" type="hidden" value="@Model.TransactionType" />
+                                <select asp-for="Items[i].ItemId" asp-items="@(new SelectList(ViewBag.ItemDropDown, "Id", "ItemName"))" class="form-control item-select">
+                                    <option value="">Select Item</option>
+                                </select>
+                                <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" />
+                                <span asp-validation-for="Items[i].Pc" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Weight" type="number" step="0.01" class="form-control weight-input" onchange="calculateNetWeight(this); updateTotals();" />
+                                <span asp-validation-for="Items[i].Weight" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Less" type="number" step="0.01" class="form-control less-input" onchange="calculateNetWeight(this); updateTotals();" />
+                                <span asp-validation-for="Items[i].Less" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].NetWt" type="number" step="0.01" class="form-control netwt-input" readonly />
+                                <span asp-validation-for="Items[i].NetWt" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateTW(this); updateTotals();" />
+                                <span asp-validation-for="Items[i].Tunch" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Wastage" type="number" step="0.01" class="form-control wastage-input" onchange="calculateTW(this); updateTotals();" />
+                                <span asp-validation-for="Items[i].Wastage" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].TW" type="number" step="0.01" class="form-control tw-input" readonly />
+                                <span asp-validation-for="Items[i].TW" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateFineAndAmount(this.closest('tr')); updateTotals();" />
+                                <span asp-validation-for="Items[i].Rate" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Fine" type="number" step="0.01" class="form-control fine-input" readonly />
+                                <span asp-validation-for="Items[i].Fine" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Amount" type="number" step="0.01" class="form-control amount-input" readonly />
+                                <span asp-validation-for="Items[i].Amount" class="text-danger"></span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="bg-secondary text-white">
+                        <td colspan="2" class="text-right"><strong>Total:</strong></td>
+                        <td><input type="number" step="0.01" id="totalGrWt" class="form-control" readonly /></td>
+                        <td><input type="number" step="0.01" id="totalLess" class="form-control" readonly /></td>
+                        <td><input type="number" step="0.01" id="totalNetWt" class="form-control" readonly /></td>
+                        <td colspan="4"></td>
+                        <td><input type="number" step="0.01" id="totalFine" class="form-control" readonly /></td>
+                        <td><input type="number" step="0.01" id="totalAmount" class="form-control" readonly /></td>
+                    </tr>
+                    <tr class="bg-info text-white">
+                        <td colspan="7"></td>
+                        <td colspan="2" class="text-right"><strong>Previous Balance:</strong></td>
+                        <td><input type="number" step="0.01" id="prevFine" class="form-control" readonly /></td>
+                        <td><input type="number" step="0.01" id="prevAmount" class="form-control" readonly /></td>
+                    </tr>
+                    <tr class="bg-warning text-dark">
+                        <td colspan="7"></td>
+                        <td colspan="2" class="text-right"><strong>Current Transaction:</strong></td>
+                        <td><input type="number" step="0.01" id="currentFine" class="form-control" readonly /></td>
+                        <td><input type="number" step="0.01" id="currentAmount" class="form-control" readonly /></td>
+                    </tr>
+                    <tr class="bg-success text-white">
+                        <td colspan="7"></td>
+                        <td colspan="2" class="text-right"><strong>Total Balance:</strong></td>
+                        <td><input type="number" step="0.01" id="totalBalanceFine" class="form-control" readonly /></td>
+                        <td><input type="number" step="0.01" id="totalBalanceAmount" class="form-control" readonly /></td>
+                    </tr>
+                </tfoot>
+            </table>
+            <button type="button" class="btn btn-primary mb-3" onclick="addNewRow()">Add New Row</button>
+        </div>
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <div class="row mt-3">
+            <div class="col-md-12 text-center">
+                <button type="submit" class="btn btn-success">Save</button>
+                <button type="button" class="btn btn-info" onclick="printTransaction()">Print</button>
+                <button type="button" class="btn btn-secondary" onclick="exportToExcel()">Export to Excel</button>
+                <a href="@Url.Action("ViewStock", "OpeningStock")" class="btn btn-danger">Cancel</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Add SweetAlert CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    function calculateNetWeight(element) {
+        let row = element.closest('tr');
+        let grossWeight = parseFloat(row.querySelector('.weight-input').value) || 0;
+        let less = parseFloat(row.querySelector('.less-input').value) || 0;
+        let netWeight = grossWeight - less;
+        row.querySelector('.netwt-input').value = netWeight.toFixed(2);
+        calculateFineAndAmount(row);
+    }
+
+    function calculateTW(element) {
+        let row = element.closest('tr');
+        let tunch = parseFloat(row.querySelector('.tunch-input').value) || 0;
+        let wastage = parseFloat(row.querySelector('.wastage-input').value) || 0;
+        let tw = tunch + wastage;
+        row.querySelector('.tw-input').value = tw.toFixed(2);
+        calculateFineAndAmount(row);
+    }
+
+    function calculateFineAndAmount(row) {
+        let netWeight = parseFloat(row.querySelector('.netwt-input').value) || 0;
+        let tw = parseFloat(row.querySelector('.tw-input').value) || 0;
+        let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+
+        let fine = netWeight * (tw / 100);
+        let amount = fine * rate;
+
+        row.querySelector('.fine-input').value = fine.toFixed(2);
+        row.querySelector('.amount-input').value = amount.toFixed(2);
+    }
+
+    function addNewRow() {
+        let table = document.getElementById('transactionTable').querySelector('tbody');
+        let rowCount = table.getElementsByTagName('tr').length;
+        let newRow = table.rows[0].cloneNode(true);
+
+        newRow.querySelectorAll("input:not([readonly]), select").forEach(input => {
+            let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
+            input.name = `Items[${rowCount}].${baseName}`;
+            input.id = `Items_${rowCount}__${baseName}`;
+            if (input.type !== 'hidden') {
+                input.value = '';
+            }
+        });
+
+        newRow.querySelectorAll("input[readonly]").forEach(input => {
+            let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
+            input.name = `Items[${rowCount}].${baseName}`;
+            input.id = `Items_${rowCount}__${baseName}`;
+            input.value = '0.00';
+        });
+
+        newRow.querySelectorAll("span.text-danger").forEach(span => {
+            let baseFor = span.getAttribute('data-valmsg-for').split('.')[1];
+            span.setAttribute('data-valmsg-for', `Items[${rowCount}].${baseFor}`);
+            span.innerHTML = "";
+        });
+
+        let accountId = document.getElementById('accountSelect').value;
+        if (accountId) {
+            newRow.querySelector('input[name*="AccountId"]').value = accountId;
+        }
+
+        table.appendChild(newRow);
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let totalGrWt = 0;
+        let totalLess = 0;
+        let totalNetWt = 0;
+        let totalFine = 0;
+        let totalAmount = 0;
+
+        document.querySelectorAll('#transactionTable tbody tr').forEach(row => {
+            let grWt = parseFloat(row.querySelector('.weight-input').value) || 0;
+            let less = parseFloat(row.querySelector('.less-input').value) || 0;
+            let netWt = parseFloat(row.querySelector('.netwt-input').value) || 0;
+            let fine = parseFloat(row.querySelector('.fine-input').value) || 0;
+            let amount = parseFloat(row.querySelector('.amount-input').value) || 0;
+
+            totalGrWt += grWt;
+            totalLess += less;
+            totalNetWt += netWt;
+            totalFine += fine;
+            totalAmount += amount;
+        });
+
+        document.getElementById('totalGrWt').value = totalGrWt.toFixed(2);
+        document.getElementById('totalLess').value = totalLess.toFixed(2);
+        document.getElementById('totalNetWt').value = totalNetWt.toFixed(2);
+        document.getElementById('totalFine').value = totalFine.toFixed(2);
+        document.getElementById('totalAmount').value = totalAmount.toFixed(2);
+
+        let prevFine = parseFloat(document.getElementById('prevFine').value) || 0;
+        let prevAmount = parseFloat(document.getElementById('prevAmount').value) || 0;
+        document.getElementById('currentFine').value = totalFine.toFixed(2);
+        document.getElementById('currentAmount').value = totalAmount.toFixed(2);
+
+        let totalBalanceFine = prevFine + totalFine;
+        let totalBalanceAmount = prevAmount + totalAmount;
+
+        document.getElementById('totalBalanceFine').value = totalBalanceFine.toFixed(2);
+        document.getElementById('totalBalanceAmount').value = totalBalanceAmount.toFixed(2);
+    }
+
+    function fetchPreviousBalance() {
+        let accountId = document.getElementById('accountSelect').value;
+        if (!accountId) {
+            document.getElementById('prevFine').value = "0.00";
+            document.getElementById('prevAmount').value = "0.00";
+            document.getElementById('totalBalanceFine').value = "0.00";
+            document.getElementById('totalBalanceAmount').value = "0.00";
+            updateTotals();
+            return;
+        }
+
+        fetch(`/Transaction/GetPreviousBalance?accountId=${accountId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch previous balance');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('prevFine').value = data.fine.toFixed(2);
+                document.getElementById('prevAmount').value = data.amount.toFixed(2);
+                updateTotals();
+            })
+            .catch(error => {
+                console.error('Error fetching previous balance:', error);
+                document.getElementById('prevFine').value = "0.00";
+                document.getElementById('prevAmount').value = "0.00";
+                updateTotals();
+            });
+    }
+
+    function printTransaction() {
+        try {
+            var printContents = document.getElementById('transactionForm').outerHTML;
+            var originalContents = document.body.innerHTML;
+            document.body.innerHTML = printContents;
+            window.print();
+            document.body.innerHTML = originalContents;
+            window.location.reload();
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: 'Transaction printed successfully!',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error('Error during printing:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to print the transaction.'
+            });
+        }
+    }
+
+    function exportToExcel() {
+        try {
+            let table = document.getElementById('transactionTable');
+            let rows = Array.from(table.querySelectorAll('tr'));
+            let headers = Array.from(rows[0].querySelectorAll('th')).map(th => th.innerText);
+            let data = rows.slice(1).map(row => {
+                return Array.from(row.querySelectorAll('td')).map(td => {
+                    let input = td.querySelector('input') || td.querySelector('select');
+                    return input ? (input.value || '') : td.innerText;
+                });
+            });
+
+            data.push(['Total', '', document.getElementById('totalGrWt').value, document.getElementById('totalLess').value, document.getElementById('totalNetWt').value, '', '', '', '', document.getElementById('totalFine').value, document.getElementById('totalAmount').value]);
+            data.push(['Previous Balance', '', '', '', '', '', '', '', '', document.getElementById('prevFine').value, document.getElementById('prevAmount').value]);
+            data.push(['Current Transaction', '', '', '', '', '', '', '', '', document.getElementById('currentFine').value, document.getElementById('currentAmount').value]);
+            data.push(['Total Balance', '', '', '', '', '', '', '', '', document.getElementById('totalBalanceFine').value, document.getElementById('totalBalanceAmount').value]);
+
+            let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + data.map(row => row.join(",")).join("\n");
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Transaction_${document.getElementById('BillNo').value}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: 'Transaction exported to Excel successfully!',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error('Error during Excel export:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to export the transaction to Excel.'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        updateTotals();
+        fetchPreviousBalance();
+
+        // Handle form submission with SweetAlert only on successful save
+        document.getElementById('transactionForm').addEventListener('submit', function (e) {
+            e.preventDefault(); // Prevent default form submission
+
+            let form = this;
+            let formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest' // Indicate AJAX request
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Transaction added successfully!',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        // Redirect only after the alert is dismissed
+                        if (data.redirectUrl) {
+                            window.location.href = data.redirectUrl;
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'An error occurred while adding the transaction.'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error during form submission:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while adding the transaction.'
+                });
+            });
+        });
+    });
+</script>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

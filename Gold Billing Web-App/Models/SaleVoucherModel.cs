@@ -5,8 +5,8 @@
         public int Id { get; set; }
         public DateTime Date { get; set; }
         public int AccountId { get; set; }
-        public string Narration { get; set; }
-        public string Type { get; set; }
+        public string? Narration { get; set; }
+        public string? Type { get; set; }
         public int ItemId { get; set; }
         public int Pc { get; set; }
         public decimal Weight { get; set; }
