@@ -6,6 +6,9 @@ namespace Gold_Billing_Web_App.Models
     {
         public int Id { get; set; }
 
+        [Required(ErrorMessage = "Bill Number is required")]
+        public string BillNo { get; set; } = ""; // Added BillNo
+
         [Required(ErrorMessage = "Transaction Type is required")]
         public string TransactionType { get; set; } = "";
 
@@ -50,8 +53,9 @@ namespace Gold_Billing_Web_App.Models
 
         [Range(0, double.MaxValue, ErrorMessage = "Amount cannot be negative")]
         public decimal? Amount { get; set; }
+
+        public DateTime? LastUpdated { get; set; } // Add if needed for consistency with SP
     }
-    
 
     public class TransactionViewModel
     {
