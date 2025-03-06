@@ -202,17 +202,20 @@
 
 <!-- Add SweetAlert CDN -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- jQuery and Validation Scripts -->
+<!-- Previous HTML remains unchanged -->
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Initialize totals and fetch previous balance, but do NOT trigger validation yet
         updateTotals();
         fetchPreviousBalance();
         syncAccountIds();
-        document.querySelectorAll('.item-select').forEach(select => validateRow(select));
+        // Removed: document.querySelectorAll('.item-select').forEach(select => validateRow(select));
         recalculateAllRows();
     });
 
@@ -467,7 +470,7 @@
         });
     }
 
-    function validateRow(element) {
+    function validateRow(element, isSubmit = false) {
         let row = element.closest('tr');
         let itemSelect = row.querySelector('.item-select');
         let selectedOption = itemSelect.options[itemSelect.selectedIndex];
@@ -478,12 +481,14 @@
         let wastage = parseFloat(row.querySelector('.wastage-input').value) || 0;
         let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
 
+        // Clear previous validation messages
         row.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
         document.getElementById('account-error').innerHTML = '';
 
         const allFields = ['pc-input', 'weight-input', 'less-input', 'tunch-input', 'wastage-input', 'rate-input', 'amount-input'];
         const alwaysEnabledFields = ['item-select'];
 
+        // Enable/disable fields based on groupName (unchanged logic)
         if (groupName === 'Gold Jewelry') {
             allFields.forEach(className => {
                 let input = row.querySelector(`.${className}`);
@@ -536,52 +541,55 @@
 
         let isValid = true;
 
-        if (!accountId) {
-            document.getElementById('account-error').innerHTML = 'Account is required.';
-            isValid = false;
-        }
-
-        if (groupName && groupName !== '') {
-            console.log(`Validating row with group: ${groupName}`);
-            if (groupName === 'Gold Jewelry') {
-                if (weight <= 0) {
-                    row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
-                    isValid = false;
-                }
-                if (wastage <= 0) {
-                    row.querySelector('.wastage-input + .text-danger').innerHTML = 'Wastage is required.';
-                    isValid = false;
-                }
-            } else if (groupName === 'PC Gold Jewelry') {
-                if (pc <= 0) {
-                    row.querySelector('.pc-input + .text-danger').innerHTML = 'Pc is required.';
-                    isValid = false;
-                }
-                if (rate <= 0) {
-                    row.querySelector('.rate-input + .text-danger').innerHTML = 'Rate is required.';
-                    isValid = false;
-                }
-            } else if (groupName === 'PC/Weight Jewelry') {
-                if (pc <= 0) {
-                    row.querySelector('.pc-input + .text-danger').innerHTML = 'Pc is required.';
-                    isValid = false;
-                }
-                if (weight <= 0) {
-                    row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
-                    isValid = false;
-                }
-                if (wastage <= 0) {
-                    row.querySelector('.wastage-input + .text-danger').innerHTML = 'Wastage is required.';
-                    isValid = false;
-                }
-                if (rate <= 0) {
-                    row.querySelector('.rate-input + .text-danger').innerHTML = 'Rate is required.';
-                    isValid = false;
-                }
+        // Only show validation errors if triggered by form submission (isSubmit = true)
+        if (isSubmit) {
+            if (!accountId) {
+                document.getElementById('account-error').innerHTML = 'Account is required.';
+                isValid = false;
             }
-        } else {
-            row.querySelector('.item-select + .text-danger').innerHTML = 'Item is required.';
-            isValid = false;
+
+            if (groupName && groupName !== '') {
+                console.log(`Validating row with group: ${groupName}`);
+                if (groupName === 'Gold Jewelry') {
+                    if (weight <= 0) {
+                        row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
+                        isValid = false;
+                    }
+                    if (wastage <= 0) {
+                        row.querySelector('.wastage-input + .text-danger').innerHTML = 'Wastage is required.';
+                        isValid = false;
+                    }
+                } else if (groupName === 'PC Gold Jewelry') {
+                    if (pc <= 0) {
+                        row.querySelector('.pc-input + .text-danger').innerHTML = 'Pc is required.';
+                        isValid = false;
+                    }
+                    if (rate <= 0) {
+                        row.querySelector('.rate-input + .text-danger').innerHTML = 'Rate is required.';
+                        isValid = false;
+                    }
+                } else if (groupName === 'PC/Weight Jewelry') {
+                    if (pc <= 0) {
+                        row.querySelector('.pc-input + .text-danger').innerHTML = 'Pc is required.';
+                        isValid = false;
+                    }
+                    if (weight <= 0) {
+                        row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
+                        isValid = false;
+                    }
+                    if (wastage <= 0) {
+                        row.querySelector('.wastage-input + .text-danger').innerHTML = 'Wastage is required.';
+                        isValid = false;
+                    }
+                    if (rate <= 0) {
+                        row.querySelector('.rate-input + .text-danger').innerHTML = 'Rate is required.';
+                        isValid = false;
+                    }
+                }
+            } else {
+                row.querySelector('.item-select + .text-danger').innerHTML = 'Item is required.';
+                isValid = false;
+            }
         }
 
         return isValid;
@@ -591,8 +599,10 @@
         e.preventDefault();
         syncAccountIds();
         let isFormValid = true;
+
+        // Validate all rows only on form submission
         document.querySelectorAll('#transactionTable tbody tr').forEach(row => {
-            if (!validateRow(row.querySelector('.item-select'))) {
+            if (!validateRow(row.querySelector('.item-select'), true)) {
                 isFormValid = false;
             }
         });
@@ -648,7 +658,15 @@
 
     document.getElementById('accountSelect').addEventListener('change', function () {
         syncAccountIds();
-        document.querySelectorAll('.item-select').forEach(select => validateRow(select));
+        fetchPreviousBalance();
         recalculateAllRows();
+    });
+
+    // Trigger validation and recalculation only on user interaction
+    document.querySelectorAll('.item-select').forEach(select => {
+        select.addEventListener('change', function () {
+            validateRow(this); // Validate on change, but don't show errors unless submitting
+            recalculateAllRows();
+        });
     });
 </script>
