@@ -14,8 +14,24 @@
 
 <div class="container p-3" style="background-color: @bgColor; border-radius: 10px;">
     <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
+
+    <!-- Bootstrap Validation Summary -->
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Validation Errors</h4>
+            <ul>
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
+
     <form asp-action="AddTransaction" method="post" id="transactionForm">
         @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="TransactionType" />
         <hr class="mb-3 mt-3" />
         <div class="row mb-3">
             <div class="col-md-4">
@@ -34,6 +50,7 @@
                         }
                     }
                 </select>
+                <span id="account-error" class="text-danger"></span>
             </div>
             <div class="col-md-4">
                 <label asp-for="Date" class="form-label">Date</label>
@@ -79,13 +96,24 @@
                                 <input asp-for="Items[i].Id" type="hidden" />
                                 <input asp-for="Items[i].TransactionType" type="hidden" value="@Model.TransactionType" />
                                 <input asp-for="Items[i].AccountId" type="hidden" class="account-id-input" />
-                                <select asp-for="Items[i].ItemId" asp-items="@(new SelectList(ViewBag.ItemDropDown, "Id", "ItemName"))" class="form-control item-select">
+                                <select asp-for="Items[i].ItemId" class="form-control item-select" onchange="validateRow(this); recalculateAllRows();">
                                     <option value="">Select Item</option>
+                                    @foreach (var item in ViewBag.ItemDropDown)
+                                    {
+                                        if (Model.Items[i].ItemId == item.Id)
+                                        {
+                                            <option value="@item.Id" data-group="@item.GroupName" selected>@item.ItemName</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@item.Id" data-group="@item.GroupName">@item.ItemName</option>
+                                        }
+                                    }
                                 </select>
                                 <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" />
+                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" onchange="calculateAmount(this); updateTotals();" />
                                 <span asp-validation-for="Items[i].Pc" class="text-danger"></span>
                             </td>
                             <td>
@@ -113,7 +141,7 @@
                                 <span asp-validation-for="Items[i].TW" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateFineAndAmount(this.closest('tr')); updateTotals();" />
+                                <input asp-for="Items[i].Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateAmount(this); updateTotals();" />
                                 <span asp-validation-for="Items[i].Rate" class="text-danger"></span>
                             </td>
                             <td>
@@ -122,6 +150,7 @@
                             </td>
                             <td>
                                 <input asp-for="Items[i].Amount" type="number" step="0.01" class="form-control amount-input" readonly />
+                                <input type="hidden" asp-for="Items[i].Amount" class="hidden-amount-input" />
                                 <span asp-validation-for="Items[i].Amount" class="text-danger"></span>
                             </td>
                         </tr>
@@ -160,7 +189,6 @@
             <button type="button" class="btn btn-primary mb-3" onclick="addNewRow()">Add New Row</button>
         </div>
 
-        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
         <div class="row mt-3">
             <div class="col-md-12 text-center">
                 <button type="submit" class="btn btn-success">Save</button>
@@ -174,8 +202,20 @@
 
 <!-- Add SweetAlert CDN -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- jQuery and Validation Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        updateTotals();
+        fetchPreviousBalance();
+        syncAccountIds();
+        document.querySelectorAll('.item-select').forEach(select => validateRow(select));
+        recalculateAllRows();
+    });
+
     function calculateNetWeight(element) {
         let row = element.closest('tr');
         let grossWeight = parseFloat(row.querySelector('.weight-input').value) || 0;
@@ -204,6 +244,37 @@
 
         row.querySelector('.fine-input').value = fine.toFixed(2);
         row.querySelector('.amount-input').value = amount.toFixed(2);
+        row.querySelector('.hidden-amount-input').value = amount.toFixed(2);
+    }
+
+    function calculateAmount(element) {
+        let row = element.closest('tr');
+        let groupName = row.querySelector('.item-select').options[row.querySelector('.item-select').selectedIndex].getAttribute('data-group');
+        let pc = parseFloat(row.querySelector('.pc-input').value) || 0;
+        let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+
+        if (groupName === 'PC Gold Jewelry') {
+            let amount = pc * rate;
+            row.querySelector('.amount-input').value = amount.toFixed(2);
+            row.querySelector('.hidden-amount-input').value = amount.toFixed(2);
+            row.querySelector('.fine-input').value = '0.00';
+            row.querySelector('.netwt-input').value = '0.00';
+            row.querySelector('.tw-input').value = '0.00';
+        } else {
+            calculateFineAndAmount(row);
+        }
+    }
+
+    function recalculateAllRows() {
+        document.querySelectorAll('#transactionTable tbody tr').forEach(row => {
+            let groupName = row.querySelector('.item-select').options[row.querySelector('.item-select').selectedIndex].getAttribute('data-group');
+            if (groupName === 'Gold Jewelry' || groupName === 'PC/Weight Jewelry') {
+                calculateNetWeight(row.querySelector('.weight-input'));
+            } else if (groupName === 'PC Gold Jewelry') {
+                calculateAmount(row.querySelector('.pc-input'));
+            }
+        });
+        updateTotals();
     }
 
     function addNewRow() {
@@ -230,6 +301,12 @@
             input.value = '0.00';
         });
 
+        newRow.querySelectorAll("input[type='hidden'].hidden-amount-input").forEach(input => {
+            input.name = `Items[${rowCount}].Amount`;
+            input.id = `Items_${rowCount}__Amount_hidden`;
+            input.value = '0.00';
+        });
+
         newRow.querySelectorAll("span.text-danger").forEach(span => {
             let baseFor = span.getAttribute('data-valmsg-for').split('.')[1];
             span.setAttribute('data-valmsg-for', `Items[${rowCount}].${baseFor}`);
@@ -237,7 +314,8 @@
         });
 
         table.appendChild(newRow);
-        updateTotals();
+        $.validator.unobtrusive.parse(newRow);
+        recalculateAllRows();
     }
 
     function updateTotals() {
@@ -270,16 +348,14 @@
         let prevFine = parseFloat(document.getElementById('prevFine').value) || 0;
         let prevAmount = parseFloat(document.getElementById('prevAmount').value) || 0;
 
-        // Adjust current transaction based on TransactionType
         let transactionType = '@Model.TransactionType';
         let currentFine = totalFine;
         let currentAmount = totalAmount;
 
         if (transactionType === 'Sale' || transactionType === 'PurchaseReturn') {
-            currentFine = -totalFine;   // Subtract for Sale and PurchaseReturn
+            currentFine = -totalFine;
             currentAmount = -totalAmount;
         }
-        // Purchase and SaleReturn keep positive values (add to balance)
 
         document.getElementById('currentFine').value = currentFine.toFixed(2);
         document.getElementById('currentAmount').value = currentAmount.toFixed(2);
@@ -301,12 +377,7 @@
         }
 
         fetch(`/Transaction/GetPreviousBalance?accountId=${accountId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to fetch previous balance');
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 document.getElementById('prevFine').value = data.fine.toFixed(2);
                 document.getElementById('prevAmount').value = data.amount.toFixed(2);
@@ -389,12 +460,6 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        updateTotals();
-        fetchPreviousBalance();
-        syncAccountIds(); // Sync AccountId on page load
-    });
-
     function syncAccountIds() {
         let accountId = document.getElementById('accountSelect').value;
         document.querySelectorAll('.account-id-input').forEach(input => {
@@ -402,54 +467,188 @@
         });
     }
 
-    document.getElementById('accountSelect').addEventListener('change', syncAccountIds);
+    function validateRow(element) {
+        let row = element.closest('tr');
+        let itemSelect = row.querySelector('.item-select');
+        let selectedOption = itemSelect.options[itemSelect.selectedIndex];
+        let groupName = selectedOption ? selectedOption.getAttribute('data-group') : '';
+        let accountId = document.getElementById('accountSelect').value;
+        let pc = parseFloat(row.querySelector('.pc-input').value) || 0;
+        let weight = parseFloat(row.querySelector('.weight-input').value) || 0;
+        let wastage = parseFloat(row.querySelector('.wastage-input').value) || 0;
+        let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+
+        row.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
+        document.getElementById('account-error').innerHTML = '';
+
+        const allFields = ['pc-input', 'weight-input', 'less-input', 'tunch-input', 'wastage-input', 'rate-input', 'amount-input'];
+        const alwaysEnabledFields = ['item-select'];
+
+        if (groupName === 'Gold Jewelry') {
+            allFields.forEach(className => {
+                let input = row.querySelector(`.${className}`);
+                if (input) input.disabled = (className === 'pc-input' || className === 'amount-input');
+            });
+            alwaysEnabledFields.forEach(className => {
+                let input = row.querySelector(`.${className}`);
+                if (input) input.disabled = false;
+            });
+            row.querySelector('.pc-input').value = '';
+            row.querySelector('.netwt-input').value = '0.00';
+            row.querySelector('.tw-input').value = '0.00';
+            row.querySelector('.fine-input').value = '0.00';
+            row.querySelector('.weight-input').focus();
+        } else if (groupName === 'PC Gold Jewelry') {
+            allFields.forEach(className => {
+                let input = row.querySelector(`.${className}`);
+                if (input) input.disabled = (className !== 'pc-input' && className !== 'rate-input');
+            });
+            alwaysEnabledFields.forEach(className => {
+                let input = row.querySelector(`.${className}`);
+                if (input) input.disabled = false;
+            });
+            row.querySelector('.netwt-input').value = '0.00';
+            row.querySelector('.tw-input').value = '0.00';
+            row.querySelector('.fine-input').value = '0.00';
+            calculateAmount(row.querySelector('.pc-input'));
+            row.querySelector('.pc-input').focus();
+        } else if (groupName === 'PC/Weight Jewelry') {
+            allFields.forEach(className => {
+                let input = row.querySelector(`.${className}`);
+                if (input) input.disabled = false;
+            });
+            alwaysEnabledFields.forEach(className => {
+                let input = row.querySelector(`.${className}`);
+                if (input) input.disabled = false;
+            });
+            calculateNetWeight(element);
+            row.querySelector('.pc-input').focus();
+        } else {
+            allFields.forEach(className => {
+                let input = row.querySelector(`.${className}`);
+                if (input) input.disabled = false;
+            });
+            alwaysEnabledFields.forEach(className => {
+                let input = row.querySelector(`.${className}`);
+                if (input) input.disabled = false;
+            });
+        }
+
+        let isValid = true;
+
+        if (!accountId) {
+            document.getElementById('account-error').innerHTML = 'Account is required.';
+            isValid = false;
+        }
+
+        if (groupName && groupName !== '') {
+            console.log(`Validating row with group: ${groupName}`);
+            if (groupName === 'Gold Jewelry') {
+                if (weight <= 0) {
+                    row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
+                    isValid = false;
+                }
+                if (wastage <= 0) {
+                    row.querySelector('.wastage-input + .text-danger').innerHTML = 'Wastage is required.';
+                    isValid = false;
+                }
+            } else if (groupName === 'PC Gold Jewelry') {
+                if (pc <= 0) {
+                    row.querySelector('.pc-input + .text-danger').innerHTML = 'Pc is required.';
+                    isValid = false;
+                }
+                if (rate <= 0) {
+                    row.querySelector('.rate-input + .text-danger').innerHTML = 'Rate is required.';
+                    isValid = false;
+                }
+            } else if (groupName === 'PC/Weight Jewelry') {
+                if (pc <= 0) {
+                    row.querySelector('.pc-input + .text-danger').innerHTML = 'Pc is required.';
+                    isValid = false;
+                }
+                if (weight <= 0) {
+                    row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
+                    isValid = false;
+                }
+                if (wastage <= 0) {
+                    row.querySelector('.wastage-input + .text-danger').innerHTML = 'Wastage is required.';
+                    isValid = false;
+                }
+                if (rate <= 0) {
+                    row.querySelector('.rate-input + .text-danger').innerHTML = 'Rate is required.';
+                    isValid = false;
+                }
+            }
+        } else {
+            row.querySelector('.item-select + .text-danger').innerHTML = 'Item is required.';
+            isValid = false;
+        }
+
+        return isValid;
+    }
 
     document.getElementById('transactionForm').addEventListener('submit', function (e) {
         e.preventDefault();
-        syncAccountIds(); // Ensure AccountId is synced before submission
-        let form = this;
-        let formData = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+        syncAccountIds();
+        let isFormValid = true;
+        document.querySelectorAll('#transactionTable tbody tr').forEach(row => {
+            if (!validateRow(row.querySelector('.item-select'))) {
+                isFormValid = false;
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success',
-                    text: 'Transaction saved successfully!',
-                    timer: 1500,
-                    showConfirmButton: false
-                }).then(() => {
-                    if (data.redirectUrl) {
+        });
+
+        if (!isFormValid) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please fill all required fields correctly.',
+            });
+        } else {
+            let formData = new FormData(this);
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
+            }
+            fetch('@Url.Action("AddTransaction", "Transaction")', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Transaction saved successfully!',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
                         window.location.href = data.redirectUrl;
-                    }
-                });
-            } else {
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.error || 'Failed to save the transaction.'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error during save:', error);
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: data.message || 'An error occurred while saving the transaction.'
+                    text: 'An error occurred while saving.'
                 });
-            }
-        })
-        .catch(error => {
-            console.error('Error during form submission:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'An error occurred while saving the transaction.'
             });
-        });
+        }
+    });
+
+    document.getElementById('accountSelect').addEventListener('change', function () {
+        syncAccountIds();
+        document.querySelectorAll('.item-select').forEach(select => validateRow(select));
+        recalculateAllRows();
     });
 </script>
-
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}

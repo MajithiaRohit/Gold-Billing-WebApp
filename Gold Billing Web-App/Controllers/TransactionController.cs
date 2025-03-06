@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Linq;
 
 public class TransactionController : Controller
 {
@@ -70,7 +71,8 @@ public class TransactionController : Controller
             return dataTable.AsEnumerable().Select(row => new ItemDropDownModel
             {
                 Id = row.Field<int>("Id"),
-                ItemName = row.Field<string>("Name")!
+                ItemName = row.Field<string>("Name")!,
+                GroupName = row.Field<string>("GroupName") ?? "" // Handle NULL GroupName
             }).ToList();
         }
     }
@@ -131,7 +133,7 @@ public class TransactionController : Controller
 
                 if (model.Items.Any() && model.Items[0].AccountId.HasValue)
                 {
-                    ViewBag.SelectedAccountId = model.Items[0].AccountId; // Pre-select account
+                    ViewBag.SelectedAccountId = model.Items[0].AccountId;
                 }
             }
         }
@@ -145,7 +147,7 @@ public class TransactionController : Controller
             if (accountId.HasValue)
             {
                 ViewBag.SelectedAccountId = accountId;
-                model.Items[0].AccountId = accountId; // Pre-set for new transaction
+                model.Items[0].AccountId = accountId;
             }
         }
 
@@ -176,45 +178,78 @@ public class TransactionController : Controller
         return Json(new { fine = 0.0, amount = 0.0 });
     }
 
-    // Add/Edit Transaction (POST)
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult AddTransaction(TransactionViewModel model, int? SelectedAccountId)
     {
+        ViewBag.ItemDropDown = SetItemDropDown();
+        ViewBag.AccountDropDown = SetAccountDropDown();
+        ViewBag.SelectedAccountId = SelectedAccountId;
+
+        var itemGroups = SetItemDropDown().ToDictionary(i => i.Id, i => i.GroupName);
+
+        // Ensure TransactionType is preserved
+        if (string.IsNullOrEmpty(model.TransactionType))
+        {
+            model.TransactionType = Request.Form["TransactionType"].FirstOrDefault() ?? "Purchase"; // Fallback
+        }
+
+        // Validate model
+        if (!SelectedAccountId.HasValue)
+        {
+            ModelState.AddModelError("SelectedAccountId", "Account is required.");
+        }
+
+        foreach (var item in model.Items)
+        {
+            if (!item.ItemId.HasValue)
+            {
+                ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].ItemId", "Item is required.");
+                continue;
+            }
+
+            string groupName = itemGroups.ContainsKey(item.ItemId.Value) ? itemGroups[item.ItemId.Value] : "";
+            switch (groupName)
+            {
+                case "Gold Jewelry":
+                    if (!item.Weight.HasValue || item.Weight <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Weight", "Gross Weight is required.");
+                    if (!item.Wastage.HasValue || item.Wastage <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Wastage", "Wastage is required.");
+                    break;
+                case "PC Gold Jewelry":
+                    if (!item.Pc.HasValue || item.Pc <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Pc", "Pc is required.");
+                    if (!item.Rate.HasValue || item.Rate <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Rate", "Rate is required.");
+                    break;
+                case "PC/Weight Jewelry":
+                    if (!item.Pc.HasValue || item.Pc <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Pc", "Pc is required.");
+                    if (!item.Weight.HasValue || item.Weight <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Weight", "Gross Weight is required.");
+                    if (!item.Wastage.HasValue || item.Wastage <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Wastage", "Wastage is required.");
+                    if (!item.Rate.HasValue || item.Rate <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Rate", "Rate is required.");
+                    break;
+                default:
+                    ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].ItemId", "Invalid item group.");
+                    break;
+            }
+        }
+
         if (!ModelState.IsValid)
         {
-            ViewBag.ItemDropDown = SetItemDropDown();
-            ViewBag.AccountDropDown = SetAccountDropDown();
-            return View(model);
+            var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+            return Json(new { success = false, error = string.Join("; ", errors) });
         }
 
         string? connectionString = configuration.GetConnectionString("ConnectionString");
-        int? selectedAccountId = SelectedAccountId;
-
         try
         {
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
-
                 foreach (var item in model.Items)
                 {
-                    item.AccountId = selectedAccountId; // Apply the single selected AccountId to all items
+                    item.AccountId = SelectedAccountId;
                     CalculateDerivedFields(item);
-                    SqlCommand command;
-
-                    if (item.Id > 0) // Existing record, update it
-                    {
-                        command = new SqlCommand("SP_Transaction_Update", connection);
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@Id", item.Id);
-                    }
-                    else // New record, insert it
-                    {
-                        command = new SqlCommand("SP_Transaction_Insert", connection);
-                        command.CommandType = CommandType.StoredProcedure;
-                    }
-
+                    SqlCommand command = item.Id > 0 ? new SqlCommand("SP_Transaction_Update", connection) : new SqlCommand("SP_Transaction_Insert", connection);
+                    command.CommandType = CommandType.StoredProcedure;
+                    if (item.Id > 0) command.Parameters.AddWithValue("@Id", item.Id);
                     command.Parameters.AddWithValue("@TransactionType", item.TransactionType);
                     command.Parameters.AddWithValue("@BillNo", model.BillNo);
                     command.Parameters.AddWithValue("@Date", model.Date);
@@ -235,13 +270,12 @@ public class TransactionController : Controller
                 }
             }
 
-            string? redirectUrl = Url.Action("ViewStock", "OpeningStock"); // Always redirect to ViewStock
-
+            string redirectUrl = Url.Action("ViewStock", "OpeningStock");
             return Json(new { success = true, redirectUrl });
         }
         catch (Exception ex)
         {
-            return Json(new { success = false, message = $"An error occurred while saving: {ex.Message}" });
+            return Json(new { success = false, error = $"An error occurred while saving: {ex.Message}" });
         }
     }
 
