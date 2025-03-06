@@ -23,7 +23,7 @@ namespace Gold_Billing_Web_App.Controllers
         public async Task<IActionResult> Index()
         {
             var model = new DashboardViewModel();
-            string connectionString = _configuration.GetConnectionString("ConnectionString");
+            string? connectionString = _configuration.GetConnectionString("ConnectionString");
             _logger.LogInformation($"Connection String: {connectionString}");
 
             try
@@ -50,7 +50,7 @@ namespace Gold_Billing_Web_App.Controllers
                     .Where(t => EF.Functions.Like(t.TransactionType, "Sale"))
                     .SumAsync(t => t.Weight ?? 0);
                 var saleReturnsWeight = await _dbContext.Transactions
-                    .Where(t => EF.Functions.Like(t.TransactionType, "Sale Return"))
+                    .Where(t => EF.Functions.Like(t.TransactionType, "SaleReturn")) // Adjusted to match your model
                     .SumAsync(t => t.Weight ?? 0);
                 model.TotalSales = salesWeight - saleReturnsWeight;
                 _logger.LogInformation($"Sales Weight: {salesWeight}, Sale Returns: {saleReturnsWeight}, Total Sales: {model.TotalSales}");
@@ -60,7 +60,7 @@ namespace Gold_Billing_Web_App.Controllers
                     .Where(t => EF.Functions.Like(t.TransactionType, "Purchase"))
                     .SumAsync(t => t.Weight ?? 0);
                 var purchaseReturnsWeight = await _dbContext.Transactions
-                    .Where(t => EF.Functions.Like(t.TransactionType, "Purchase Return") || EF.Functions.Like(t.TransactionType, "PurchaseReturn"))
+                    .Where(t => EF.Functions.Like(t.TransactionType, "PurchaseReturn")) // Adjusted to match your model
                     .SumAsync(t => t.Weight ?? 0);
                 model.TotalPurchase = purchaseWeight - purchaseReturnsWeight;
                 _logger.LogInformation($"Purchase Weight: {purchaseWeight}, Purchase Returns: {purchaseReturnsWeight}, Total Purchase: {model.TotalPurchase}");
@@ -77,7 +77,6 @@ namespace Gold_Billing_Web_App.Controllers
                     var table = new DataTable();
                     table.Load(reader);
 
-                    // Log all stock rows
                     foreach (DataRow row in table.Rows)
                     {
                         _logger.LogInformation($"Stock - BillNo: {row["BillNo"]}, NetWt: {row["NetWt"]}, LastUpdated: {row["LastUpdated"]}");

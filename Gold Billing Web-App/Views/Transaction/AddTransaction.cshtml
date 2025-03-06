@@ -20,11 +20,18 @@
         <div class="row mb-3">
             <div class="col-md-4">
                 <label class="form-label">Account</label>
-                <select id="accountSelect" name="AccountId" class="form-control" onchange="fetchPreviousBalance()">
+                <select id="accountSelect" name="SelectedAccountId" class="form-control" onchange="fetchPreviousBalance()">
                     <option value="">Select Account</option>
                     @foreach (var account in ViewBag.AccountDropDown)
                     {
-                        <option value="@account.Id" selected="@(ViewBag.SelectedAccountId == account.Id ? "selected" : null)">@account.AccountName</option>
+                        if (ViewBag.SelectedAccountId == account.Id)
+                        {
+                            <option value="@account.Id" selected>@account.AccountName</option>
+                        }
+                        else
+                        {
+                            <option value="@account.Id">@account.AccountName</option>
+                        }
                     }
                 </select>
             </div>
@@ -69,7 +76,9 @@
                     {
                         <tr>
                             <td>
+                                <input asp-for="Items[i].Id" type="hidden" />
                                 <input asp-for="Items[i].TransactionType" type="hidden" value="@Model.TransactionType" />
+                                <input asp-for="Items[i].AccountId" type="hidden" class="account-id-input" />
                                 <select asp-for="Items[i].ItemId" asp-items="@(new SelectList(ViewBag.ItemDropDown, "Id", "ItemName"))" class="form-control item-select">
                                     <option value="">Select Item</option>
                                 </select>
@@ -206,8 +215,11 @@
             let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
             input.name = `Items[${rowCount}].${baseName}`;
             input.id = `Items_${rowCount}__${baseName}`;
-            if (input.type !== 'hidden') {
+            if (input.type !== 'hidden' && input.tagName !== 'SELECT') {
                 input.value = '';
+            }
+            if (baseName === 'AccountId') {
+                input.value = document.getElementById('accountSelect').value || '';
             }
         });
 
@@ -223,11 +235,6 @@
             span.setAttribute('data-valmsg-for', `Items[${rowCount}].${baseFor}`);
             span.innerHTML = "";
         });
-
-        let accountId = document.getElementById('accountSelect').value;
-        if (accountId) {
-            newRow.querySelector('input[name*="AccountId"]').value = accountId;
-        }
 
         table.appendChild(newRow);
         updateTotals();
@@ -277,8 +284,6 @@
         if (!accountId) {
             document.getElementById('prevFine').value = "0.00";
             document.getElementById('prevAmount').value = "0.00";
-            document.getElementById('totalBalanceFine').value = "0.00";
-            document.getElementById('totalBalanceAmount').value = "0.00";
             updateTotals();
             return;
         }
@@ -375,56 +380,59 @@
     document.addEventListener('DOMContentLoaded', function () {
         updateTotals();
         fetchPreviousBalance();
+        syncAccountIds(); // Sync AccountId on page load
+    });
 
-        // Handle form submission with SweetAlert only on successful save
-        document.getElementById('transactionForm').addEventListener('submit', function (e) {
-            e.preventDefault(); // Prevent default form submission
+    function syncAccountIds() {
+        let accountId = document.getElementById('accountSelect').value;
+        document.querySelectorAll('.account-id-input').forEach(input => {
+            input.value = accountId || '';
+        });
+    }
 
-            let form = this;
-            let formData = new FormData(form);
+    document.getElementById('accountSelect').addEventListener('change', syncAccountIds);
 
-            fetch(form.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest' // Indicate AJAX request
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: 'Transaction added successfully!',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        // Redirect only after the alert is dismissed
-                        if (data.redirectUrl) {
-                            window.location.href = data.redirectUrl;
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'An error occurred while adding the transaction.'
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error during form submission:', error);
+    document.getElementById('transactionForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        syncAccountIds(); // Ensure AccountId is synced before submission
+        let form = this;
+        let formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: 'Transaction saved successfully!',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    if (data.redirectUrl) {
+                        window.location.href = data.redirectUrl;
+                    }
+                });
+            } else {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'An error occurred while adding the transaction.'
+                    text: data.message || 'An error occurred while saving the transaction.'
                 });
+            }
+        })
+        .catch(error => {
+            console.error('Error during form submission:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while saving the transaction.'
             });
         });
     });

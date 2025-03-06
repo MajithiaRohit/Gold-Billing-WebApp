@@ -75,8 +75,8 @@ public class TransactionController : Controller
         }
     }
 
-    // Add Transaction (GET)
-    public IActionResult AddTransaction(string type, int? accountId = null)
+    // Add/Edit Transaction (GET)
+    public IActionResult AddTransaction(string type, int? accountId = null, string? billNo = null)
     {
         if (!new[] { "Purchase", "Sale", "PurchaseReturn", "SaleReturn" }.Contains(type))
         {
@@ -85,23 +85,74 @@ public class TransactionController : Controller
 
         ViewBag.ItemDropDown = SetItemDropDown();
         ViewBag.AccountDropDown = SetAccountDropDown();
-        var model = new TransactionViewModel
-        {
-            BillNo = GenerateSequentialBillNo(type),
-            Date = DateTime.Now,
-            TransactionType = type,
-            Items = new List<TransactionModel> { new TransactionModel { TransactionType = type } }
-        };
+        var model = new TransactionViewModel();
 
-        if (accountId.HasValue)
+        if (!string.IsNullOrEmpty(billNo))
         {
-            ViewBag.SelectedAccountId = accountId;
+            string? connectionString = configuration.GetConnectionString("ConnectionString");
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlCommand command = new SqlCommand("SP_Transaction_SelectByBillNo", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.AddWithValue("@BillNo", billNo);
+
+                SqlDataReader reader = command.ExecuteReader();
+                DataTable table = new DataTable();
+                table.Load(reader);
+
+                if (table.Rows.Count == 0)
+                {
+                    return NotFound();
+                }
+
+                var firstRow = table.Rows[0];
+                model.BillNo = billNo;
+                model.Date = firstRow.Field<DateTime>("Date");
+                model.Narration = firstRow["Narration"] != DBNull.Value ? firstRow["Narration"] as string : null;
+                model.TransactionType = type;
+                model.Items = table.AsEnumerable().Select(row => new TransactionModel
+                {
+                    Id = row.Field<int>("Id"),
+                    TransactionType = row.Field<string>("TransactionType")!,
+                    AccountId = row["AccountId"] != DBNull.Value ? row.Field<int>("AccountId") : null,
+                    ItemId = row.Field<int>("ItemId"),
+                    Pc = row["Pc"] != DBNull.Value ? row.Field<int>("Pc") : null,
+                    Weight = row["Weight"] != DBNull.Value ? row.Field<decimal>("Weight") : null,
+                    Less = row["Less"] != DBNull.Value ? row.Field<decimal>("Less") : null,
+                    NetWt = row["NetWt"] != DBNull.Value ? row.Field<decimal>("NetWt") : null,
+                    Tunch = row["Tunch"] != DBNull.Value ? row.Field<decimal>("Tunch") : null,
+                    Wastage = row["Wastage"] != DBNull.Value ? row.Field<decimal>("Wastage") : null,
+                    TW = row["TW"] != DBNull.Value ? row.Field<decimal>("TW") : null,
+                    Rate = row["Rate"] != DBNull.Value ? row.Field<decimal>("Rate") : null,
+                    Fine = row["Fine"] != DBNull.Value ? row.Field<decimal>("Fine") : null,
+                    Amount = row["Amount"] != DBNull.Value ? row.Field<decimal>("Amount") : null
+                }).ToList();
+
+                if (model.Items.Any() && model.Items[0].AccountId.HasValue)
+                {
+                    ViewBag.SelectedAccountId = model.Items[0].AccountId; // Pre-select account
+                }
+            }
+        }
+        else
+        {
+            model.BillNo = GenerateSequentialBillNo(type);
+            model.Date = DateTime.Now;
+            model.TransactionType = type;
+            model.Items = new List<TransactionModel> { new TransactionModel { TransactionType = type } };
+
+            if (accountId.HasValue)
+            {
+                ViewBag.SelectedAccountId = accountId;
+                model.Items[0].AccountId = accountId; // Pre-set for new transaction
+            }
         }
 
         return View(model);
     }
 
-    // Get Previous Balance (Using your SP_GetPreviousBalance)
+    // Get Previous Balance
     [HttpGet]
     public IActionResult GetPreviousBalance(int accountId)
     {
@@ -125,9 +176,10 @@ public class TransactionController : Controller
         return Json(new { fine = 0.0, amount = 0.0 });
     }
 
+    // Add/Edit Transaction (POST)
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult AddTransaction(TransactionViewModel model)
+    public IActionResult AddTransaction(TransactionViewModel model, int? SelectedAccountId)
     {
         if (!ModelState.IsValid)
         {
@@ -137,18 +189,32 @@ public class TransactionController : Controller
         }
 
         string? connectionString = configuration.GetConnectionString("ConnectionString");
-        int? selectedAccountId = null;
+        int? selectedAccountId = SelectedAccountId;
 
         try
         {
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
+
                 foreach (var item in model.Items)
                 {
+                    item.AccountId = selectedAccountId; // Apply the single selected AccountId to all items
                     CalculateDerivedFields(item);
-                    SqlCommand command = new SqlCommand("SP_Transaction_Insert", connection);
-                    command.CommandType = CommandType.StoredProcedure;
+                    SqlCommand command;
+
+                    if (item.Id > 0) // Existing record, update it
+                    {
+                        command = new SqlCommand("SP_Transaction_Update", connection);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@Id", item.Id);
+                    }
+                    else // New record, insert it
+                    {
+                        command = new SqlCommand("SP_Transaction_Insert", connection);
+                        command.CommandType = CommandType.StoredProcedure;
+                    }
+
                     command.Parameters.AddWithValue("@TransactionType", item.TransactionType);
                     command.Parameters.AddWithValue("@BillNo", model.BillNo);
                     command.Parameters.AddWithValue("@Date", model.Date);
@@ -164,18 +230,12 @@ public class TransactionController : Controller
                     command.Parameters.AddWithValue("@Rate", item.Rate ?? (object)DBNull.Value);
                     command.Parameters.AddWithValue("@Fine", item.Fine ?? (object)DBNull.Value);
                     command.Parameters.AddWithValue("@Amount", item.Amount ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Narration", model.Narration ?? (object)DBNull.Value);
                     command.ExecuteNonQuery();
-
-                    if (!selectedAccountId.HasValue && item.AccountId.HasValue)
-                    {
-                        selectedAccountId = item.AccountId;
-                    }
                 }
             }
 
-            string? redirectUrl = model.Items.Any(i => i.TransactionType == "Purchase") && selectedAccountId.HasValue
-                ? Url.Action("AddTransaction", new { type = "Sale", accountId = selectedAccountId })
-                : Url.Action("ViewStock", "OpeningStock");
+            string? redirectUrl = Url.Action("ViewStock", "OpeningStock"); // Always redirect to ViewStock
 
             return Json(new { success = true, redirectUrl });
         }

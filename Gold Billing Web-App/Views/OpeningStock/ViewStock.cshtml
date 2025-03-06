@@ -21,14 +21,36 @@
                         <th>Fine</th>
                         <th>Amount</th>
                         <th>Last Updated</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (DataRow row in Model.Rows)
                     {
-                        <tr>
-                            <td>@row["BillNo"]</td>
+                        string billNo = row["BillNo"].ToString()!;
+                        string redirectUrl = "";
+                        if (billNo.StartsWith("PUR"))
+                        {
+                            redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Purchase", billNo = billNo })!;
+                        }
+                        else if (billNo.StartsWith("S"))
+                        {
+                            redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Sale", billNo = billNo })!;
+                        }
+                        else if (billNo.StartsWith("PR"))
+                        {
+                            redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "PurchaseReturn", billNo = billNo })!;
+                        }
+                        else if (billNo.StartsWith("SR"))
+                        {
+                            redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "SaleReturn", billNo = billNo })!;
+                        }
+                        else if (billNo.StartsWith("BILL") || billNo.StartsWith("NEW"))
+                        {
+                            redirectUrl = Url.Action("EditOpeningStock", "OpeningStock", new { billNo = billNo })!;
+                        }
+
+                        <tr style="cursor: pointer;" onclick="window.location.href='@redirectUrl'">
+                            <td>@billNo</td>
                             <td>@row["ItemName"]</td>
                             <td>@(row["Weight"] != DBNull.Value ? row["Weight"] : "0.00")</td>
                             <td>@(row["Less"] != DBNull.Value ? row["Less"] : "0.00")</td>
@@ -36,12 +58,6 @@
                             <td>@row["Fine"]</td>
                             <td>@row["Amount"]</td>
                             <td>@Convert.ToDateTime(row["LastUpdated"]).ToString("yyyy-MM-dd HH:mm")</td>
-                            <td>
-                                @if (row["BillNo"].ToString()!.StartsWith("BILL") || row["BillNo"].ToString()!.StartsWith("NEW"))
-                                {
-                                    <a href="@Url.Action("EditOpeningStock", "OpeningStock", new { billNo = row["BillNo"] })" class="btn btn-primary btn-sm">Edit</a>
-                                }
-                            </td>
                         </tr>
                     }
                 </tbody>
@@ -60,7 +76,7 @@
                         <td>@totalNetWt.ToString("F2")</td>
                         <td>@totalFine.ToString("F2")</td>
                         <td>@totalAmount.ToString("F2")</td>
-                        <td colspan="2"></td>
+                        <td></td> <!-- Adjusted colspan -->
                     </tr>
                 </tfoot>
             </table>
