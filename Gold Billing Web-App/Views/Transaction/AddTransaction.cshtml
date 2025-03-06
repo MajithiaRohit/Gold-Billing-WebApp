@@ -269,11 +269,23 @@
 
         let prevFine = parseFloat(document.getElementById('prevFine').value) || 0;
         let prevAmount = parseFloat(document.getElementById('prevAmount').value) || 0;
-        document.getElementById('currentFine').value = totalFine.toFixed(2);
-        document.getElementById('currentAmount').value = totalAmount.toFixed(2);
 
-        let totalBalanceFine = prevFine + totalFine;
-        let totalBalanceAmount = prevAmount + totalAmount;
+        // Adjust current transaction based on TransactionType
+        let transactionType = '@Model.TransactionType';
+        let currentFine = totalFine;
+        let currentAmount = totalAmount;
+
+        if (transactionType === 'Sale' || transactionType === 'PurchaseReturn') {
+            currentFine = -totalFine;   // Subtract for Sale and PurchaseReturn
+            currentAmount = -totalAmount;
+        }
+        // Purchase and SaleReturn keep positive values (add to balance)
+
+        document.getElementById('currentFine').value = currentFine.toFixed(2);
+        document.getElementById('currentAmount').value = currentAmount.toFixed(2);
+
+        let totalBalanceFine = prevFine + currentFine;
+        let totalBalanceAmount = prevAmount + currentAmount;
 
         document.getElementById('totalBalanceFine').value = totalBalanceFine.toFixed(2);
         document.getElementById('totalBalanceAmount').value = totalBalanceAmount.toFixed(2);
