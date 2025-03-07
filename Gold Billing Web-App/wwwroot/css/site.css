@@ -21,5 +21,13 @@ body {
   margin-bottom: 60px;
 }
 
+.zoom-row {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+    .zoom-row:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Adds a subtle shadow */
+        background-color: #f5f5f5;
 
  
