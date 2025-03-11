@@ -1,134 +1,383 @@
-﻿@{
-    ViewBag.Title = "Metal Transection";
+﻿@model Gold_Billing_Web_App.Models.MetalTransactionViewModel
+@{
+    ViewBag.Title = "Metal Transaction";
 }
 
 <div class="container p-3" style="background-color: lavender; border-radius: 10px;">
-    <h2>Metal Payment</h2>
-    <hr />
-    <div class="row mb-3">
-        <div class="col-md-6">
-            <label>Account Name</label>
-            <select class="form-control">
-                <option>Select Account</option>
-                <option>Account 1</option>
-                <option>Account 2</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label>Date</label>
-            <input type="date" class="form-control" />
-        </div>
-        <div class="col-md-3">
-            <label>Bill No</label>
-            <input type="text" class="form-control" disabled />
-        </div>
-    </div>
-    <div class="row mb-3">
-        <div class="col-md-6">
-            <label>Narration</label>
-            <input type="text" class="form-control" />
-        </div>
-    </div>
-    <div class="form-group mt-4">
-        <label>
-            <input type="radio" name="PaymentType" value="Payment"> Payment
-        </label>
-        <label>
-            <input type="radio" name="PaymentType" value="Receipt"> Receipt
-        </label>
-    </div>
+    <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
 
-    <!-- Receipt Design -->
-    <div>
-        <table class="table table-bordered mt-3">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Gr.Wt.</th>
-                    <th>Tunch</th>
-                    <th>Fine</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>
-                        <select class="form-control">
-                            <option selected>Gold Fine</option>
-                            <option>Cadbury</option>
-                            <option>Dhal</option>
-                        </select>
-                    </td>
-                    <td><input type="number" class="form-control"></td>
-                    <td><input type="number" class="form-control" value="100"></td>
-                    <td><input type="number" class="form-control"></td>
-                </tr>
-                <tr>
-                    <td>
-                        <select class="form-control">
-                            <option>Gold Fine</option>
-                            <option selected>Cadbury</option>
-                            <option>Dhal</option>
-                        </select>
-                    </td>
-                    <td><input type="number" class="form-control"></td>
-                    <td><input type="number" class="form-control" value="99.50"></td>
-                    <td><input type="number" class="form-control"></td>
-                </tr>
-                <tr>
-                    <td>
-                        <select class="form-control">
-                            <option>Gold Fine</option>
-                            <option>Cadbury</option>
-                            <option selected>Dhal</option>
-                        </select>
-                    </td>
-                    <td><input type="number" class="form-control"></td>
-                    <td><input type="number" class="form-control" value="80"></td>
-                    <td><input type="number" class="form-control"></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    <button class="btn btn-primary mb-3" onclick="addNewRow()">Add New Row</button>
+    <!-- Bootstrap Validation Summary -->
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Validation Errors</h4>
+            <ul>
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
 
-    <h3 class="mt-3">Balance Details</h3>
-    <hr />
-    <div class="row mt-3">
+    <form asp-action="AddMetalTransaction" method="post" id="metalTransactionForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Type" id="transactionType" />
+        <hr class="mb-3 mt-3" />
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Account</label>
+                <select id="accountSelect" name="SelectedAccountId" class="form-control" onchange="fetchPreviousBalance()">
+                    <option value="">Select Account</option>
+                    @foreach (var account in ViewBag.AccountDropDown)
+                    {
+                        if (ViewBag.SelectedAccountId == account.Id)
+                        {
+                            <option value="@account.Id" data-group="@account.GroupName" selected>@account.AccountName</option>
+                        }
+                        else
+                        {
+                            <option value="@account.Id" data-group="@account.GroupName">@account.AccountName</option>
+                        }
+                    }
+                </select>
+                <span id="account-error" class="text-danger"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Date" class="form-label">Date</label>
+                <input asp-for="Date" type="date" class="form-control" />
+                <span asp-validation-for="Date" class="text-danger"></span>
+            </div>
+            <div class="col-md-4 form-group">
+                <label asp-for="BillNo" class="form-label">Bill Number</label>
+                <input asp-for="BillNo" class="form-control" readonly />
+                <span asp-validation-for="BillNo" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label asp-for="Narration" class="form-label">Narration</label>
+                <textarea asp-for="Narration" type="text" class="form-control"></textarea>
+                <span asp-validation-for="Narration" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Transaction Type</label><br />
+                <label><input type="radio" name="Type" value="Payment" onchange="updateType()" checked> Payment</label>
+                <label><input type="radio" name="Type" value="Receipt" onchange="updateType()"> Receipt</label>
+            </div>
+        </div>
+
         <div class="table-responsive">
-            <table class="table table-bordered">
+            <table class="table table-bordered" id="metalTransactionTable">
                 <thead class="bg-light">
                     <tr>
-                        <th></th>
+                        <th>Item</th>
+                        <th>Gr.Wt.</th>
+                        <th>Tunch (%)</th>
                         <th>Fine</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr class="col">
-                        <td>Total Previous Balance</td>
-                        <td><input type="text" class="form-control" readonly disabled /></td>
-                    </tr>
-                    <tr class="col">
-                        <td>Total New Balance</td>
-                        <td><input type="text" class="form-control" readonly disabled /></td>
-                    </tr>
-                    <tr class="col">
-                        <td>Total Balance</td>
-                        <td><input type="text" class="form-control" readonly disabled /></td>
-                    </tr>
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <input asp-for="Items[i].Id" type="hidden" />
+                                <input asp-for="Items[i].Type" type="hidden" value="@Model.Type" />
+                                <input asp-for="Items[i].AccountId" type="hidden" class="account-id-input" />
+                                <select asp-for="Items[i].ItemId" class="form-control item-select" onchange="calculateFine(this); updateTotals();">
+                                    <option value="">Select Item</option>
+                                    @foreach (var item in ViewBag.ItemDropDown)
+                                    {
+                                        if (Model.Items[i].ItemId == item.Id)
+                                        {
+                                            <option value="@item.Id" selected>@item.ItemName</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@item.Id">@item.ItemName</option>
+                                        }
+                                    }
+                                </select>
+                                <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].GrossWeight" type="number" step="0.01" class="form-control weight-input" onchange="calculateFine(this); updateTotals();" />
+                                <span asp-validation-for="Items[i].GrossWeight" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateFine(this); updateTotals();" />
+                                <span asp-validation-for="Items[i].Tunch" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Fine" type="number" step="0.01" class="form-control fine-input" readonly />
+                                <span asp-validation-for="Items[i].Fine" class="text-danger"></span>
+                            </td>
+                            <td>
+                                @if (i > 0) // Hide delete button for the first row
+                                {
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteRow(this)">Delete</button>
+                                }
+                            </td>
+                        </tr>
+                    }
                 </tbody>
+                <tfoot>
+                    <tr class="bg-secondary text-white">
+                        <td><strong>Total:</strong></td>
+                        <td><input type="number" step="0.01" id="totalGrWt" class="form-control" readonly /></td>
+                        <td></td>
+                        <td><input type="number" step="0.01" id="totalFine" class="form-control" readonly /></td>
+                        <td></td>
+                    </tr>
+                    <tr class="bg-info text-white">
+                        <td colspan="2"></td>
+                        <td class="text-right"><strong>Previous Balance:</strong></td>
+                        <td><input type="number" step="0.01" id="prevFine" class="form-control" readonly /></td>
+                        <td></td>
+                    </tr>
+                    <tr class="bg-warning text-dark">
+                        <td colspan="2"></td>
+                        <td class="text-right"><strong>Current Transaction:</strong></td>
+                        <td><input type="number" step="0.01" id="currentFine" class="form-control" readonly /></td>
+                        <td></td>
+                    </tr>
+                    <tr class="bg-success text-white">
+                        <td colspan="2"></td>
+                        <td class="text-right"><strong>Total Balance:</strong></td>
+                        <td><input type="number" step="0.01" id="totalBalanceFine" class="form-control" readonly /></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
+            <button type="button" class="btn btn-primary mb-3" onclick="addNewRow()">Add New Row</button>
         </div>
-    </div>
 
-    <button class="btn btn-primary">Save</button>
-    <button class="btn btn-secondary">Cancel</button>
+        <div class="row mt-3">
+            <div class="col-md-12 text-center">
+                <button type="submit" class="btn btn-success">Save</button>
+                <a href="@Url.Action("Index", "Home")" class="btn btn-danger">Cancel</a>
+            </div>
+        </div>
+    </form>
 </div>
 
-<script>
-    function addNewRow() {
-        let table = document.querySelector(".table tbody");
-        let newRow = table.rows[0].cloneNode(true);
-        table.appendChild(newRow);
-    }
-</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        updateTotals();
+        fetchPreviousBalance();
+        syncAccountIds();
+    });
+
+    function calculateFine(element) {
+        let row = element.closest('tr');
+        let grossWeight = parseFloat(row.querySelector('.weight-input').value) || 0;
+        let tunch = parseFloat(row.querySelector('.tunch-input').value) || 0;
+        let fine = grossWeight * (tunch / 100);
+        row.querySelector('.fine-input').value = fine.toFixed(2);
+        updateTotals();
+    }
+
+      function addNewRow() {
+        let table = document.getElementById('metalTransactionTable').querySelector('tbody');
+        let rowCount = table.getElementsByTagName('tr').length;
+        let newRow = table.rows[0].cloneNode(true);
+
+        // Clear input values for the new row
+        newRow.querySelectorAll("input:not([readonly]), select").forEach(input => {
+            let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
+            input.name = `Items[${rowCount}].${baseName}`;
+            input.id = `Items_${rowCount}__${baseName}`;
+            if (input.type !== 'hidden' && input.tagName !== 'SELECT') {
+                input.value = '';
+            }
+            if (baseName === 'AccountId') {
+                input.value = document.getElementById('accountSelect').value || '';
+            }
+        });
+
+        // Clear readonly input values for the new row
+        newRow.querySelectorAll("input[readonly]").forEach(input => {
+            let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
+            input.name = `Items[${rowCount}].${baseName}`;
+            input.id = `Items_${rowCount}__${baseName}`;
+            input.value = '0.00';
+        });
+
+        // Clear validation messages for the new row
+        newRow.querySelectorAll("span.text-danger").forEach(span => {
+            let baseFor = span.getAttribute('data-valmsg-for').split('.')[1];
+            span.setAttribute('data-valmsg-for', `Items[${rowCount}].${baseFor}`);
+            span.innerHTML = "";
+        });
+
+        // Add delete button for the new row
+        let deleteButtonCell = newRow.querySelector('td:last-child');
+        deleteButtonCell.innerHTML = '<button type="button" class="btn btn-danger btn-sm" onclick="deleteRow(this)">Delete</button>';
+
+        // Append the new row to the table
+        table.appendChild(newRow);
+
+        // Reinitialize validation for the new row
+        $.validator.unobtrusive.parse(newRow);
+
+        // Update totals
+        updateTotals();
+    }
+
+    function deleteRow(button) {
+        let row = button.closest('tr');
+        row.remove();
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let totalGrWt = 0;
+        let totalFine = 0;
+
+        document.querySelectorAll('#metalTransactionTable tbody tr').forEach(row => {
+            let grWt = parseFloat(row.querySelector('.weight-input').value) || 0;
+            let fine = parseFloat(row.querySelector('.fine-input').value) || 0;
+
+            totalGrWt += grWt;
+            totalFine += fine;
+        });
+
+        document.getElementById('totalGrWt').value = totalGrWt.toFixed(2);
+        document.getElementById('totalFine').value = totalFine.toFixed(2);
+
+        let prevFine = parseFloat(document.getElementById('prevFine').value) || 0;
+        let transactionType = document.querySelector('input[name="Type"]:checked').value;
+        let currentFine = totalFine;
+
+        if (transactionType === 'Payment') {
+            currentFine = -totalFine; // Deduct for Payment
+        } else if (transactionType === 'Receipt') {
+            currentFine = totalFine; // Add for Receipt
+        }
+
+        document.getElementById('currentFine').value = currentFine.toFixed(2);
+        document.getElementById('totalBalanceFine').value = (prevFine + currentFine).toFixed(2);
+    }
+
+    function fetchPreviousBalance() {
+        let accountId = document.getElementById('accountSelect').value;
+        if (!accountId) {
+            document.getElementById('prevFine').value = "0.00";
+            updateTotals();
+            return;
+        }
+
+        fetch(`/MetalTransection/GetPreviousBalance?accountId=${accountId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('prevFine').value = data.fine.toFixed(2);
+                updateTotals();
+            })
+            .catch(error => {
+                console.error('Error fetching previous balance:', error);
+                document.getElementById('prevFine').value = "0.00";
+                updateTotals();
+            });
+    }
+
+    function syncAccountIds() {
+        let accountId = document.getElementById('accountSelect').value;
+        document.querySelectorAll('.account-id-input').forEach(input => {
+            input.value = accountId || '';
+        });
+    }
+
+    function updateType() {
+        document.getElementById('transactionType').value = document.querySelector('input[name="Type"]:checked').value;
+        updateTotals();
+    }
+
+    document.getElementById('metalTransactionForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        syncAccountIds();
+        let isFormValid = true;
+
+        if (!document.getElementById('accountSelect').value) {
+            document.getElementById('account-error').innerHTML = 'Account is required.';
+            isFormValid = false;
+        }
+
+        document.querySelectorAll('#metalTransactionTable tbody tr').forEach(row => {
+            let itemId = row.querySelector('.item-select').value;
+            let grossWeight = parseFloat(row.querySelector('.weight-input').value) || 0;
+            let tunch = parseFloat(row.querySelector('.tunch-input').value) || 0;
+
+            row.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
+
+            if (!itemId) {
+                row.querySelector('.item-select + .text-danger').innerHTML = 'Item is required.';
+                isFormValid = false;
+            }
+            if (grossWeight <= 0) {
+                row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
+                isFormValid = false;
+            }
+            if (tunch <= 0) {
+                row.querySelector('.tunch-input + .text-danger').innerHTML = 'Tunch is required.';
+                isFormValid = false;
+            }
+        });
+
+        if (!isFormValid) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please fill all required fields correctly.',
+            });
+        } else {
+            let formData = new FormData(this);
+            fetch('@Url.Action("AddMetalTransaction", "MetalTransection")', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Metal transaction saved successfully!',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = data.redirectUrl;
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.error || 'Failed to save the transaction.'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error during save:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while saving.'
+                });
+            });
+        }
+    });
+</script>

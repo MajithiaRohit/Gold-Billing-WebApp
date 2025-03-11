@@ -252,7 +252,7 @@ namespace Gold_Billing_Web_App.Controllers
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    foreach (var item in model.Items)
+                    foreach (var item in model.Items!)
                     {
                         item.AccountId = SelectedAccountId;
                         item.TransactionType = model.TransactionType;
@@ -261,7 +261,7 @@ namespace Gold_Billing_Web_App.Controllers
                         Console.WriteLine($"Item {item.ItemId}: Client Amount = {item.Amount}, Pc = {item.Pc}, Rate = {item.Rate}, Weight = {item.Weight}");
 
                         // Only recalculate if Amount is null
-                        string groupName = itemGroups[item.ItemId.Value];
+                        string groupName = itemGroups[item.ItemId!.Value];
                         if (item.Amount == null)
                         {
                             CalculateDerivedFields(item, groupName);
@@ -292,7 +292,7 @@ namespace Gold_Billing_Web_App.Controllers
                     }
                 }
 
-                string redirectUrl = Url.Action("ViewStock", "OpeningStock");
+                string redirectUrl = Url.Action("ViewStock", "OpeningStock")!;
                 return Json(new { success = true, redirectUrl });
             }
             catch (Exception ex)
