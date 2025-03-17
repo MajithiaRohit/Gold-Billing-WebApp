@@ -40,6 +40,7 @@ namespace Gold_Billing_Web_App.Controllers
         }
 
         // Helper method to populate Item dropdown
+        // Helper method to populate Item dropdown with specific items
         private List<ItemDropDownModel> SetItemDropDown()
         {
             string? connectionString = configuration.GetConnectionString("ConnectionString");
@@ -52,18 +53,42 @@ namespace Gold_Billing_Web_App.Controllers
                 DataTable dataTable = new DataTable();
                 dataTable.Load(reader);
 
-                return dataTable.AsEnumerable().Select(row => new ItemDropDownModel
-                {
-                    Id = row.Field<int>("Id"),
-                    ItemName = row.Field<string>("Name")!
-                }).ToList();
+                // Filter items to only include "Fine metal", "Cadbury", and "Dhal"
+                var allowedItems = new List<string> { "Fine Metal", "Cadbury", "Dhal" };
+                return dataTable.AsEnumerable()
+                    .Where(row => allowedItems.Contains(row.Field<string>("Name")!))
+                    .Select(row => new ItemDropDownModel
+                    {
+                        Id = row.Field<int>("Id"),
+                        ItemName = row.Field<string>("Name")!
+                    }).ToList();
+            }
+        }
+
+        // Add this new action
+        [HttpGet]
+        public IActionResult GetNextBillNo(string type)
+        {
+            if (!new[] { "Payment", "Receipt" }.Contains(type))
+            {
+                return BadRequest("Invalid transaction type");
+            }
+
+            try
+            {
+                string billNo = GenerateSequentialBillNo(type);
+                return Json(new { success = true, billNo });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = $"Error generating bill number: {ex.Message}" });
             }
         }
 
         // Generate a sequential bill number
         private string GenerateSequentialBillNo(string transactionType)
         {
-            string prefix = transactionType.Substring(0, 4).ToUpper(); // PAYM or RECV
+            string prefix = transactionType == "Payment" ? "PAYM" : "RECV";
             string? connectionString = configuration.GetConnectionString("ConnectionString");
             int lastNumber = 0;
 

@@ -6,6 +6,9 @@
 <div class="container p-3" style="background-color: lavender; border-radius: 10px;">
     <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
 
+    <!-- Alert Container (still used for errors) -->
+    <div id="alertContainer" class="mb-3"></div>
+
     <!-- Bootstrap Validation Summary -->
     @if (!ViewData.ModelState.IsValid)
     {
@@ -27,7 +30,7 @@
         <div class="row mb-3">
             <div class="col-md-4">
                 <label class="form-label">Account</label>
-                <select id="accountSelect" name="SelectedAccountId" class="form-control" onchange="fetchPreviousBalance()">
+                <select id="accountSelect" name="SelectedAccountId" class="form-control" onchange="fetchPreviousBalance(); syncAccountIds();" required>
                     <option value="">Select Account</option>
                     @foreach (var account in ViewBag.AccountDropDown)
                     {
@@ -45,12 +48,12 @@
             </div>
             <div class="col-md-4">
                 <label asp-for="Date" class="form-label">Date</label>
-                <input asp-for="Date" type="date" class="form-control" />
+                <input asp-for="Date" type="date" class="form-control" required />
                 <span asp-validation-for="Date" class="text-danger"></span>
             </div>
             <div class="col-md-4 form-group">
                 <label asp-for="BillNo" class="form-label">Bill Number</label>
-                <input asp-for="BillNo" class="form-control" readonly />
+                <input asp-for="BillNo" class="form-control" id="billNoInput" readonly />
                 <span asp-validation-for="BillNo" class="text-danger"></span>
             </div>
         </div>
@@ -62,8 +65,8 @@
             </div>
             <div class="col-md-6">
                 <label class="form-label">Transaction Type</label><br />
-                <label><input type="radio" name="Type" value="Payment" onchange="updateType()" checked> Payment</label>
-                <label><input type="radio" name="Type" value="Receipt" onchange="updateType()"> Receipt</label>
+                <label><input type="radio" name="Type" value="Payment" onchange="updateTypeAndBillNo()" checked> Payment</label>
+                <label><input type="radio" name="Type" value="Receipt" onchange="updateTypeAndBillNo()"> Receipt</label>
             </div>
         </div>
 
@@ -86,7 +89,7 @@
                                 <input asp-for="Items[i].Id" type="hidden" />
                                 <input asp-for="Items[i].Type" type="hidden" value="@Model.Type" />
                                 <input asp-for="Items[i].AccountId" type="hidden" class="account-id-input" />
-                                <select asp-for="Items[i].ItemId" class="form-control item-select" onchange="calculateFine(this); updateTotals();">
+                                <select asp-for="Items[i].ItemId" class="form-control item-select" onchange="setDefaultTunch(this); calculateFine(this); updateTotals();" required>
                                     <option value="">Select Item</option>
                                     @foreach (var item in ViewBag.ItemDropDown)
                                     {
@@ -103,11 +106,11 @@
                                 <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].GrossWeight" type="number" step="0.01" class="form-control weight-input" onchange="calculateFine(this); updateTotals();" />
+                                <input asp-for="Items[i].GrossWeight" type="number" step="0.01" min="0.01" class="form-control weight-input" onchange="calculateFine(this); updateTotals();" required />
                                 <span asp-validation-for="Items[i].GrossWeight" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateFine(this); updateTotals();" />
+                                <input asp-for="Items[i].Tunch" type="number" step="0.01" min="0.01" max="100" class="form-control tunch-input" onchange="calculateFine(this); updateTotals();" required />
                                 <span asp-validation-for="Items[i].Tunch" class="text-danger"></span>
                             </td>
                             <td>
@@ -115,7 +118,7 @@
                                 <span asp-validation-for="Items[i].Fine" class="text-danger"></span>
                             </td>
                             <td>
-                                @if (i > 0) // Hide delete button for the first row
+                                @if (i > 0)
                                 {
                                     <button type="button" class="btn btn-danger btn-sm" onclick="deleteRow(this)">Delete</button>
                                 }
@@ -163,17 +166,37 @@
     </form>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Include jQuery and Validation Libraries -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+
+<!-- Include SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         updateTotals();
         fetchPreviousBalance();
         syncAccountIds();
+        fetchBillNo(document.querySelector('input[name="Type"]:checked').value);
+        document.querySelectorAll('.item-select').forEach(select => {
+            console.log('Initial item selected:', select.options[select.selectedIndex]?.text);
+            setDefaultTunch(select);
+        });
     });
+
+    // Keep showAlert for error messages
+    function showAlert(message, type) {
+        const alertContainer = document.getElementById('alertContainer');
+        alertContainer.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        // No auto-dismiss for errors; keep for manual close
+    }
 
     function calculateFine(element) {
         let row = element.closest('tr');
@@ -184,12 +207,34 @@
         updateTotals();
     }
 
-      function addNewRow() {
+    function setDefaultTunch(select) {
+        let row = select.closest('tr');
+        let tunchInput = row.querySelector('.tunch-input');
+        let selectedText = select.options[select.selectedIndex]?.text || '';
+        selectedText = selectedText.trim().toLowerCase();
+
+        switch (selectedText) {
+            case 'fine metal':
+                tunchInput.value = '100.00';
+                break;
+            case 'cadbury':
+                tunchInput.value = '99.50';
+                break;
+            case 'dhal':
+                tunchInput.value = '80.00';
+                break;
+            default:
+                if (!tunchInput.value) tunchInput.value = '';
+                break;
+        }
+        calculateFine(tunchInput);
+    }
+
+    function addNewRow() {
         let table = document.getElementById('metalTransactionTable').querySelector('tbody');
         let rowCount = table.getElementsByTagName('tr').length;
         let newRow = table.rows[0].cloneNode(true);
 
-        // Clear input values for the new row
         newRow.querySelectorAll("input:not([readonly]), select").forEach(input => {
             let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
             input.name = `Items[${rowCount}].${baseName}`;
@@ -202,7 +247,6 @@
             }
         });
 
-        // Clear readonly input values for the new row
         newRow.querySelectorAll("input[readonly]").forEach(input => {
             let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
             input.name = `Items[${rowCount}].${baseName}`;
@@ -210,24 +254,17 @@
             input.value = '0.00';
         });
 
-        // Clear validation messages for the new row
         newRow.querySelectorAll("span.text-danger").forEach(span => {
             let baseFor = span.getAttribute('data-valmsg-for').split('.')[1];
             span.setAttribute('data-valmsg-for', `Items[${rowCount}].${baseFor}`);
             span.innerHTML = "";
         });
 
-        // Add delete button for the new row
         let deleteButtonCell = newRow.querySelector('td:last-child');
         deleteButtonCell.innerHTML = '<button type="button" class="btn btn-danger btn-sm" onclick="deleteRow(this)">Delete</button>';
 
-        // Append the new row to the table
         table.appendChild(newRow);
-
-        // Reinitialize validation for the new row
         $.validator.unobtrusive.parse(newRow);
-
-        // Update totals
         updateTotals();
     }
 
@@ -257,9 +294,9 @@
         let currentFine = totalFine;
 
         if (transactionType === 'Payment') {
-            currentFine = -totalFine; // Deduct for Payment
+            currentFine = -totalFine;
         } else if (transactionType === 'Receipt') {
-            currentFine = totalFine; // Add for Receipt
+            currentFine = totalFine;
         }
 
         document.getElementById('currentFine').value = currentFine.toFixed(2);
@@ -275,12 +312,7 @@
         }
 
         fetch(`/MetalTransection/GetPreviousBalance?accountId=${accountId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 document.getElementById('prevFine').value = data.fine.toFixed(2);
                 updateTotals();
@@ -299,85 +331,113 @@
         });
     }
 
-    function updateType() {
-        document.getElementById('transactionType').value = document.querySelector('input[name="Type"]:checked').value;
+    function updateTypeAndBillNo() {
+        const type = document.querySelector('input[name="Type"]:checked').value;
+        document.getElementById('transactionType').value = type;
+        fetchBillNo(type);
         updateTotals();
+    }
+
+    function fetchBillNo(type) {
+        fetch(`/MetalTransection/GetNextBillNo?type=${type}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('billNoInput').value = data.billNo;
+                } else {
+                    throw new Error(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching bill number:', error);
+                showAlert(`Failed to update bill number: ${error.message}`, 'danger');
+            });
     }
 
     document.getElementById('metalTransactionForm').addEventListener('submit', function (e) {
         e.preventDefault();
         syncAccountIds();
         let isFormValid = true;
+        let errorMessages = [];
+
+        document.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
 
         if (!document.getElementById('accountSelect').value) {
-            document.getElementById('account-error').innerHTML = 'Account is required.';
+            document.getElementById('account-error').innerHTML = 'Please select an account.';
+            errorMessages.push('Account selection is required.');
             isFormValid = false;
         }
 
-        document.querySelectorAll('#metalTransactionTable tbody tr').forEach(row => {
+        if (!document.getElementById('Date').value) {
+            document.querySelector('span[data-valmsg-for="Date"]').innerHTML = 'Date is required.';
+            errorMessages.push('Please specify a transaction date.');
+            isFormValid = false;
+        }
+
+        document.querySelectorAll('#metalTransactionTable tbody tr').forEach((row, index) => {
             let itemId = row.querySelector('.item-select').value;
             let grossWeight = parseFloat(row.querySelector('.weight-input').value) || 0;
             let tunch = parseFloat(row.querySelector('.tunch-input').value) || 0;
 
-            row.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
-
             if (!itemId) {
-                row.querySelector('.item-select + .text-danger').innerHTML = 'Item is required.';
+                row.querySelector('.item-select + .text-danger').innerHTML = 'Please select an item.';
+                errorMessages.push(`Item selection is required for row ${index + 1}.`);
                 isFormValid = false;
             }
             if (grossWeight <= 0) {
-                row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
+                row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight must be greater than 0.';
+                errorMessages.push(`Gross Weight must be greater than 0 for row ${index + 1}.`);
                 isFormValid = false;
             }
-            if (tunch <= 0) {
-                row.querySelector('.tunch-input + .text-danger').innerHTML = 'Tunch is required.';
+            if (tunch <= 0 || tunch > 100) {
+                row.querySelector('.tunch-input + .text-danger').innerHTML = 'Tunch must be between 0 and 100.';
+                errorMessages.push(`Tunch must be between 0 and 100 for row ${index + 1}.`);
                 isFormValid = false;
             }
         });
 
         if (!isFormValid) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Validation Error',
-                text: 'Please fill all required fields correctly.',
-            });
-        } else {
-            let formData = new FormData(this);
-            fetch('@Url.Action("AddMetalTransaction", "MetalTransection")', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: 'Metal transaction saved successfully!',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.href = data.redirectUrl;
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.error || 'Failed to save the transaction.'
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error during save:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An error occurred while saving.'
-                });
-            });
+            let alertMessage = errorMessages.length > 0
+                ? errorMessages.join('<br>')
+                : 'Please correct all validation errors before submitting.';
+            showAlert(alertMessage, 'danger');
+            return;
         }
+
+        let formData = new FormData(this);
+        fetch('@Url.Action("AddMetalTransaction", "MetalTransection")', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Use SweetAlert2 for success
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Transaction has been successfully saved!',
+                    icon: 'success',
+                    confirmButtonText: 'OK',
+                    timer: 2000, // Auto-close after 2 seconds
+                    timerProgressBar: true
+                }).then(() => {
+                    window.location.href = data.redirectUrl; // Redirect after SweetAlert closes
+                });
+            } else {
+                showAlert(data.error || 'Failed to save the transaction.', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error during save:', error);
+            showAlert('An error occurred while saving the transaction.', 'danger');
+        });
     });
 </script>
