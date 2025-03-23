@@ -4,6 +4,7 @@
     <h3 class="text-center">@ViewBag.Title</h3>
     <form asp-action="@ViewBag.Action" method="post">
         @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="BillNo" /> <!-- Preserve BillNo -->
 
         <div class="row mb-3">
             <div class="col-md-3">
@@ -50,46 +51,16 @@
                                 </select>
                                 <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" />
-                                <span asp-validation-for="Items[i].Pc" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].Weight" type="number" step="0.01" class="form-control weight-input" onchange="calculateNetWeight(this)" />
-                                <span asp-validation-for="Items[i].Weight" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].Less" type="number" step="0.01" class="form-control less-input" onchange="calculateNetWeight(this)" />
-                                <span asp-validation-for="Items[i].Less" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].NetWt" type="number" step="0.01" class="form-control netwt-input" readonly />
-                                <span asp-validation-for="Items[i].NetWt" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateTW(this)" />
-                                <span asp-validation-for="Items[i].Tunch" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].Wastage" type="number" step="0.01" class="form-control wastage-input" onchange="calculateTW(this)" />
-                                <span asp-validation-for="Items[i].Wastage" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].TW" type="number" step="0.01" class="form-control tw-input" readonly />
-                                <span asp-validation-for="Items[i].TW" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateFineAndAmount(this.closest('tr'))" />
-                                <span asp-validation-for="Items[i].Rate" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].Fine" type="number" step="0.01" class="form-control fine-input" readonly />
-                                <span asp-validation-for="Items[i].Fine" class="text-danger"></span>
-                            </td>
-                            <td>
-                                <input asp-for="Items[i].Amount" type="number" step="0.01" class="form-control amount-input" readonly />
-                                <span asp-validation-for="Items[i].Amount" class="text-danger"></span>
-                            </td>
+                            <td><input asp-for="Items[i].Pc" type="number" class="form-control pc-input" /></td>
+                            <td><input asp-for="Items[i].Weight" type="number" step="0.01" class="form-control weight-input" onchange="calculateNetWeight(this)" /></td>
+                            <td><input asp-for="Items[i].Less" type="number" step="0.01" class="form-control less-input" onchange="calculateNetWeight(this)" /></td>
+                            <td><input asp-for="Items[i].NetWt" type="number" step="0.01" class="form-control netwt-input" readonly /></td>
+                            <td><input asp-for="Items[i].Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateTW(this)" /></td>
+                            <td><input asp-for="Items[i].Wastage" type="number" step="0.01" class="form-control wastage-input" onchange="calculateTW(this)" /></td>
+                            <td><input asp-for="Items[i].TW" type="number" step="0.01" class="form-control tw-input" readonly /></td>
+                            <td><input asp-for="Items[i].Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateFineAndAmount(this.closest('tr'))" /></td>
+                            <td><input asp-for="Items[i].Fine" type="number" step="0.01" class="form-control fine-input" readonly /></td>
+                            <td><input asp-for="Items[i].Amount" type="number" step="0.01" class="form-control amount-input" readonly /></td>
                         </tr>
                     }
                 </tbody>
@@ -102,7 +73,8 @@
         <div class="row mt-3">
             <div class="col-md-12 text-center">
                 <button type="submit" class="btn btn-success">Save</button>
-                <a href="@Url.Action("ViewStock")" class="btn btn-danger">Cancel</a>
+                <button type="button" class="btn btn-danger" onclick="deleteStock()">Delete</button>
+                <a href="@Url.Action("ViewStock")" class="btn btn-secondary">Cancel</a>
                 <a href="@Url.Action("AddNewStock")" class="btn btn-primary">New Stock</a>
                 <a href="@Url.Action("PrintStock")" class="btn btn-info" target="_blank">Print</a>
                 <a href="@Url.Action("ExportToExcel")" class="btn btn-secondary">Export to Excel</a>
@@ -134,10 +106,8 @@
         let netWeight = parseFloat(row.querySelector('.netwt-input').value) || 0;
         let tw = parseFloat(row.querySelector('.tw-input').value) || 0;
         let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-
         let fine = netWeight * (tw / 100);
         let amount = fine * rate;
-
         row.querySelector('.fine-input').value = fine.toFixed(2);
         row.querySelector('.amount-input').value = amount.toFixed(2);
     }
@@ -146,22 +116,72 @@
         let table = document.getElementById('stockTable').querySelector('tbody');
         let rowCount = table.getElementsByTagName('tr').length;
         let newRow = table.rows[0].cloneNode(true);
-
         newRow.querySelectorAll("input, select").forEach(input => {
             let baseName = input.name.split('.')[1];
             input.name = `Items[${rowCount}].${baseName}`;
             input.id = `Items_${rowCount}__${baseName}`;
             if (!input.readOnly) input.value = "";
         });
-
-        newRow.querySelectorAll("span.text-danger").forEach(span => {
-            let baseFor = span.getAttribute('data-valmsg-for').split('.')[1];
-            span.setAttribute('data-valmsg-for', `Items[${rowCount}].${baseFor}`);
-            span.innerHTML = "";
-        });
-
         table.appendChild(newRow);
     }
+
+        <!-- Inside EditOpeningStock.cshtml -->
+        function deleteStock() {
+            const billNo = document.querySelector('#BillNo').value;
+            console.log('deleteStock invoked');
+            console.log('Retrieved BillNo from input:', billNo);
+
+            if (!billNo) {
+                console.log('BillNo is missing or empty');
+                alert('BillNo is missing!');
+                return;
+            }
+
+            if (confirm('Are you sure you want to delete this stock entry?')) {
+                console.log('User confirmed deletion');
+                console.log('Attempting to delete BillNo:', billNo);
+                const url = '@Url.Action("DeleteOpeningStock", "OpeningStock")';
+                const payload = { billNo: billNo };
+                console.log('Request URL:', url);
+                console.log('Request Payload:', JSON.stringify(payload));
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => {
+                    console.log('Fetch response received');
+                    console.log('Response Status:', response.status);
+                    console.log('Response OK:', response.ok);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    console.log('Raw Response Text:', text);
+                    const data = text ? JSON.parse(text) : { success: false, error: 'Empty response from server' };
+                    console.log('Parsed Response Data:', data);
+                    if (data.success) {
+                        console.log('Deletion successful, redirecting to ViewStock');
+                        window.location.href = '@Url.Action("ViewStock", "OpeningStock")';
+                    } else {
+                        console.log('Deletion failed:', data.error);
+                        alert('Error deleting stock: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch Error:', error.message);
+                    alert('Error: ' + error.message);
+                });
+            } else {
+                console.log('User cancelled deletion');
+            }
+        }
 </script>
 
 @section Scripts {

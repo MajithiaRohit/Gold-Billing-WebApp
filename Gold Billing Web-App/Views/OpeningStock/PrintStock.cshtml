@@ -1,39 +1,78 @@
-﻿@using System.Data
-@model DataTable
+﻿@model System.Data.DataTable
+@using System.Data
+
+@{
+    ViewBag.Title = "Print Opening Stock";
+    Layout = null;
+
+    // Calculate totals with nullable handling
+    decimal totalWeight = Model.AsEnumerable().Sum(row => row["Weight"] is DBNull ? 0 : row.Field<decimal>("Weight"));
+    decimal totalLess = Model.AsEnumerable().Sum(row => row["Less"] is DBNull ? 0 : row.Field<decimal>("Less"));
+    decimal totalNetWt = Model.AsEnumerable().Sum(row => row["NetWt"] is DBNull ? 0 : row.Field<decimal>("NetWt"));
+    decimal totalFine = Model.AsEnumerable().Sum(row => row["Fine"] is DBNull ? 0 : row.Field<decimal>("Fine"));
+    decimal totalAmount = Model.AsEnumerable().Sum(row => row["Amount"] is DBNull ? 0 : row.Field<decimal>("Amount"));
+}
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Print Stock Report</title>
+    <title>@ViewBag.Title</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-
         table {
             width: 100%;
             border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 12pt;
         }
-
         th, td {
-            border: 1px solid black;
+            border: 1px solid #ddd;
             padding: 8px;
-            text-align: center;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .footer-totals {
+            font-weight: bold;
         }
 
-        th {
-            background-color: #343a40;
-            color: white;
+        /* Print-specific styles */
+        @@media print {
+            table {
+                page-break-inside: auto;
+            }
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            thead {
+                display: table-header-group;
+            }
+            tfoot {
+                display: table-footer-group;
+            }
+            .footer-totals {
+                display: table-row !important; /* Ensure totals are always visible */
+            }
+            @@page {
+                size: A4; 
+                margin: 1cm;
+            }
         }
     </style>
 </head>
 <body onload="window.print()">
-    <h2 class="text-center">Current Stock Report</h2>
-    <table>
+    <h2>Opening Stock Report</h2>
+    <table id="stockTable">
         <thead>
             <tr>
                 <th>Bill No</th>
                 <th>Item Name</th>
+                <th>Gross Weight</th>
+                <th>Less</th>
                 <th>Net Weight</th>
                 <th>Fine</th>
                 <th>Amount</th>
@@ -41,21 +80,41 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (DataRow row in Model.Rows)
+            @foreach (System.Data.DataRow row in Model.Rows)
             {
                 <tr>
                     <td>@row["BillNo"]</td>
                     <td>@row["ItemName"]</td>
-                    <td>@row["NetWt"]</td>
-                    <td>@row["Fine"]</td>
-                    <td>@row["Amount"]</td>
-                    <td>@Convert.ToDateTime(row["LastUpdated"]).ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@(row["Weight"] is DBNull ? "0.00" : row.Field<decimal>("Weight").ToString("F2"))</td>
+                    <td>@(row["Less"] is DBNull ? "0.00" : row.Field<decimal>("Less").ToString("F2"))</td>
+                    <td>@(row["NetWt"] is DBNull ? "0.00" : row.Field<decimal>("NetWt").ToString("F2"))</td>
+                    <td>@(row["Fine"] is DBNull ? "0.00" : row.Field<decimal>("Fine").ToString("F2"))</td>
+                    <td>@(row["Amount"] is DBNull ? "0.00" : row.Field<decimal>("Amount").ToString("F2"))</td>
+                    <td>@row["LastUpdated"]</td>
                 </tr>
             }
         </tbody>
+        <tfoot>
+            <tr class="footer-totals">
+                <td colspan="2">Total</td>
+                <td>@totalWeight.ToString("F2")</td>
+                <td>@totalLess.ToString("F2")</td>
+                <td>@totalNetWt.ToString("F2")</td>
+                <td>@totalFine.ToString("F2")</td>
+                <td>@totalAmount.ToString("F2")</td>
+                <td></td>
+            </tr>
+        </tfoot>
     </table>
-    <div class="no-print text-center mt-3">
-        <a href="@Url.Action("ViewStock", "OpeningStock")" class="btn btn-primary">Back to Stock</a>
-    </div>
+
+    <script>
+        // Ensure the totals are visible when printing
+        function ensureTotalsVisible() {
+            document.querySelector('.footer-totals').style.display = "table-row";
+        }
+
+        document.addEventListener('DOMContentLoaded', ensureTotalsVisible);
+        window.addEventListener('beforeprint', ensureTotalsVisible);
+    </script>
 </body>
 </html>

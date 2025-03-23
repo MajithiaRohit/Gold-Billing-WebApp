@@ -15,9 +15,13 @@
                     <tr>
                         <th>Bill No</th>
                         <th>Item Name</th>
+                        <th>Pc</th>
                         <th>Gross Wt.</th>
                         <th>Less</th>
                         <th>Net Wt.</th>
+                        <th>Tunch</th>
+                        <th>Wastage</th>
+                        <th>T+W</th>
                         <th>Fine</th>
                         <th>Amount</th>
                         <th>Last Updated</th>
@@ -52,35 +56,81 @@
                         <tr class="zoom-row" style="cursor: pointer;" onclick="window.location.href='@redirectUrl'">
                             <td>@billNo</td>
                             <td>@row["ItemName"]</td>
-                            <td>@(row["Weight"] != DBNull.Value ? row["Weight"] : "0.00")</td>
-                            <td>@(row["Less"] != DBNull.Value ? row["Less"] : "0.00")</td>
-                            <td>@row["NetWt"]</td>
-                            <td>@row["Fine"]</td>
-                            <td>@row["Amount"]</td>
-                            <td>@Convert.ToDateTime(row["LastUpdated"]).ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="text-center">@(row["Pc"] != DBNull.Value ? row["Pc"] : "0")</td>
+                            <td class="text-center">@(row["Weight"] != DBNull.Value ? row["Weight"] : "0.00")</td>
+                            <td class="text-center">@(row["Less"] != DBNull.Value ? row["Less"] : "0.00")</td>
+                            <td class="text-center">@row["NetWt"]</td>
+                            <td class="text-center">@(row["Tunch"] != DBNull.Value ? Convert.ToDecimal(row["Tunch"]).ToString("F2") : "0.00")</td>
+                            <td class="text-center">@(row["Wastage"] != DBNull.Value ? Convert.ToDecimal(row["Wastage"]).ToString("F2") : "0.00")</td>
+                            <td class="text-center">@((row["Tunch"] != DBNull.Value && row["Wastage"] != DBNull.Value) ? (Convert.ToDecimal(row["Tunch"]) + Convert.ToDecimal(row["Wastage"])).ToString("F2") : "0.00")</td>
+                            <td class="text-center">@row["Fine"]</td>
+                            <td class="text-center">@row["Amount"]</td>
+                            <td class="text-center">@Convert.ToDateTime(row["LastUpdated"]).ToString("yyyy-MM-dd")</td>
                         </tr>
                     }
                 </tbody>
                 <tfoot class="bg-secondary text-white text-center">
                     @{
+                        int totalPc = Model.AsEnumerable().Sum(row => row.Field<int?>("Pc") ?? 0);
                         decimal totalGrossWt = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Weight") ?? 0);
                         decimal totalLess = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Less") ?? 0);
                         decimal totalNetWt = Model.AsEnumerable().Sum(row => row.Field<decimal?>("NetWt") ?? 0);
+                        decimal totalTunch = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Tunch") ?? 0);
+                        decimal totalWastage = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Wastage") ?? 0);
                         decimal totalFine = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Fine") ?? 0);
                         decimal totalAmount = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Amount") ?? 0);
                     }
                     <tr>
                         <td colspan="2" class="text-right"><strong>Total:</strong></td>
+                        <td>@totalPc</td>
                         <td>@totalGrossWt.ToString("F2")</td>
-                        <td>@totalLess.ToString("F2")</td>
+                        <td></td>
                         <td>@totalNetWt.ToString("F2")</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
                         <td>@totalFine.ToString("F2")</td>
                         <td>@totalAmount.ToString("F2")</td>
-                        <td></td> <!-- Adjusted colspan -->
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>
         </div>
+
+        <div class="mt-3">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" href="@(ViewBag.CurrentPage > 1 ? Url.Action("ViewStock", "OpeningStock", new { page = ViewBag.CurrentPage - 1 }) : "#")"
+                        @(ViewBag.CurrentPage > 1 ? "" : "onclick='return false;'") aria-label="Previous">
+                            <span aria-hidden="true">«</span>
+                        </a>
+                    </li>
+                    <li class="page-item @(ViewBag.CurrentPage == 1 ? "active" : "")">
+                        <a class="page-link" href="@Url.Action("ViewStock", "OpeningStock", new { page = 1 })">1</a>
+                    </li>
+                    @if (ViewBag.TotalPages > 2)
+                    {
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    }
+                    @if (ViewBag.TotalPages > 1 && ViewBag.CurrentPage != ViewBag.TotalPages)
+                    {
+                        <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "active" : "")">
+                            <a class="page-link" href="@Url.Action("ViewStock", "OpeningStock", new { page = ViewBag.TotalPages })">@ViewBag.TotalPages</a>
+                        </li>
+                    }
+                    <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="@(ViewBag.CurrentPage < ViewBag.TotalPages ? Url.Action("ViewStock", "OpeningStock", new { page = ViewBag.CurrentPage + 1 }) : "#")"
+                        @(ViewBag.CurrentPage < ViewBag.TotalPages ? "" : "onclick='return false;'") aria-label="Next">
+                            <span aria-hidden="true">»</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
         <div class="mt-3 text-center">
             <a href="@Url.Action("AddOpeningStock", "OpeningStock")" class="btn btn-primary">Add Opening Stock</a>
             <a href="@Url.Action("AddNewStock", "OpeningStock")" class="btn btn-primary">Add New Stock</a>
@@ -96,11 +146,19 @@
 
 <style>
     .zoom-row {
-        transition: transform 0.2s ease; /* Smooth transition for zoom effect */
+        transition: transform 0.2s ease;
     }
 
         .zoom-row:hover {
-            transform: scale(1.02); /* Slightly zooms the row (2% increase) */
-            background-color: #f5f5f5; /* Optional: Light gray background on hover */
+            transform: scale(1.02);
+            background-color: #f5f5f5;
         }
+
+    .pagination .page-link {
+        cursor: pointer;
+    }
+
+    .pagination .disabled .page-link {
+        cursor: not-allowed;
+    }
 </style>

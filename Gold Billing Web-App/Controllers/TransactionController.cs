@@ -269,6 +269,7 @@ namespace Gold_Billing_Web_App.Controllers
 
                         Console.WriteLine($"Item {item.ItemId}: Final Amount = {item.Amount}");
 
+                        // Insert or Update Transaction
                         SqlCommand command = item.Id > 0 ? new SqlCommand("SP_Transaction_Update", connection) : new SqlCommand("SP_Transaction_Insert", connection);
                         command.CommandType = CommandType.StoredProcedure;
                         if (item.Id > 0) command.Parameters.AddWithValue("@Id", item.Id);
@@ -289,6 +290,20 @@ namespace Gold_Billing_Web_App.Controllers
                         command.Parameters.AddWithValue("@Amount", item.Amount ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@Narration", model.Narration ?? (object)DBNull.Value);
                         command.ExecuteNonQuery();
+
+                        // Update OpeningStock using SP_UpdateStock
+                        SqlCommand stockCommand = new SqlCommand("SP_UpdateStock", connection);
+                        stockCommand.CommandType = CommandType.StoredProcedure;
+                        stockCommand.Parameters.AddWithValue("@ItemId", item.ItemId);
+                        stockCommand.Parameters.AddWithValue("@BillNo", model.BillNo);
+                        stockCommand.Parameters.AddWithValue("@Weight", item.Weight ?? 0); // Pass Weight instead of NetWt
+                        stockCommand.Parameters.AddWithValue("@Fine", item.Fine ?? 0);
+                        stockCommand.Parameters.AddWithValue("@Amount", item.Amount ?? 0);
+                        stockCommand.Parameters.AddWithValue("@Tunch", item.Tunch ?? 0);
+                        stockCommand.Parameters.AddWithValue("@Wastage", item.Wastage ?? 0);
+                        stockCommand.Parameters.AddWithValue("@Pc", item.Pc ?? 0);
+                        stockCommand.Parameters.AddWithValue("@TransactionType", item.TransactionType);
+                        stockCommand.ExecuteNonQuery();
                     }
                 }
 
