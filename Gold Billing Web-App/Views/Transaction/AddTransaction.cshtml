@@ -10,12 +10,13 @@
         "SaleReturn" => "#cce5ff",
         _ => "#f8d7da"
     };
+
+    bool isEdit = !string.IsNullOrEmpty(Model.BillNo) && ViewBag.IsExistingTransaction == true;
 }
 
 <div class="container p-3" style="background-color: @bgColor; border-radius: 10px;">
     <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
 
-    <!-- Bootstrap Validation Summary -->
     @if (!ViewData.ModelState.IsValid)
     {
         <div class="alert alert-danger" role="alert">
@@ -36,18 +37,11 @@
         <div class="row mb-3">
             <div class="col-md-4">
                 <label class="form-label">Account</label>
-                <select id="accountSelect" name="SelectedAccountId" class="form-control" onchange="fetchPreviousBalance()">
+                <select id="accountSelect" name="SelectedAccountId" class="form-control" >
                     <option value="">Select Account</option>
                     @foreach (var account in ViewBag.AccountDropDown)
                     {
-                        if (ViewBag.SelectedAccountId == account.Id)
-                        {
-                            <option value="@account.Id" selected>@account.AccountName</option>
-                        }
-                        else
-                        {
-                            <option value="@account.Id">@account.AccountName</option>
-                        }
+                        <option value="@account.Id" selected="@(ViewBag.SelectedAccountId == account.Id ? "selected" : null)">@account.AccountName</option>
                     }
                 </select>
                 <span id="account-error" class="text-danger"></span>
@@ -66,7 +60,7 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label asp-for="Narration" class="form-label">Narration</label>
-                <textarea asp-for="Narration" type="text" class="form-control"></textarea>
+                <textarea asp-for="Narration" class="form-control"></textarea>
                 <span asp-validation-for="Narration" class="text-danger"></span>
             </div>
         </div>
@@ -86,6 +80,7 @@
                         <th>Rate</th>
                         <th>Gold Fine</th>
                         <th>Total Amount</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -96,62 +91,61 @@
                                 <input asp-for="Items[i].Id" type="hidden" />
                                 <input asp-for="Items[i].TransactionType" type="hidden" value="@Model.TransactionType" />
                                 <input asp-for="Items[i].AccountId" type="hidden" class="account-id-input" />
-                                <select asp-for="Items[i].ItemId" class="form-control item-select" onchange="validateRow(this); recalculateAllRows();">
+                                <select asp-for="Items[i].ItemId" class="form-control item-select">
                                     <option value="">Select Item</option>
                                     @foreach (var item in ViewBag.ItemDropDown)
                                     {
-                                        if (Model.Items[i].ItemId == item.Id)
-                                        {
-                                            <option value="@item.Id" data-group="@item.GroupName" selected>@item.ItemName</option>
-                                        }
-                                        else
-                                        {
-                                            <option value="@item.Id" data-group="@item.GroupName">@item.ItemName</option>
-                                        }
+                                        <option value="@item.Id" data-group="@item.GroupName" selected="@(Model.Items[i].ItemId == item.Id ? "selected" : null)">@item.ItemName</option>
                                     }
                                 </select>
                                 <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" onchange="calculateAmount(this); updateTotals();" />
+                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" min="0" step="1" />
                                 <span asp-validation-for="Items[i].Pc" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Weight" type="number" step="0.01" class="form-control weight-input" onchange="calculateNetWeight(this); updateTotals();" />
+                                <input asp-for="Items[i].Weight" type="number" class="form-control weight-input" min="0" step="0.01" />
                                 <span asp-validation-for="Items[i].Weight" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Less" type="number" step="0.01" class="form-control less-input" onchange="calculateNetWeight(this); updateTotals();" />
+                                <input asp-for="Items[i].Less" type="number" class="form-control less-input" min="0" step="0.01" />
                                 <span asp-validation-for="Items[i].Less" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].NetWt" type="number" step="0.01" class="form-control netwt-input" readonly />
+                                <input asp-for="Items[i].NetWt" type="number" class="form-control netwt-input" step="0.01" readonly />
                                 <span asp-validation-for="Items[i].NetWt" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Tunch" type="number" step="0.01" class="form-control tunch-input" onchange="calculateTW(this); updateTotals();" />
+                                <input asp-for="Items[i].Tunch" type="number" class="form-control tunch-input" min="0" step="0.01" />
                                 <span asp-validation-for="Items[i].Tunch" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Wastage" type="number" step="0.01" class="form-control wastage-input" onchange="calculateTW(this); updateTotals();" />
+                                <input asp-for="Items[i].Wastage" type="number" class="form-control wastage-input" min="0" step="0.01" />
                                 <span asp-validation-for="Items[i].Wastage" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].TW" type="number" step="0.01" class="form-control tw-input" readonly />
+                                <input asp-for="Items[i].TW" type="number" class="form-control tw-input" step="0.01" readonly />
                                 <span asp-validation-for="Items[i].TW" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Rate" type="number" step="0.01" class="form-control rate-input" onchange="calculateAmount(this); updateTotals();" />
+                                <input asp-for="Items[i].Rate" type="number" class="form-control rate-input" min="0" step="0.01" />
                                 <span asp-validation-for="Items[i].Rate" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Fine" type="number" step="0.01" class="form-control fine-input" readonly />
+                                <input asp-for="Items[i].Fine" type="number" class="form-control fine-input" step="0.01" readonly />
                                 <span asp-validation-for="Items[i].Fine" class="text-danger"></span>
                             </td>
                             <td>
-                                <input asp-for="Items[i].Amount" type="number" step="0.01" class="form-control amount-input" readonly />
+                                <input type="number" class="form-control amount-input" step="0.01" readonly value="@Model.Items[i].Amount?.ToString("F2")" />
                                 <input type="hidden" asp-for="Items[i].Amount" class="hidden-amount-input" />
                                 <span asp-validation-for="Items[i].Amount" class="text-danger"></span>
+                            </td>
+                            <td>
+                                @if (i > 0)
+                                {
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
+                                }
                             </td>
                         </tr>
                     }
@@ -165,28 +159,38 @@
                         <td colspan="4"></td>
                         <td><input type="number" step="0.01" id="totalFine" class="form-control" readonly /></td>
                         <td><input type="number" step="0.01" id="totalAmount" class="form-control" readonly /></td>
+                        <td></td>
                     </tr>
                     <tr class="bg-info text-white">
                         <td colspan="7"></td>
-                        <td colspan="2" class="text-right"><strong>Previous Balance:</strong></td>
-                        <td><input type="number" step="0.01" id="prevFine" class="form-control" readonly /></td>
+                        <td colspan="2" class="text-right">
+                            <div id="prevDate" style="color: red; font-size: 0.8em;"></div>
+                            <strong>Previous Balance:</strong>
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" id="prevFine" class="form-control" readonly />
+                            
+                        </td>
                         <td><input type="number" step="0.01" id="prevAmount" class="form-control" readonly /></td>
+                        <td></td>
                     </tr>
                     <tr class="bg-warning text-dark">
                         <td colspan="7"></td>
                         <td colspan="2" class="text-right"><strong>Current Transaction:</strong></td>
                         <td><input type="number" step="0.01" id="currentFine" class="form-control" readonly /></td>
                         <td><input type="number" step="0.01" id="currentAmount" class="form-control" readonly /></td>
+                        <td></td>
                     </tr>
                     <tr class="bg-success text-white">
                         <td colspan="7"></td>
                         <td colspan="2" class="text-right"><strong>Total Balance:</strong></td>
                         <td><input type="number" step="0.01" id="totalBalanceFine" class="form-control" readonly /></td>
                         <td><input type="number" step="0.01" id="totalBalanceAmount" class="form-control" readonly /></td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>
-            <button type="button" class="btn btn-primary mb-3" onclick="addNewRow()">Add New Row</button>
+            <button type="button" class="btn btn-primary mb-3" onclick="addNewRow('@Model.TransactionType')">Add New Row</button>
         </div>
 
         <div class="row mt-3">
@@ -194,479 +198,26 @@
                 <button type="submit" class="btn btn-success">Save</button>
                 <button type="button" class="btn btn-info" onclick="printTransaction()">Print</button>
                 <button type="button" class="btn btn-secondary" onclick="exportToExcel()">Export to Excel</button>
+                <button type="button" class="btn btn-secondary" onclick="exportToPDF()">Export to PDF</button>
+                @if (ViewBag.IsExistingTransaction)
+                {
+                    <button type="button" class="btn btn-danger" onclick="deleteTransaction('@Model.BillNo')">Delete Transaction</button>
+                }
                 <a href="@Url.Action("ViewStock", "OpeningStock")" class="btn btn-danger">Cancel</a>
             </div>
         </div>
     </form>
 </div>
 
-<!-- Add SweetAlert CDN -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- Previous HTML remains unchanged -->
-
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+<script src="~/js/transaction.js"></script>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Initialize totals and fetch previous balance, but do NOT trigger validation yet
-        updateTotals();
-        fetchPreviousBalance();
-        syncAccountIds();
-        // Removed: document.querySelectorAll('.item-select').forEach(select => validateRow(select));
-        recalculateAllRows();
-    });
-
-    function calculateNetWeight(element) {
-        let row = element.closest('tr');
-        let grossWeight = parseFloat(row.querySelector('.weight-input').value) || 0;
-        let less = parseFloat(row.querySelector('.less-input').value) || 0;
-        let netWeight = grossWeight - less;
-        row.querySelector('.netwt-input').value = netWeight.toFixed(2);
-        calculateFineAndAmount(row);
-    }
-
-    function calculateTW(element) {
-        let row = element.closest('tr');
-        let tunch = parseFloat(row.querySelector('.tunch-input').value) || 0;
-        let wastage = parseFloat(row.querySelector('.wastage-input').value) || 0;
-        let tw = tunch + wastage;
-        row.querySelector('.tw-input').value = tw.toFixed(2);
-        calculateFineAndAmount(row);
-    }
-
-    function calculateFineAndAmount(row) {
-        let netWeight = parseFloat(row.querySelector('.netwt-input').value) || 0;
-        let tw = parseFloat(row.querySelector('.tw-input').value) || 0;
-        let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-
-        let fine = netWeight * (tw / 100);
-        let amount = fine * rate;
-
-        row.querySelector('.fine-input').value = fine.toFixed(2);
-        row.querySelector('.amount-input').value = amount.toFixed(2);
-        row.querySelector('.hidden-amount-input').value = amount.toFixed(2);
-    }
-
-    function calculateAmount(element) {
-        let row = element.closest('tr');
-        let groupName = row.querySelector('.item-select').options[row.querySelector('.item-select').selectedIndex].getAttribute('data-group');
-        let pc = parseFloat(row.querySelector('.pc-input').value) || 0;
-        let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-
-        if (groupName === 'PC Gold Jewelry') {
-            let amount = pc * rate;
-            row.querySelector('.amount-input').value = amount.toFixed(2);
-            row.querySelector('.hidden-amount-input').value = amount.toFixed(2);
-            row.querySelector('.fine-input').value = '0.00';
-            row.querySelector('.netwt-input').value = '0.00';
-            row.querySelector('.tw-input').value = '0.00';
-        } else {
-            calculateFineAndAmount(row);
-        }
-    }
-
-    function recalculateAllRows() {
-        document.querySelectorAll('#transactionTable tbody tr').forEach(row => {
-            let groupName = row.querySelector('.item-select').options[row.querySelector('.item-select').selectedIndex].getAttribute('data-group');
-            if (groupName === 'Gold Jewelry' || groupName === 'PC/Weight Jewelry') {
-                calculateNetWeight(row.querySelector('.weight-input'));
-            } else if (groupName === 'PC Gold Jewelry') {
-                calculateAmount(row.querySelector('.pc-input'));
-            }
-        });
-        updateTotals();
-    }
-
-    function addNewRow() {
-        let table = document.getElementById('transactionTable').querySelector('tbody');
-        let rowCount = table.getElementsByTagName('tr').length;
-        let newRow = table.rows[0].cloneNode(true);
-
-        newRow.querySelectorAll("input:not([readonly]), select").forEach(input => {
-            let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
-            input.name = `Items[${rowCount}].${baseName}`;
-            input.id = `Items_${rowCount}__${baseName}`;
-            if (input.type !== 'hidden' && input.tagName !== 'SELECT') {
-                input.value = '';
-            }
-            if (baseName === 'AccountId') {
-                input.value = document.getElementById('accountSelect').value || '';
-            }
-        });
-
-        newRow.querySelectorAll("input[readonly]").forEach(input => {
-            let baseName = input.name.includes('Items') ? input.name.split('.')[1] : input.name;
-            input.name = `Items[${rowCount}].${baseName}`;
-            input.id = `Items_${rowCount}__${baseName}`;
-            input.value = '0.00';
-        });
-
-        newRow.querySelectorAll("input[type='hidden'].hidden-amount-input").forEach(input => {
-            input.name = `Items[${rowCount}].Amount`;
-            input.id = `Items_${rowCount}__Amount_hidden`;
-            input.value = '0.00';
-        });
-
-        newRow.querySelectorAll("span.text-danger").forEach(span => {
-            let baseFor = span.getAttribute('data-valmsg-for').split('.')[1];
-            span.setAttribute('data-valmsg-for', `Items[${rowCount}].${baseFor}`);
-            span.innerHTML = "";
-        });
-
-        table.appendChild(newRow);
-        $.validator.unobtrusive.parse(newRow);
-        recalculateAllRows();
-    }
-
-    function updateTotals() {
-        let totalGrWt = 0;
-        let totalLess = 0;
-        let totalNetWt = 0;
-        let totalFine = 0;
-        let totalAmount = 0;
-
-        document.querySelectorAll('#transactionTable tbody tr').forEach(row => {
-            let grWt = parseFloat(row.querySelector('.weight-input').value) || 0;
-            let less = parseFloat(row.querySelector('.less-input').value) || 0;
-            let netWt = parseFloat(row.querySelector('.netwt-input').value) || 0;
-            let fine = parseFloat(row.querySelector('.fine-input').value) || 0;
-            let amount = parseFloat(row.querySelector('.amount-input').value) || 0;
-
-            totalGrWt += grWt;
-            totalLess += less;
-            totalNetWt += netWt;
-            totalFine += fine;
-            totalAmount += amount;
-        });
-
-        document.getElementById('totalGrWt').value = totalGrWt.toFixed(2);
-        document.getElementById('totalLess').value = totalLess.toFixed(2);
-        document.getElementById('totalNetWt').value = totalNetWt.toFixed(2);
-        document.getElementById('totalFine').value = totalFine.toFixed(2);
-        document.getElementById('totalAmount').value = totalAmount.toFixed(2);
-
-        let prevFine = parseFloat(document.getElementById('prevFine').value) || 0;
-        let prevAmount = parseFloat(document.getElementById('prevAmount').value) || 0;
-
-        let transactionType = '@Model.TransactionType';
-        let currentFine = totalFine;
-        let currentAmount = totalAmount;
-
-        if (transactionType === 'Sale' || transactionType === 'PurchaseReturn') {
-            currentFine = -totalFine;
-            currentAmount = -totalAmount;
-        }
-
-        document.getElementById('currentFine').value = currentFine.toFixed(2);
-        document.getElementById('currentAmount').value = currentAmount.toFixed(2);
-
-        let totalBalanceFine = prevFine + currentFine;
-        let totalBalanceAmount = prevAmount + currentAmount;
-
-        document.getElementById('totalBalanceFine').value = totalBalanceFine.toFixed(2);
-        document.getElementById('totalBalanceAmount').value = totalBalanceAmount.toFixed(2);
-    }
-
-    function fetchPreviousBalance() {
-        let accountId = document.getElementById('accountSelect').value;
-        if (!accountId) {
-            document.getElementById('prevFine').value = "0.00";
-            document.getElementById('prevAmount').value = "0.00";
-            updateTotals();
-            return;
-        }
-
-        fetch(`/Transaction/GetPreviousBalance?accountId=${accountId}`)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('prevFine').value = data.fine.toFixed(2);
-                document.getElementById('prevAmount').value = data.amount.toFixed(2);
-                updateTotals();
-            })
-            .catch(error => {
-                console.error('Error fetching previous balance:', error);
-                document.getElementById('prevFine').value = "0.00";
-                document.getElementById('prevAmount').value = "0.00";
-                updateTotals();
-            });
-    }
-
-    function printTransaction() {
-        try {
-            var printContents = document.getElementById('transactionForm').outerHTML;
-            var originalContents = document.body.innerHTML;
-            document.body.innerHTML = printContents;
-            window.print();
-            document.body.innerHTML = originalContents;
-            window.location.reload();
-
-            Swal.fire({
-                icon: 'success',
-                title: 'Success',
-                text: 'Transaction printed successfully!',
-                timer: 1500,
-                showConfirmButton: false
-            });
-        } catch (error) {
-            console.error('Error during printing:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Failed to print the transaction.'
-            });
-        }
-    }
-
-    function exportToExcel() {
-        try {
-            let table = document.getElementById('transactionTable');
-            let rows = Array.from(table.querySelectorAll('tr'));
-            let headers = Array.from(rows[0].querySelectorAll('th')).map(th => th.innerText);
-            let data = rows.slice(1).map(row => {
-                return Array.from(row.querySelectorAll('td')).map(td => {
-                    let input = td.querySelector('input') || td.querySelector('select');
-                    return input ? (input.value || '') : td.innerText;
-                });
-            });
-
-            data.push(['Total', '', document.getElementById('totalGrWt').value, document.getElementById('totalLess').value, document.getElementById('totalNetWt').value, '', '', '', '', document.getElementById('totalFine').value, document.getElementById('totalAmount').value]);
-            data.push(['Previous Balance', '', '', '', '', '', '', '', '', document.getElementById('prevFine').value, document.getElementById('prevAmount').value]);
-            data.push(['Current Transaction', '', '', '', '', '', '', '', '', document.getElementById('currentFine').value, document.getElementById('currentAmount').value]);
-            data.push(['Total Balance', '', '', '', '', '', '', '', '', document.getElementById('totalBalanceFine').value, document.getElementById('totalBalanceAmount').value]);
-
-            let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + data.map(row => row.join(",")).join("\n");
-            let encodedUri = encodeURI(csvContent);
-            let link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `Transaction_${document.getElementById('BillNo').value}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            Swal.fire({
-                icon: 'success',
-                title: 'Success',
-                text: 'Transaction exported to Excel successfully!',
-                timer: 1500,
-                showConfirmButton: false
-            });
-        } catch (error) {
-            console.error('Error during Excel export:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Failed to export the transaction to Excel.'
-            });
-        }
-    }
-
-    function syncAccountIds() {
-        let accountId = document.getElementById('accountSelect').value;
-        document.querySelectorAll('.account-id-input').forEach(input => {
-            input.value = accountId || '';
-        });
-    }
-
-    function validateRow(element, isSubmit = false) {
-        let row = element.closest('tr');
-        let itemSelect = row.querySelector('.item-select');
-        let selectedOption = itemSelect.options[itemSelect.selectedIndex];
-        let groupName = selectedOption ? selectedOption.getAttribute('data-group') : '';
-        let accountId = document.getElementById('accountSelect').value;
-        let pc = parseFloat(row.querySelector('.pc-input').value) || 0;
-        let weight = parseFloat(row.querySelector('.weight-input').value) || 0;
-        let wastage = parseFloat(row.querySelector('.wastage-input').value) || 0;
-        let rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-
-        // Clear previous validation messages
-        row.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
-        document.getElementById('account-error').innerHTML = '';
-
-        const allFields = ['pc-input', 'weight-input', 'less-input', 'tunch-input', 'wastage-input', 'rate-input', 'amount-input'];
-        const alwaysEnabledFields = ['item-select'];
-
-        // Enable/disable fields based on groupName (unchanged logic)
-        if (groupName === 'Gold Jewelry') {
-            allFields.forEach(className => {
-                let input = row.querySelector(`.${className}`);
-                if (input) input.disabled = (className === 'pc-input' || className === 'amount-input');
-            });
-            alwaysEnabledFields.forEach(className => {
-                let input = row.querySelector(`.${className}`);
-                if (input) input.disabled = false;
-            });
-            row.querySelector('.pc-input').value = '';
-            row.querySelector('.netwt-input').value = '0.00';
-            row.querySelector('.tw-input').value = '0.00';
-            row.querySelector('.fine-input').value = '0.00';
-            row.querySelector('.weight-input').focus();
-        } else if (groupName === 'PC Gold Jewelry') {
-            allFields.forEach(className => {
-                let input = row.querySelector(`.${className}`);
-                if (input) input.disabled = (className !== 'pc-input' && className !== 'rate-input');
-            });
-            alwaysEnabledFields.forEach(className => {
-                let input = row.querySelector(`.${className}`);
-                if (input) input.disabled = false;
-            });
-            row.querySelector('.netwt-input').value = '0.00';
-            row.querySelector('.tw-input').value = '0.00';
-            row.querySelector('.fine-input').value = '0.00';
-            calculateAmount(row.querySelector('.pc-input'));
-            row.querySelector('.pc-input').focus();
-        } else if (groupName === 'PC/Weight Jewelry') {
-            allFields.forEach(className => {
-                let input = row.querySelector(`.${className}`);
-                if (input) input.disabled = false;
-            });
-            alwaysEnabledFields.forEach(className => {
-                let input = row.querySelector(`.${className}`);
-                if (input) input.disabled = false;
-            });
-            calculateNetWeight(element);
-            row.querySelector('.pc-input').focus();
-        } else {
-            allFields.forEach(className => {
-                let input = row.querySelector(`.${className}`);
-                if (input) input.disabled = false;
-            });
-            alwaysEnabledFields.forEach(className => {
-                let input = row.querySelector(`.${className}`);
-                if (input) input.disabled = false;
-            });
-        }
-
-        let isValid = true;
-
-        // Only show validation errors if triggered by form submission (isSubmit = true)
-        if (isSubmit) {
-            if (!accountId) {
-                document.getElementById('account-error').innerHTML = 'Account is required.';
-                isValid = false;
-            }
-
-            if (groupName && groupName !== '') {
-                console.log(`Validating row with group: ${groupName}`);
-                if (groupName === 'Gold Jewelry') {
-                    if (weight <= 0) {
-                        row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
-                        isValid = false;
-                    }
-                    if (wastage <= 0) {
-                        row.querySelector('.wastage-input + .text-danger').innerHTML = 'Wastage is required.';
-                        isValid = false;
-                    }
-                } else if (groupName === 'PC Gold Jewelry') {
-                    if (pc <= 0) {
-                        row.querySelector('.pc-input + .text-danger').innerHTML = 'Pc is required.';
-                        isValid = false;
-                    }
-                    if (rate <= 0) {
-                        row.querySelector('.rate-input + .text-danger').innerHTML = 'Rate is required.';
-                        isValid = false;
-                    }
-                } else if (groupName === 'PC/Weight Jewelry') {
-                    if (pc <= 0) {
-                        row.querySelector('.pc-input + .text-danger').innerHTML = 'Pc is required.';
-                        isValid = false;
-                    }
-                    if (weight <= 0) {
-                        row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight is required.';
-                        isValid = false;
-                    }
-                    if (wastage <= 0) {
-                        row.querySelector('.wastage-input + .text-danger').innerHTML = 'Wastage is required.';
-                        isValid = false;
-                    }
-                    if (rate <= 0) {
-                        row.querySelector('.rate-input + .text-danger').innerHTML = 'Rate is required.';
-                        isValid = false;
-                    }
-                }
-            } else {
-                row.querySelector('.item-select + .text-danger').innerHTML = 'Item is required.';
-                isValid = false;
-            }
-        }
-
-        return isValid;
-    }
-
-    document.getElementById('transactionForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-        syncAccountIds();
-        let isFormValid = true;
-
-        // Validate all rows only on form submission
-        document.querySelectorAll('#transactionTable tbody tr').forEach(row => {
-            if (!validateRow(row.querySelector('.item-select'), true)) {
-                isFormValid = false;
-            }
-        });
-
-        if (!isFormValid) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Validation Error',
-                text: 'Please fill all required fields correctly.',
-            });
-        } else {
-            let formData = new FormData(this);
-            for (let [key, value] of formData.entries()) {
-                console.log(`${key}: ${value}`);
-            }
-            fetch('@Url.Action("AddTransaction", "Transaction")', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: 'Transaction saved successfully!',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.href = data.redirectUrl;
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.error || 'Failed to save the transaction.'
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error during save:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An error occurred while saving.'
-                });
-            });
-        }
-    });
-
-    document.getElementById('accountSelect').addEventListener('change', function () {
-        syncAccountIds();
-        fetchPreviousBalance();
-        recalculateAllRows();
-    });
-
-    // Trigger validation and recalculation only on user interaction
-    document.querySelectorAll('.item-select').forEach(select => {
-        select.addEventListener('change', function () {
-            validateRow(this); // Validate on change, but don't show errors unless submitting
-            recalculateAllRows();
-        });
-    });
+    window.transactionType = '@Model.TransactionType';
+    const addTransactionUrl = '@Url.Action("AddTransaction", "Transaction")';
+    setupFormSubmission(addTransactionUrl);
+    setupEventListeners();
 </script>

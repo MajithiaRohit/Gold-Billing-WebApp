@@ -16,7 +16,7 @@
                         <th>Bill No</th>
                         <th>Item Name</th>
                         <th>Pc</th>
-                        <th>Gross Wt.</th>
+                        <th>Gr.Wt.</th>
                         <th>Less</th>
                         <th>Net Wt.</th>
                         <th>Tunch</th>
@@ -30,30 +30,37 @@
                 <tbody>
                     @foreach (DataRow row in Model.Rows)
                     {
-                        string billNo = row["BillNo"].ToString()!;
-                        string redirectUrl = "";
-                        if (billNo.StartsWith("PUR"))
+                        string billNo = row["BillNo"]?.ToString() ?? string.Empty;
+                        string redirectUrl = string.Empty;
+
+                        if (!string.IsNullOrEmpty(billNo))
                         {
-                            redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Purchase", billNo = billNo })!;
-                        }
-                        else if (billNo.StartsWith("S"))
-                        {
-                            redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Sale", billNo = billNo })!;
-                        }
-                        else if (billNo.StartsWith("PR"))
-                        {
-                            redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "PurchaseReturn", billNo = billNo })!;
-                        }
-                        else if (billNo.StartsWith("SR"))
-                        {
-                            redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "SaleReturn", billNo = billNo })!;
-                        }
-                        else if (billNo.StartsWith("BILL") || billNo.StartsWith("NEW"))
-                        {
-                            redirectUrl = Url.Action("EditOpeningStock", "OpeningStock", new { billNo = billNo })!;
+                            if (billNo.StartsWith("P"))
+                            {
+                                redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Purchase", billNo = billNo })!;
+                            }
+                            else if (billNo.StartsWith("S"))
+                            {
+                                redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Sale", billNo = billNo })!;
+                            }
+                            else if (billNo.StartsWith("PR"))
+                            {
+                                redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "PurchaseReturn", billNo = billNo })!;
+                            }
+                            else if (billNo.StartsWith("SR"))
+                            {
+                                redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "SaleReturn", billNo = billNo })!;
+                            }
+                            else if (billNo.StartsWith("BILL") || billNo.StartsWith("NEW"))
+                            {
+                                redirectUrl = Url.Action("EditOpeningStock", "OpeningStock", new { billNo = billNo })!;
+                            }
                         }
 
-                        <tr class="zoom-row" style="cursor: pointer;" onclick="window.location.href='@redirectUrl'">
+                        <tr class="zoom-row"
+                            style="cursor: pointer;"
+                            onclick="window.location.href='@redirectUrl'"
+                            aria-label="Click to view or edit stock entry">
                             <td>@billNo</td>
                             <td>@row["ItemName"]</td>
                             <td class="text-center">@(row["Pc"] != DBNull.Value ? row["Pc"] : "0")</td>
@@ -81,7 +88,8 @@
                         decimal totalAmount = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Amount") ?? 0);
                     }
                     <tr>
-                        <td colspan="2" class="text-right"><strong>Total:</strong></td>
+                        <td></td>
+                        <td class="text-right"><strong>Total:</strong></td>
                         <td>@totalPc</td>
                         <td>@totalGrossWt.ToString("F2")</td>
                         <td></td>
@@ -134,10 +142,6 @@
         <div class="mt-3 text-center">
             <a href="@Url.Action("AddOpeningStock", "OpeningStock")" class="btn btn-primary">Add Opening Stock</a>
             <a href="@Url.Action("AddNewStock", "OpeningStock")" class="btn btn-primary">Add New Stock</a>
-            <a href="@Url.Action("AddTransaction", "Transaction", new { type = "Purchase" })" class="btn btn-primary">Purchase</a>
-            <a href="@Url.Action("AddTransaction", "Transaction", new { type = "Sale" })" class="btn btn-primary">Sale</a>
-            <a href="@Url.Action("AddTransaction", "Transaction", new { type = "PurchaseReturn" })" class="btn btn-primary">Purchase Return</a>
-            <a href="@Url.Action("AddTransaction", "Transaction", new { type = "SaleReturn" })" class="btn btn-primary">Sale Return</a>
             <a href="@Url.Action("PrintStock", "OpeningStock")" class="btn btn-info" target="_blank">Print</a>
             <a href="@Url.Action("ExportToExcel", "OpeningStock")" class="btn btn-secondary">Export to Excel</a>
         </div>
