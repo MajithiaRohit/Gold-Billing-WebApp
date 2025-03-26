@@ -6,10 +6,16 @@ namespace Gold_Billing_Web_App.Models
     {
         public int Id { get; set; }
 
+        [Required(ErrorMessage = "Bill Number is required.")]
+        public string BillNo { get; set; } = "";
+
+        [Required(ErrorMessage = "Date is required.")]
+        public DateTime Date { get; set; }
+
         [Required(ErrorMessage = "Transaction Type is required.")]
         public string TransactionType { get; set; } = "";
 
-        public int? AccountId { get; set; } // We'll validate conditionally client-side
+        public int? AccountId { get; set; }
 
         [Required(ErrorMessage = "Item is required.")]
         public int? ItemId { get; set; }
@@ -23,7 +29,7 @@ namespace Gold_Billing_Web_App.Models
         [Range(0, double.MaxValue, ErrorMessage = "Less must be a positive number.")]
         public decimal? Less { get; set; }
 
-        public decimal? NetWt { get; set; } // Calculated, no validation needed
+        public decimal? NetWt { get; set; }
 
         [Range(0, 100, ErrorMessage = "Tunch must be between 0 and 100.")]
         public decimal? Tunch { get; set; }
@@ -31,30 +37,19 @@ namespace Gold_Billing_Web_App.Models
         [Range(0, 100, ErrorMessage = "Wastage must be between 0 and 100.")]
         public decimal? Wastage { get; set; }
 
-        public decimal? TW { get; set; } // Calculated, no validation needed
+        public decimal? TW { get; set; }
 
         [Range(0, double.MaxValue, ErrorMessage = "Rate must be a positive number.")]
         public decimal? Rate { get; set; }
 
-        public decimal? Fine { get; set; } // Calculated, no validation needed
-        public decimal? Amount { get; set; } // Calculated, no validation needed
-    }
+        public decimal? Fine { get; set; }
+        public decimal? Amount { get; set; }
 
-    public class TransactionViewModel
-    {
-        [Required(ErrorMessage = "Bill Number is required.")]
-        public string BillNo { get; set; } = "";
+        public DateTime? LastUpdated { get; set; }
 
-        [Required(ErrorMessage = "Date is required.")]
-        public DateTime Date { get; set; }
+        public string? Narration { get; set; }
 
-        public string? Narration { get; set; } // Optional, no validation
-
-        [Required(ErrorMessage = "Transaction Type is required.")]
-        public string TransactionType { get; set; } = "";
-
-        [Required(ErrorMessage = "At least one item is required.")]
-        [MinLength(1, ErrorMessage = "At least one item is required.")]
-        public List<TransactionModel> Items { get; set; } = new List<TransactionModel>();
+        public AccountModel Account { get; set; }
+        public ItemModel Item { get; set; }
     }
 }

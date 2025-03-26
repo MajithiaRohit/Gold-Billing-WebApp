@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Gold_Billing_Web_App.Models
 {
@@ -6,14 +7,20 @@ namespace Gold_Billing_Web_App.Models
     {
         public int Id { get; set; }
 
+        [Required(ErrorMessage = "Bill Number is required")]
+        public string BillNo { get; set; } = "";
+
         [Required(ErrorMessage = "Date is required")]
         [DataType(DataType.Date)]
         public DateTime Date { get; set; }
+
+        public string? Narration { get; set; }
 
         [Required(ErrorMessage = "Item is required")]
         [Range(1, int.MaxValue, ErrorMessage = "Please select a valid Item")]
         public int ItemId { get; set; }
 
+        [NotMapped] // Ensure EF Core doesn't try to map this to the database
         public string ItemName { get; set; } = "";
 
         [Range(0, int.MaxValue, ErrorMessage = "Pieces cannot be negative")]
@@ -45,13 +52,9 @@ namespace Gold_Billing_Web_App.Models
 
         [Range(0, double.MaxValue, ErrorMessage = "Amount cannot be negative")]
         public decimal? Amount { get; set; }
-    }
-    public class OpeningStockViewModel
-    {
-        public string BillNo { get; set; } = "";
-        public DateTime Date { get; set; }
-        public string? Narration { get; set; }
-        public List<OpeningStockModel> Items { get; set; } = new List<OpeningStockModel>();
-    }
 
+        public DateTime? LastUpdated { get; set; }
+
+        public ItemModel Item { get; set; }
+    }
 }

@@ -1,92 +1,47 @@
-using Gold_Billing_Web_App.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
+using Gold_Billing_Web_App.Models;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Gold_Billing_Web_App.Controllers
 {
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
-        private readonly IConfiguration _configuration;
-        private readonly AppDbContext _dbContext;
+        private readonly AppDbContext _context;
 
-        public HomeController(ILogger<HomeController> logger, IConfiguration configuration, AppDbContext dbContext)
+        public HomeController(ILogger<HomeController> logger, AppDbContext context)
         {
             _logger = logger;
-            _configuration = configuration;
-            _dbContext = dbContext;
+            _context = context;
         }
 
         public async Task<IActionResult> Index()
         {
             var model = new DashboardViewModel();
-            string? connectionString = _configuration.GetConnectionString("ConnectionString");
-            _logger.LogInformation($"Connection String: {connectionString}");
 
             try
             {
-                // Log all TransactionTypes and row count
-                var transactionTypes = await _dbContext.Transactions
-                    .Select(t => t.TransactionType)
-                    .Distinct()
-                    .ToListAsync();
-                var transactionCount = await _dbContext.Transactions.CountAsync();
-                _logger.LogInformation($"Transaction Count: {transactionCount}, Types: {string.Join(", ", transactionTypes)}");
-
-                // Log all transactions with weights and BillNo
-                var allTransactions = await _dbContext.Transactions
-                    .Select(t => new { t.BillNo, t.TransactionType, t.Weight, t.NetWt })
-                    .ToListAsync();
-                foreach (var t in allTransactions)
-                {
-                    _logger.LogInformation($"Transaction - BillNo: {t.BillNo}, Type: {t.TransactionType}, Weight: {t.Weight}, NetWt: {t.NetWt}");
-                }
-
-                // Total Sales Gross Weight
-                var salesWeight = await _dbContext.Transactions
-                    .Where(t => EF.Functions.Like(t.TransactionType, "Sale"))
+                var salesWeight = await _context.Transactions
+                    .Where(t => t.TransactionType == "Sale")
                     .SumAsync(t => t.Weight ?? 0);
-                var saleReturnsWeight = await _dbContext.Transactions
-                    .Where(t => EF.Functions.Like(t.TransactionType, "SaleReturn")) // Adjusted to match your model
+                var saleReturnsWeight = await _context.Transactions
+                    .Where(t => t.TransactionType == "SaleReturn")
                     .SumAsync(t => t.Weight ?? 0);
                 model.TotalSales = salesWeight - saleReturnsWeight;
-                _logger.LogInformation($"Sales Weight: {salesWeight}, Sale Returns: {saleReturnsWeight}, Total Sales: {model.TotalSales}");
 
-                // Total Purchase Gross Weight
-                var purchaseWeight = await _dbContext.Transactions
-                    .Where(t => EF.Functions.Like(t.TransactionType, "Purchase"))
+                var purchaseWeight = await _context.Transactions
+                    .Where(t => t.TransactionType == "Purchase")
                     .SumAsync(t => t.Weight ?? 0);
-                var purchaseReturnsWeight = await _dbContext.Transactions
-                    .Where(t => EF.Functions.Like(t.TransactionType, "PurchaseReturn")) // Adjusted to match your model
+                var purchaseReturnsWeight = await _context.Transactions
+                    .Where(t => t.TransactionType == "PurchaseReturn")
                     .SumAsync(t => t.Weight ?? 0);
                 model.TotalPurchase = purchaseWeight - purchaseReturnsWeight;
-                _logger.LogInformation($"Purchase Weight: {purchaseWeight}, Purchase Returns: {purchaseReturnsWeight}, Total Purchase: {model.TotalPurchase}");
 
-                // Gross Weight of Stock (use NetWt from SP_Stock_SelectAll)
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    var command = new SqlCommand("SP_Stock_SelectAll", connection)
-                    {
-                        CommandType = CommandType.StoredProcedure
-                    };
-                    var reader = command.ExecuteReader();
-                    var table = new DataTable();
-                    table.Load(reader);
-
-                    foreach (DataRow row in table.Rows)
-                    {
-                        _logger.LogInformation($"Stock - BillNo: {row["BillNo"]}, NetWt: {row["NetWt"]}, LastUpdated: {row["LastUpdated"]}");
-                    }
-
-                    var totalStockWeight = table.AsEnumerable()
-                        .Sum(row => row["NetWt"] != DBNull.Value ? Convert.ToDecimal(row["NetWt"]) : 0);
-                    model.GrossWeight = totalStockWeight;
-                    _logger.LogInformation($"Total Stock NetWt: {totalStockWeight}, Gross Weight: {model.GrossWeight}");
-                }
+                var totalStockWeight = await _context.OpeningStocks
+                    .SumAsync(os => os.NetWt ?? 0);
+                model.GrossWeight = totalStockWeight;
             }
             catch (Exception ex)
             {

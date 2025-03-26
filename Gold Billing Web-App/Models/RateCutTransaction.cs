@@ -12,5 +12,6 @@
         public decimal Rate { get; set; }                  // DECIMAL(18,2) for gold rate
         public decimal Amount { get; set; }                // DECIMAL(18,2), readonly, calculated
         public string? Narration { get; set; }             // NVARCHAR(500), nullable
+        public AccountModel Account { get; set; }
     }
 }

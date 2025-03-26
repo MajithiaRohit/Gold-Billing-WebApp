@@ -1,122 +1,90 @@
 ﻿using Gold_Billing_Web_App.Models;
+using Gold_Billing_Web_App.Session;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using System.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
-public class AccountGroupController : Controller
+namespace Gold_Billing_Web_App.Controllers
 {
-    private readonly IConfiguration _configuration;
-    private readonly string _connectionString;
-
-    public AccountGroupController(IConfiguration configuration)
+    [LoginCheckAccess]
+    public class AccountGroupController : Controller
     {
-        _configuration = configuration;
-        _connectionString = configuration.GetConnectionString("ConnectionString")
-            ?? throw new ArgumentNullException(nameof(configuration), "Connection string is missing.");
-    }
+        private readonly AppDbContext _context;
 
-    public IActionResult AccountGroupList()
-    {
-        using var connection = new SqlConnection(_connectionString);
-        connection.Open();
-        using var command = new SqlCommand("SP_GroupAccount_SelectAll", connection)
+        public AccountGroupController(AppDbContext context)
         {
-            CommandType = CommandType.StoredProcedure
-        };
-
-        using var reader = command.ExecuteReader();
-        var table = new DataTable();
-        table.Load(reader);
-        return View(table);
-    }
-
-    public IActionResult AddEditAccountGroup(int Id)
-    {
-        if (Id <= 0) return View(new AccountGroupModel());
-
-        using var connection = new SqlConnection(_connectionString);
-        connection.Open();
-        using var command = new SqlCommand("SP_GroupAccount_SelectByID", connection)
-        {
-            CommandType = CommandType.StoredProcedure
-        };
-        command.Parameters.AddWithValue("@Id", Id);
-
-        using var reader = command.ExecuteReader();
-        var table = new DataTable();
-        table.Load(reader);
-
-        if (table.Rows.Count == 0) return NotFound();
-
-        var accountGroupModel = new AccountGroupModel
-        {
-            Id = table.Rows[0].Field<int>("Id"),
-            GroupName = table.Rows[0].Field<string>("GroupName") ?? string.Empty
-        };
-        return View(accountGroupModel);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult SaveAddEditAccountGroup(AccountGroupModel accountGroup)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View("AddEditAccountGroup", accountGroup);
+            _context = context;
         }
 
-        try
+        public async Task<IActionResult> AccountGroupList()
         {
-            using var connection = new SqlConnection(_connectionString);
-            connection.Open();
-            using var command = new SqlCommand(
-                accountGroup.Id == null ? "SP_GroupAccount_Insert" : "SP_GroupAccount_Update",
-                connection)
+            var groups = await _context.GroupAccounts.ToListAsync();
+            return View(groups);
+        }
+
+        public IActionResult AddEditAccountGroup(int Id)
+        {
+            if (Id <= 0) return View(new AccountGroupModel());
+
+            var group = _context.GroupAccounts.Find(Id);
+            if (group == null) return NotFound();
+
+            return View(group);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveAddEditAccountGroup(AccountGroupModel accountGroup)
+        {
+            if (!ModelState.IsValid)
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                return View("AddEditAccountGroup", accountGroup);
+            }
 
-            if (accountGroup.Id.HasValue)
-                command.Parameters.AddWithValue("@Id", accountGroup.Id);
+            try
+            {
+                if (accountGroup.Id == null)
+                {
+                    _context.GroupAccounts.Add(accountGroup);
+                    TempData["SuccessMessage"] = "Account group added successfully!";
+                }
+                else
+                {
+                    _context.GroupAccounts.Update(accountGroup);
+                    TempData["SuccessMessage"] = "Account group updated successfully!";
+                }
+                await _context.SaveChangesAsync();
+                return RedirectToAction("AccountGroupList");
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"An error occurred while saving: {ex.Message}";
+                return View("AddEditAccountGroup", accountGroup);
+            }
+        }
 
-            command.Parameters.AddWithValue("@GroupName", accountGroup.GroupName);
-            command.ExecuteNonQuery();
-
-            TempData["SuccessMessage"] = accountGroup.Id == null
-                ? "Account group added successfully!"
-                : "Account group updated successfully!";
+        public async Task<IActionResult> DeleteAccountGroup(int Id)
+        {
+            try
+            {
+                var group = await _context.GroupAccounts.FindAsync(Id);
+                if (group != null)
+                {
+                    _context.GroupAccounts.Remove(group);
+                    await _context.SaveChangesAsync();
+                    TempData["SuccessMessage"] = "Account group deleted successfully!";
+                }
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx && sqlEx.Number == 547)
+            {
+                TempData["ErrorMessage"] = "Cannot delete this account group because it is referenced by other records.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Deletion failed: {ex.Message}";
+            }
             return RedirectToAction("AccountGroupList");
         }
-        catch (Exception ex)
-        {
-            TempData["ErrorMessage"] = $"An error occurred while saving: {ex.Message}";
-            return View("AddEditAccountGroup", accountGroup);
-        }
-    }
-
-    public IActionResult DeleteAccountGroup(int Id)
-    {
-        try
-        {
-            using var connection = new SqlConnection(_connectionString);
-            connection.Open();
-            using var command = new SqlCommand("SP_GroupAccount_Delete", connection)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-            command.Parameters.AddWithValue("@Id", Id);
-            command.ExecuteNonQuery();
-
-            TempData["SuccessMessage"] = "Account group deleted successfully!";
-        }
-        catch (SqlException ex) when (ex.Number == 547) // FK constraint violation
-        {
-            TempData["ErrorMessage"] = "Cannot delete this account group because it is referenced by other records.";
-        }
-        catch (Exception ex)
-        {
-            TempData["ErrorMessage"] = $"Deletion failed: {ex.Message}";
-        }
-        return RedirectToAction("AccountGroupList");
     }
 }

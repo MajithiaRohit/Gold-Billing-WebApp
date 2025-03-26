@@ -1,71 +1,48 @@
-﻿using Gold_Billing_Web_App.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Gold_Billing_Web_App.Models;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Gold_Billing_Web_App.Controllers
 {
     public class MetalTransectionController : Controller
     {
-        private readonly IConfiguration configuration;
+        private readonly AppDbContext _context;
 
-        public MetalTransectionController(IConfiguration _configuration)
+        public MetalTransectionController(AppDbContext context)
         {
-            configuration = _configuration;
+            _context = context;
         }
 
-        // Helper method to populate Account dropdown
         private List<AccountDropDownModel> SetAccountDropDown()
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_AccountDropDown", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable dataTable = new DataTable();
-                dataTable.Load(reader);
-
-                return dataTable.AsEnumerable().Select(row => new AccountDropDownModel
+            return _context.Accounts
+                .Include(a => a.GroupAccount)
+                .Select(a => new AccountDropDownModel
                 {
-                    Id = row.Field<int>("Id"),
-                    AccountName = row.Field<string>("Name")!,
-                    GroupName = row["GroupName"] != DBNull.Value ? row.Field<string>("GroupName") : ""
-                }).ToList();
-            }
+                    Id = a.AccountId!.Value,
+                    AccountName = a.AccountName,
+                    GroupName = a.GroupAccount != null ? a.GroupAccount.GroupName : ""
+                })
+                .ToList();
         }
 
-        // Helper method to populate Item dropdown
-        // Helper method to populate Item dropdown with specific items
         private List<ItemDropDownModel> SetItemDropDown()
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_ItemDropDown", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable dataTable = new DataTable();
-                dataTable.Load(reader);
-
-                // Filter items to only include "Fine metal", "Cadbury", and "Dhal"
-                var allowedItems = new List<string> { "Fine Metal", "Cadbury", "Dhal" };
-                return dataTable.AsEnumerable()
-                    .Where(row => allowedItems.Contains(row.Field<string>("Name")!))
-                    .Select(row => new ItemDropDownModel
-                    {
-                        Id = row.Field<int>("Id"),
-                        ItemName = row.Field<string>("Name")!
-                    }).ToList();
-            }
+            var allowedItems = new List<string> { "Fine Metal", "Cadbury", "Dhal" };
+            return _context.Items
+                .Where(i => allowedItems.Contains(i.Name!))
+                .Select(i => new ItemDropDownModel
+                {
+                    Id = i.Id!.Value,
+                    ItemName = i.Name!
+                })
+                .ToList();
         }
 
-        // Add this new action
         [HttpGet]
         public IActionResult GetNextBillNo(string type)
         {
@@ -85,28 +62,23 @@ namespace Gold_Billing_Web_App.Controllers
             }
         }
 
-        // Generate a sequential bill number
         private string GenerateSequentialBillNo(string transactionType)
         {
             string prefix = transactionType == "Payment" ? "PAYM" : "RECV";
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            int lastNumber = 0;
+            var lastBill = _context.MetalTransactions
+                .Where(t => t.BillNo!.StartsWith(prefix))
+                .OrderByDescending(t => t.BillNo)
+                .Select(t => t.BillNo)
+                .FirstOrDefault();
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            int lastNumber = 0;
+            if (!string.IsNullOrEmpty(lastBill))
             {
-                connection.Open();
-                SqlCommand command = new SqlCommand($"SELECT MAX(CAST(SUBSTRING(BillNo, 5, LEN(BillNo)) AS INT)) FROM MetalTransactions WHERE BillNo LIKE '{prefix}%'", connection);
-                object result = command.ExecuteScalar();
-                if (result != null && result != DBNull.Value)
-                {
-                    lastNumber = Convert.ToInt32(result);
-                }
-                lastNumber += 1;
-                return $"{prefix}{lastNumber:D4}";
+                lastNumber = int.Parse(lastBill.Substring(prefix.Length));
             }
+            return $"{prefix}{(lastNumber + 1):D4}";
         }
 
-        // Action to generate the metal transaction voucher
         public IActionResult GenrateMetalTransectionVoucher(string type = "Payment", int? accountId = null, string? billNo = null)
         {
             if (!new[] { "Payment", "Receipt" }.Contains(type))
@@ -120,43 +92,25 @@ namespace Gold_Billing_Web_App.Controllers
 
             if (!string.IsNullOrEmpty(billNo))
             {
-                string? connectionString = configuration.GetConnectionString("ConnectionString");
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                var transactions = _context.MetalTransactions
+                    .Where(t => t.BillNo == billNo)
+                    .Include(t => t.Account)
+                    .Include(t => t.Item)
+                    .ToList();
+
+                if (!transactions.Any())
                 {
-                    connection.Open();
-                    SqlCommand command = new SqlCommand("SP_MetalTransaction_SelectByBillNo", connection);
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.Parameters.AddWithValue("@BillNo", billNo);
+                    return NotFound();
+                }
 
-                    SqlDataReader reader = command.ExecuteReader();
-                    DataTable table = new DataTable();
-                    table.Load(reader);
-
-                    if (table.Rows.Count == 0)
-                    {
-                        return NotFound();
-                    }
-
-                    var firstRow = table.Rows[0];
-                    model.BillNo = billNo;
-                    model.Date = firstRow.Field<DateTime>("Date");
-                    model.Narration = firstRow["Narration"] != DBNull.Value ? firstRow["Narration"] as string : null;
-                    model.Type = type;
-                    model.Items = table.AsEnumerable().Select(row => new MetalTransactionModel
-                    {
-                        Id = row.Field<int>("Id"),
-                        Type = row.Field<string>("Type")!,
-                        AccountId = row["AccountId"] != DBNull.Value ? row.Field<int>("AccountId") : null,
-                        ItemId = row.Field<int>("ItemId"),
-                        GrossWeight = row["GrossWeight"] != DBNull.Value ? row.Field<decimal>("GrossWeight") : null,
-                        Tunch = row["Tunch"] != DBNull.Value ? row.Field<decimal>("Tunch") : null,
-                        Fine = row["Fine"] != DBNull.Value ? row.Field<decimal>("Fine") : null
-                    }).ToList();
-
-                    if (model.Items.Any() && model.Items[0].AccountId.HasValue)
-                    {
-                        ViewBag.SelectedAccountId = model.Items[0].AccountId;
-                    }
+                model.BillNo = billNo;
+                model.Date = transactions.First().Date;
+                model.Narration = transactions.First().Narration;
+                model.Type = type;
+                model.Items = transactions;
+                if (model.Items.Any() && model.Items[0].AccountId.HasValue)
+                {
+                    ViewBag.SelectedAccountId = model.Items[0].AccountId;
                 }
             }
             else
@@ -165,7 +119,6 @@ namespace Gold_Billing_Web_App.Controllers
                 model.Date = DateTime.Now;
                 model.Type = type;
                 model.Items = new List<MetalTransactionModel> { new MetalTransactionModel { Type = type } };
-
                 if (accountId.HasValue)
                 {
                     ViewBag.SelectedAccountId = accountId;
@@ -176,43 +129,26 @@ namespace Gold_Billing_Web_App.Controllers
             return View(model);
         }
 
-        // Action to get the previous balance of an account
         [HttpGet]
         public IActionResult GetPreviousBalance(int accountId)
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_GetPreviousBalance", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.AddWithValue("@AccountId", accountId);
-                SqlDataReader reader = command.ExecuteReader();
-                if (reader.Read())
-                {
-                    return Json(new
-                    {
-                        fine = reader.GetDecimal("Fine"),
-                        amount = reader.GetDecimal("Amount")
-                    });
-                }
-            }
-            return Json(new { fine = 0.0, amount = 0.0 });
+            var account = _context.Accounts
+                .Where(a => a.AccountId == accountId)
+                .Select(a => new { a.Fine, a.Amount })
+                .FirstOrDefault();
+
+            return Json(account != null ? new { fine = account.Fine, amount = account.Amount } : new { fine = 0.0, amount = 0.0 });
         }
 
-        // Action to add a metal transaction
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult AddMetalTransaction(MetalTransactionViewModel model, int? SelectedAccountId)
+        public async Task<IActionResult> AddMetalTransaction(MetalTransactionViewModel model, int? SelectedAccountId)
         {
             ViewBag.AccountDropDown = SetAccountDropDown();
             ViewBag.ItemDropDown = SetItemDropDown();
             ViewBag.SelectedAccountId = SelectedAccountId;
 
-            if (string.IsNullOrEmpty(model.Type))
-            {
-                model.Type = Request.Form["Type"].FirstOrDefault() ?? "Payment";
-            }
+            model.Type ??= Request.Form["Type"].FirstOrDefault() ?? "Payment";
 
             if (!SelectedAccountId.HasValue)
             {
@@ -248,58 +184,46 @@ namespace Gold_Billing_Web_App.Controllers
                 return Json(new { success = false, error = string.Join("; ", errors) });
             }
 
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                decimal totalFine = 0;
+                var existingTransactions = _context.MetalTransactions.Where(t => t.BillNo == model.BillNo);
+                if (existingTransactions.Any())
                 {
-                    connection.Open();
-                    decimal totalFine = 0;
-
-                    // Save MetalTransactions and calculate total fine
-                    foreach (var item in model.Items!)
-                    {
-                        item.AccountId = SelectedAccountId;
-                        item.Type = model.Type;
-                        item.Fine = (item.GrossWeight ?? 0) * (item.Tunch ?? 0) / 100;
-                        totalFine += item.Fine ?? 0; // Aggregate total fine for this transaction
-
-                        SqlCommand command = item.Id.HasValue && item.Id > 0 ? new SqlCommand("SP_MetalTransaction_Update", connection) : new SqlCommand("SP_MetalTransaction_Insert", connection);
-                        command.CommandType = CommandType.StoredProcedure;
-                        if (item.Id.HasValue) command.Parameters.AddWithValue("@Id", item.Id);
-                        command.Parameters.AddWithValue("@Type", item.Type);
-                        command.Parameters.AddWithValue("@BillNo", model.BillNo);
-                        command.Parameters.AddWithValue("@Date", model.Date);
-                        command.Parameters.AddWithValue("@AccountId", item.AccountId ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@ItemId", item.ItemId);
-                        command.Parameters.AddWithValue("@GrossWeight", item.GrossWeight ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Tunch", item.Tunch ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Fine", item.Fine ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Narration", model.Narration ?? (object)DBNull.Value);
-                        command.ExecuteNonQuery();
-                    }
-
-                    // Update Account balance based on GroupName and Transaction Type
-                    var account = SetAccountDropDown().FirstOrDefault(a => a.Id == SelectedAccountId);
-                    if (account != null)
-                    {
-                        decimal fineAdjustment = 0;
-                        if (account.GroupName == "Supplier")
-                        {
-                            fineAdjustment = model.Type == "Payment" ? -totalFine : totalFine;
-                        }
-                        else if (account.GroupName == "Customer")
-                        {
-                            fineAdjustment = model.Type == "Receipt" ? -totalFine : totalFine;
-                        }
-
-                        // Update the Account table with the new balance
-                        SqlCommand updateCommand = new SqlCommand("UPDATE Account SET Fine = ISNULL(Fine, 0) + @FineAdjustment WHERE AccountId = @AccountId", connection);
-                        updateCommand.Parameters.AddWithValue("@FineAdjustment", fineAdjustment);
-                        updateCommand.Parameters.AddWithValue("@AccountId", SelectedAccountId);
-                        updateCommand.ExecuteNonQuery();
-                    }
+                    _context.MetalTransactions.RemoveRange(existingTransactions);
                 }
+
+                foreach (var item in model.Items!)
+                {
+                    item.AccountId = SelectedAccountId;
+                    item.Type = model.Type;
+                    item.BillNo = model.BillNo;
+                    item.Date = model.Date;
+                    item.Narration = model.Narration;
+                    item.Fine = (item.GrossWeight ?? 0) * (item.Tunch ?? 0) / 100;
+                    totalFine += item.Fine ?? 0;
+                    _context.MetalTransactions.Add(item);
+                }
+
+                var account = await _context.Accounts
+                    .Include(a => a.GroupAccount)
+                    .FirstOrDefaultAsync(a => a.AccountId == SelectedAccountId);
+
+                if (account != null)
+                {
+                    decimal fineAdjustment = 0;
+                    if (account.GroupAccount?.GroupName == "Supplier")
+                    {
+                        fineAdjustment = model.Type == "Payment" ? -totalFine : totalFine;
+                    }
+                    else if (account.GroupAccount?.GroupName == "Customer")
+                    {
+                        fineAdjustment = model.Type == "Receipt" ? -totalFine : totalFine;
+                    }
+                    account.Fine += fineAdjustment;
+                }
+
+                await _context.SaveChangesAsync();
 
                 string redirectUrl = Url.Action("Index", "Home")!;
                 return Json(new { success = true, redirectUrl });

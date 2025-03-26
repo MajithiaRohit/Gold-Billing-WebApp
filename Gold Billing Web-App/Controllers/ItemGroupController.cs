@@ -1,117 +1,69 @@
-﻿using System.Data;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Gold_Billing_Web_App.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using System.Data;
+using System.Threading.Tasks;
 
 namespace Gold_Billing_Web_App.Controllers
 {
     public class ItemGroupController : Controller
     {
-        #region Configuration
-        private readonly IConfiguration configuration;
-        public ItemGroupController(IConfiguration _configuration)
+        private readonly AppDbContext _context;
+
+        public ItemGroupController(AppDbContext context)
         {
-            configuration = _configuration;
+            _context = context;
         }
-        #endregion
 
-        #region ItemGroup List
-        public IActionResult ItemGroupList()
+        public async Task<IActionResult> ItemGroupList()
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-
-            if (string.IsNullOrEmpty(connectionString))
+            var itemGroups = await _context.ItemGroups.ToListAsync();
+            DataTable table = new DataTable();
+            table.Columns.Add("Id", typeof(int));
+            table.Columns.Add("Name", typeof(string));
+            table.Columns.Add("Date", typeof(DateTime)); // Added Date column
+            foreach (var group in itemGroups)
             {
-                throw new Exception("Database connection string is missing or invalid.");
+                table.Rows.Add(group.Id, group.Name, group.Date);
             }
-
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = connection.CreateCommand();
-                command.CommandType = CommandType.StoredProcedure;
-                command.CommandText = "SP_ItemGroup_SelectAll";
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable table = new DataTable();
-                table.Load(reader);
-                return View(table);
-            }
+            return View(table);
         }
-        #endregion
 
-        #region AddEdit ItemGroup
         public IActionResult AddEditItemGroup(int? Id)
         {
             ItemGroupModel itemGroupModel = new ItemGroupModel();
-
             if (Id.HasValue && Id > 0)
             {
-                string? connectionString = configuration.GetConnectionString("ConnectionString");
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    SqlCommand command = connection.CreateCommand();
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = "SP_ItemGroup_SelectByID";
-                    command.Parameters.AddWithValue("@Id", Id);
-                    SqlDataReader reader = command.ExecuteReader();
-                    DataTable table = new DataTable();
-                    table.Load(reader);
-
-                    if (table.Rows.Count == 0)
-                    {
-                        return NotFound();
-                    }
-
-                    itemGroupModel = new ItemGroupModel
-                    {
-                        Id = Convert.ToInt32(table.Rows[0]["Id"]),
-                        Name = table.Rows[0]["Name"].ToString()!
-                    };
-                }
+                itemGroupModel = _context.ItemGroups.Find(Id) ?? throw new Exception("Item group not found.");
             }
-
             return View(itemGroupModel);
         }
-        #endregion
 
-        #region Save Method
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult SaveItemGroup(ItemGroupModel itemGroup)
+        public async Task<IActionResult> SaveItemGroup(ItemGroupModel itemGroup)
         {
             if (!ModelState.IsValid)
             {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                ModelState.AddModelError("", "Validation failed: " + string.Join(", ", errors));
                 return View("AddEditItemGroup", itemGroup);
             }
 
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                itemGroup.Date = DateTime.Now; // Set Date on save
+                if (!itemGroup.Id.HasValue || itemGroup.Id == 0) // Insert
                 {
-                    connection.Open();
-                    SqlCommand command = connection.CreateCommand();
-                    command.CommandType = CommandType.StoredProcedure;
-
-                    if (!itemGroup.Id.HasValue || itemGroup.Id == 0)
-                    {
-                        command.CommandText = "SP_ItemGroup_Insert";
-                    }
-                    else
-                    {
-                        command.CommandText = "SP_ItemGroup_Update";
-                        command.Parameters.AddWithValue("@Id", itemGroup.Id);
-                    }
-
-                    command.Parameters.AddWithValue("@Name", itemGroup.Name ?? (object)DBNull.Value);
-                    command.Parameters.AddWithValue("@Date", DateTime.Now);
-
-                    command.ExecuteNonQuery();
+                    _context.ItemGroups.Add(itemGroup);
+                    TempData["SuccessMessage"] = "Item group added successfully!";
                 }
-
+                else // Update
+                {
+                    _context.ItemGroups.Update(itemGroup);
+                    TempData["SuccessMessage"] = "Item group updated successfully!";
+                }
+                await _context.SaveChangesAsync();
                 return RedirectToAction("ItemGroupList");
             }
             catch (Exception ex)
@@ -120,23 +72,28 @@ namespace Gold_Billing_Web_App.Controllers
                 return View("AddEditItemGroup", itemGroup);
             }
         }
-        #endregion
 
-        #region Delete
-        public IActionResult DeleteItemGroup(int Id)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteItemGroup(int Id)
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-
-            using (SqlConnection con = new SqlConnection(connectionString))
+            try
             {
-                SqlCommand cmd = new SqlCommand("SP_ItemGroup_Delete", con);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@Id", Id);
-                con.Open();
-                cmd.ExecuteNonQuery();
+                var itemGroup = await _context.ItemGroups.FindAsync(Id);
+                if (itemGroup == null)
+                {
+                    TempData["ErrorMessage"] = "Item group not found.";
+                    return RedirectToAction("ItemGroupList");
+                }
+                _context.ItemGroups.Remove(itemGroup);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Item group deleted successfully!";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Deletion failed: {ex.Message}";
             }
             return RedirectToAction("ItemGroupList");
         }
-        #endregion
     }
 }

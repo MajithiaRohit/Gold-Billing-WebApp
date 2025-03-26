@@ -13,6 +13,8 @@
         public decimal? GrossWeight { get; set; }
         public decimal? Tunch { get; set; }
         public decimal? Fine { get; set; }
+        public ItemModel Item { get; set; }
+        public AccountModel Account { get; set; }
     }
 
     // Represents the view model with a list of items
@@ -23,5 +25,6 @@
         public string? Narration { get; set; }
         public string Type { get; set; } = "Payment";
         public List<MetalTransactionModel> Items { get; set; } = new List<MetalTransactionModel>(); // Collection of items
+        public ItemModel Item { get; set; }
     }
 }

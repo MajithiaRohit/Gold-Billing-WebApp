@@ -1,6 +1,6 @@
 ﻿using Gold_Billing_Web_App.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.Data;
 
@@ -8,61 +8,43 @@ namespace Gold_Billing_Web_App.Controllers
 {
     public class OpeningStockController : Controller
     {
-        private readonly IConfiguration configuration;
+        private readonly AppDbContext _context;
 
-        public OpeningStockController(IConfiguration _configuration)
+        public OpeningStockController(AppDbContext context)
         {
-            configuration = _configuration;
+            _context = context;
         }
 
         private string GenerateSequentialBillNo(string prefix = "BILL")
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
+            var lastBill = _context.OpeningStocks
+                .Where(os => os.BillNo.StartsWith(prefix))
+                .OrderByDescending(os => os.BillNo)
+                .Select(os => os.BillNo)
+                .FirstOrDefault();
+
             int lastNumber = 0;
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            if (!string.IsNullOrEmpty(lastBill))
             {
-                connection.Open();
-                SqlCommand command = new SqlCommand($"SELECT MAX(CAST(SUBSTRING(BillNo, {prefix.Length + 1}, LEN(BillNo)) AS INT)) FROM OpeningStock WHERE BillNo LIKE '{prefix}%'", connection);
-                object result = command.ExecuteScalar();
-                if (result != null && result != DBNull.Value)
-                {
-                    lastNumber = Convert.ToInt32(result);
-                }
-                lastNumber += 1;
-                return $"{prefix}{lastNumber:D4}";
+                lastNumber = int.Parse(lastBill.Substring(prefix.Length));
             }
+            return $"{prefix}{(lastNumber + 1):D4}";
         }
 
         private bool IsOpeningStockAdded()
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_CheckOpeningStockStatus", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                object result = command.ExecuteScalar();
-                return result != null && Convert.ToBoolean(result);
-            }
+            return _context.OpeningStocks.Any();
         }
 
-        public List<ItemDropDownModel> SetItemDropDown()
+        private List<ItemDropDownModel> SetItemDropDown()
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_ItemDropDown", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable dataTable = new DataTable();
-                dataTable.Load(reader);
-                return dataTable.AsEnumerable().Select(row => new ItemDropDownModel
+            return _context.Items
+                .Select(i => new ItemDropDownModel
                 {
-                    Id = row.Field<int>("Id"),
-                    ItemName = row.Field<string>("Name")!
-                }).ToList();
-            }
+                    Id = i.Id!.Value,
+                    ItemName = i.Name!
+                })
+                .ToList();
         }
 
         public IActionResult AddOpeningStock()
@@ -86,7 +68,7 @@ namespace Gold_Billing_Web_App.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult AddOpeningStock(OpeningStockViewModel model)
+        public async Task<IActionResult> AddOpeningStock(OpeningStockViewModel model)
         {
             if (!ModelState.IsValid)
             {
@@ -95,34 +77,19 @@ namespace Gold_Billing_Web_App.Controllers
                 ViewBag.Title = "Add Opening Stock";
                 return View(model);
             }
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
+
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                foreach (var item in model.Items)
                 {
-                    connection.Open();
-                    foreach (var item in model.Items)
-                    {
-                        CalculateDerivedFields(item);
-                        SqlCommand command = new SqlCommand("SP_OpeningStock_Insert", connection);
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@BillNo", model.BillNo);
-                        command.Parameters.AddWithValue("@Date", model.Date);
-                        command.Parameters.AddWithValue("@Narration", model.Narration ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@ItemId", item.ItemId);
-                        command.Parameters.AddWithValue("@Pc", item.Pc ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Weight", item.Weight ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Less", item.Less ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@NetWt", item.NetWt ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Tunch", item.Tunch ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Wastage", item.Wastage ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@TW", item.TW ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Rate", item.Rate ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Fine", item.Fine ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Amount", item.Amount ?? (object)DBNull.Value);
-                        command.ExecuteNonQuery();
-                    }
+                    CalculateDerivedFields(item);
+                    item.BillNo = model.BillNo;
+                    item.Date = model.Date;
+                    item.Narration = model.Narration;
+                    item.LastUpdated = DateTime.Now;
+                    _context.OpeningStocks.Add(item);
                 }
+                await _context.SaveChangesAsync();
                 return RedirectToAction("ViewStock");
             }
             catch (Exception ex)
@@ -151,7 +118,7 @@ namespace Gold_Billing_Web_App.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult AddNewStock(OpeningStockViewModel model)
+        public async Task<IActionResult> AddNewStock(OpeningStockViewModel model)
         {
             if (!ModelState.IsValid)
             {
@@ -160,7 +127,7 @@ namespace Gold_Billing_Web_App.Controllers
                 ViewBag.Title = "Add New Stock";
                 return View("AddOpeningStock", model);
             }
-            return AddOpeningStock(model);
+            return await AddOpeningStock(model);
         }
 
         public IActionResult EditOpeningStock(string billNo)
@@ -169,41 +136,25 @@ namespace Gold_Billing_Web_App.Controllers
             {
                 return NotFound();
             }
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            var model = new OpeningStockViewModel();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+
+            var stocks = _context.OpeningStocks
+                .Where(os => os.BillNo == billNo)
+                .Include(os => os.Item)
+                .ToList();
+
+            if (!stocks.Any())
             {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_OpeningStock_SelectByBillNo", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.AddWithValue("@BillNo", billNo);
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable table = new DataTable();
-                table.Load(reader);
-                if (table.Rows.Count == 0)
-                {
-                    return NotFound();
-                }
-                model.BillNo = billNo;
-                model.Date = table.Rows[0].Field<DateTime>("Date");
-                model.Narration = table.Rows[0]["Narration"] as string;
-                model.Items = table.AsEnumerable().Select(row => new OpeningStockModel
-                {
-                    Id = row.Field<int>("Id"),
-                    ItemId = row.Field<int>("ItemId"),
-                    ItemName = row.Field<string>("ItemName") ?? "",
-                    Pc = row["Pc"] != DBNull.Value ? row.Field<int>("Pc") : null,
-                    Weight = row["Weight"] != DBNull.Value ? row.Field<decimal>("Weight") : null,
-                    Less = row["Less"] != DBNull.Value ? row.Field<decimal>("Less") : null,
-                    NetWt = row["NetWt"] != DBNull.Value ? row.Field<decimal>("NetWt") : null,
-                    Tunch = row["Tunch"] != DBNull.Value ? row.Field<decimal>("Tunch") : null,
-                    Wastage = row["Wastage"] != DBNull.Value ? row.Field<decimal>("Wastage") : null,
-                    TW = row["TW"] != DBNull.Value ? row.Field<decimal>("TW") : null,
-                    Rate = row["Rate"] != DBNull.Value ? row.Field<decimal>("Rate") : null,
-                    Fine = row["Fine"] != DBNull.Value ? row.Field<decimal>("Fine") : null,
-                    Amount = row["Amount"] != DBNull.Value ? row.Field<decimal>("Amount") : null
-                }).ToList();
+                return NotFound();
             }
+
+            var model = new OpeningStockViewModel
+            {
+                BillNo = billNo,
+                Date = stocks.First().Date,
+                Narration = stocks.First().Narration,
+                Items = stocks
+            };
+
             ViewBag.ItemDropDown = SetItemDropDown();
             ViewBag.Action = "EditOpeningStock";
             ViewBag.Title = "Edit Stock";
@@ -212,7 +163,7 @@ namespace Gold_Billing_Web_App.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult EditOpeningStock(OpeningStockViewModel model)
+        public async Task<IActionResult> EditOpeningStock(OpeningStockViewModel model)
         {
             if (!ModelState.IsValid)
             {
@@ -221,37 +172,22 @@ namespace Gold_Billing_Web_App.Controllers
                 ViewBag.Title = "Edit Stock";
                 return View("AddOpeningStock", model);
             }
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
+
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                var existingStocks = _context.OpeningStocks.Where(os => os.BillNo == model.BillNo);
+                _context.OpeningStocks.RemoveRange(existingStocks);
+
+                foreach (var item in model.Items)
                 {
-                    connection.Open();
-                    SqlCommand deleteCommand = new SqlCommand("DELETE FROM OpeningStock WHERE BillNo = @BillNo", connection);
-                    deleteCommand.Parameters.AddWithValue("@BillNo", model.BillNo);
-                    deleteCommand.ExecuteNonQuery();
-                    foreach (var item in model.Items)
-                    {
-                        CalculateDerivedFields(item);
-                        SqlCommand command = new SqlCommand("SP_OpeningStock_Insert", connection);
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@BillNo", model.BillNo);
-                        command.Parameters.AddWithValue("@Date", model.Date);
-                        command.Parameters.AddWithValue("@Narration", model.Narration ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@ItemId", item.ItemId);
-                        command.Parameters.AddWithValue("@Pc", item.Pc ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Weight", item.Weight ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Less", item.Less ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@NetWt", item.NetWt ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Tunch", item.Tunch ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Wastage", item.Wastage ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@TW", item.TW ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Rate", item.Rate ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Fine", item.Fine ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Amount", item.Amount ?? (object)DBNull.Value);
-                        command.ExecuteNonQuery();
-                    }
+                    CalculateDerivedFields(item);
+                    item.BillNo = model.BillNo;
+                    item.Date = model.Date;
+                    item.Narration = model.Narration;
+                    item.LastUpdated = DateTime.Now;
+                    _context.OpeningStocks.Add(item);
                 }
+                await _context.SaveChangesAsync();
                 return RedirectToAction("ViewStock");
             }
             catch (Exception ex)
@@ -266,135 +202,151 @@ namespace Gold_Billing_Web_App.Controllers
 
         public IActionResult ViewStock(int page = 1)
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
             const int pageSize = 10;
-            using (SqlConnection connection = new SqlConnection(connectionString))
+
+            var billNosQuery = _context.OpeningStocks
+                .Select(os => os.BillNo)
+                .Distinct()
+                .OrderBy(billNo => billNo);
+
+            var totalRecords = billNosQuery.Count();
+            int totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+            page = Math.Max(1, Math.Min(page, totalPages));
+
+            var paginatedBillNos = billNosQuery
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var stocks = _context.OpeningStocks
+                .Include(os => os.Item)
+                .Where(os => paginatedBillNos.Contains(os.BillNo))
+                .OrderBy(os => os.BillNo)
+                .ToList();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.PageSize = pageSize;
+
+            DataTable table = new DataTable();
+            table.Columns.Add("BillNo", typeof(string));
+            table.Columns.Add("Date", typeof(DateTime));
+            table.Columns.Add("ItemName", typeof(string));
+            table.Columns.Add("Pc", typeof(int));
+            table.Columns.Add("Weight", typeof(decimal));
+            table.Columns.Add("Less", typeof(decimal));
+            table.Columns.Add("NetWt", typeof(decimal));
+            table.Columns.Add("Tunch", typeof(decimal));
+            table.Columns.Add("Wastage", typeof(decimal));
+            table.Columns.Add("TW", typeof(decimal));
+            table.Columns.Add("Rate", typeof(decimal));
+            table.Columns.Add("Fine", typeof(decimal));
+            table.Columns.Add("Amount", typeof(decimal));
+            table.Columns.Add("LastUpdated", typeof(DateTime));
+
+            foreach (var stock in stocks)
             {
-                connection.Open();
-                SqlCommand countCommand = new SqlCommand("SELECT COUNT(*) FROM (SELECT DISTINCT BillNo FROM OpeningStock) AS UniqueBills", connection);
-                int totalRecords = (int)countCommand.ExecuteScalar();
-                int totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
-                page = Math.Max(1, Math.Min(page, totalPages));
-                SqlCommand command = new SqlCommand("SP_Stock_SelectAll_Paginated", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.AddWithValue("@PageNumber", page);
-                command.Parameters.AddWithValue("@PageSize", pageSize);
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable table = new DataTable();
-                table.Load(reader);
-                ViewBag.CurrentPage = page;
-                ViewBag.TotalPages = totalPages;
-                ViewBag.PageSize = pageSize;
-                return View(table);
+                table.Rows.Add(
+                    stock.BillNo,
+                    stock.Date,
+                    stock.Item?.Name ?? "",
+                    stock.Pc.HasValue ? stock.Pc : DBNull.Value,
+                    stock.Weight.HasValue ? stock.Weight : DBNull.Value,
+                    stock.Less.HasValue ? stock.Less : DBNull.Value,
+                    stock.NetWt.HasValue ? stock.NetWt : DBNull.Value,
+                    stock.Tunch.HasValue ? stock.Tunch : DBNull.Value,
+                    stock.Wastage.HasValue ? stock.Wastage : DBNull.Value,
+                    stock.TW.HasValue ? stock.TW : DBNull.Value,
+                    stock.Rate.HasValue ? stock.Rate : DBNull.Value,
+                    stock.Fine.HasValue ? stock.Fine : DBNull.Value,
+                    stock.Amount.HasValue ? stock.Amount : DBNull.Value,
+                    stock.LastUpdated.HasValue ? stock.LastUpdated : DBNull.Value
+                );
             }
+
+            return View(table);
         }
 
         [HttpGet]
         public IActionResult ExportToExcel()
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            var stocks = _context.OpeningStocks.Include(os => os.Item).ToList();
+
+            decimal totalWeight = stocks.Sum(os => os.Weight ?? 0);
+            decimal totalLess = stocks.Sum(os => os.Less ?? 0);
+            decimal totalNetWt = stocks.Sum(os => os.NetWt ?? 0);
+            decimal totalFine = stocks.Sum(os => os.Fine ?? 0);
+            decimal totalAmount = stocks.Sum(os => os.Amount ?? 0);
+
+            using (var package = new ExcelPackage())
             {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_OpeningStock_SelectAll", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable table = new DataTable();
-                table.Load(reader);
-
-                // Calculate totals with nullable handling
-                decimal totalWeight = table.AsEnumerable().Sum(row => row["Weight"] is DBNull ? 0 : row.Field<decimal>("Weight"));
-                decimal totalLess = table.AsEnumerable().Sum(row => row["Less"] is DBNull ? 0 : row.Field<decimal>("Less"));
-                decimal totalNetWt = table.AsEnumerable().Sum(row => row["NetWt"] is DBNull ? 0 : row.Field<decimal>("NetWt"));
-                decimal totalFine = table.AsEnumerable().Sum(row => row["Fine"] is DBNull ? 0 : row.Field<decimal>("Fine"));
-                decimal totalAmount = table.AsEnumerable().Sum(row => row["Amount"] is DBNull ? 0 : row.Field<decimal>("Amount"));
-
-                // Add totals row
-                DataRow totalRow = table.NewRow();
-                totalRow["BillNo"] = "Total";
-                totalRow["ItemName"] = "";
-                totalRow["Weight"] = totalWeight;
-                totalRow["Less"] = totalLess;
-                totalRow["NetWt"] = totalNetWt;
-                totalRow["Fine"] = totalFine;
-                totalRow["Amount"] = totalAmount;
-                totalRow["LastUpdated"] = DBNull.Value;
-                table.Rows.Add(totalRow);
-
-                using (var package = new ExcelPackage())
+                var worksheet = package.Workbook.Worksheets.Add("OpeningStock");
+                worksheet.Cells["A1"].LoadFromCollection(stocks.Select(os => new
                 {
-                    var worksheet = package.Workbook.Worksheets.Add("OpeningStock");
-                    worksheet.Cells["A1"].LoadFromDataTable(table, true);
-                    worksheet.Cells.AutoFitColumns();
-                    var stream = new MemoryStream(package.GetAsByteArray());
-                    return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "OpeningStockReport.xlsx");
-                }
+                    os.BillNo,
+                    os.Date,
+                    ItemName = os.Item?.Name,
+                    os.Weight,
+                    os.Less,
+                    os.NetWt,
+                    os.Fine,
+                    os.Amount,
+                    os.LastUpdated
+                }), true);
+
+                int rowCount = stocks.Count + 2;
+                worksheet.Cells[rowCount, 1].Value = "Total";
+                worksheet.Cells[rowCount, 4].Value = totalWeight;
+                worksheet.Cells[rowCount, 5].Value = totalLess;
+                worksheet.Cells[rowCount, 6].Value = totalNetWt;
+                worksheet.Cells[rowCount, 7].Value = totalFine;
+                worksheet.Cells[rowCount, 8].Value = totalAmount;
+
+                worksheet.Cells.AutoFitColumns();
+                var stream = new MemoryStream(package.GetAsByteArray());
+                return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "OpeningStockReport.xlsx");
             }
         }
 
         [HttpGet]
         public IActionResult PrintStock()
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            var stocks = _context.OpeningStocks.Include(os => os.Item).ToList();
+            DataTable table = new DataTable();
+            table.Columns.Add("BillNo", typeof(string));
+            table.Columns.Add("Date", typeof(DateTime));
+            table.Columns.Add("ItemName", typeof(string));
+
+            foreach (var stock in stocks)
             {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_OpeningStock_SelectAll", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable table = new DataTable();
-                table.Load(reader);
-                return View("PrintStock", table);
+                table.Rows.Add(stock.BillNo, stock.Date, stock.Item?.Name);
             }
+            return View("PrintStock", table);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteOpeningStock([FromBody] DeleteStockRequest request)
+        public async Task<IActionResult> DeleteOpeningStock([FromBody] DeleteStockRequest request)
         {
             try
             {
-                Console.WriteLine("DeleteOpeningStock action invoked");
-                string? billNo = request?.BillNo; // Nullable string
-                Console.WriteLine($"Received BillNo from request: '{billNo}'");
-
-                if (string.IsNullOrEmpty(billNo))
+                if (string.IsNullOrEmpty(request?.BillNo))
                 {
-                    Console.WriteLine("BillNo is null or empty");
                     return Json(new { success = false, error = "BillNo is required" });
                 }
 
-                string? connectionString = configuration.GetConnectionString("ConnectionString");
-                Console.WriteLine($"Connection string: '{connectionString}'");
-                if (string.IsNullOrEmpty(connectionString))
+                var stocks = _context.OpeningStocks.Where(os => os.BillNo == request.BillNo);
+                if (!stocks.Any())
                 {
-                    Console.WriteLine("Connection string is null");
-                    return Json(new { success = false, error = "Database connection string is missing" });
+                    return Json(new { success = false, error = "No stock entry found with this BillNo" });
                 }
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    Console.WriteLine("Database connection opened successfully");
-                    SqlCommand command = new SqlCommand("SP_OpeningStock_Delete", connection);
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.Parameters.AddWithValue("@BillNo", billNo);
-                    Console.WriteLine($"Executing SP_OpeningStock_Delete with BillNo: '{billNo}'");
-                    int rowsAffected = command.ExecuteNonQuery();
-                    Console.WriteLine($"Rows affected: {rowsAffected}");
-                    if (rowsAffected == 0)
-                    {
-                        Console.WriteLine("No rows deleted - BillNo not found in database");
-                        return Json(new { success = false, error = "No stock entry found with this BillNo" });
-                    }
-                }
-                Console.WriteLine("Deletion successful");
+                _context.OpeningStocks.RemoveRange(stocks);
+                await _context.SaveChangesAsync();
                 return Json(new { success = true });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception occurred: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return Json(new { success = false, error = ex.Message });
             }
         }
@@ -410,6 +362,6 @@ namespace Gold_Billing_Web_App.Controllers
 
     public class DeleteStockRequest
     {
-        public string? BillNo { get; set; } // Made nullable to avoid null reference warnings
+        public string? BillNo { get; set; }
     }
 }

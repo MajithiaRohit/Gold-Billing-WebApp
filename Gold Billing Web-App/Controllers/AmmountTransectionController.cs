@@ -1,52 +1,44 @@
-﻿using Gold_Billing_Web_App.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Gold_Billing_Web_App.Models;
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Gold_Billing_Web_App.Controllers
 {
     public class AmmountTransectionController : Controller
     {
-        private readonly IConfiguration configuration;
+        private readonly AppDbContext _context;
 
-        public AmmountTransectionController(IConfiguration _configuration)
+        public AmmountTransectionController(AppDbContext context)
         {
-            configuration = _configuration;
+            _context = context;
         }
 
         private List<AccountDropDownModel> SetAccountDropDown()
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_AccountDropDown", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable dataTable = new DataTable();
-                dataTable.Load(reader);
-
-                return dataTable.AsEnumerable().Select(row => new AccountDropDownModel
+            return _context.Accounts
+                .Include(a => a.GroupAccount)
+                .Select(a => new AccountDropDownModel
                 {
-                    Id = row.Field<int>("Id"),
-                    AccountName = row.Field<string>("Name")!,
-                    GroupName = row["GroupName"] != DBNull.Value ? row.Field<string>("GroupName")! : ""
-                }).ToList();
-            }
+                    Id = a.AccountId!.Value,
+                    AccountName = a.AccountName,
+                    GroupName = a.GroupAccount != null ? a.GroupAccount.GroupName : ""
+                })
+                .ToList();
         }
 
         private List<PaymentModeDropDownModel> SetPaymentModeDropDown()
         {
-            return new List<PaymentModeDropDownModel>
-            {
-                new PaymentModeDropDownModel { Id = 1, ModeName = "Cash" },
-                new PaymentModeDropDownModel { Id = 2, ModeName = "Cheque" },
-                new PaymentModeDropDownModel { Id = 3, ModeName = "Card" }
-            };
+            return _context.PaymentModes
+                .Select(pm => new PaymentModeDropDownModel
+                {
+                    Id = pm.Id,
+                    ModeName = pm.ModeName
+                })
+                .ToList();
         }
 
         [HttpGet]
@@ -71,23 +63,18 @@ namespace Gold_Billing_Web_App.Controllers
         private string GenerateSequentialBillNo(string transactionType)
         {
             string prefix = transactionType == "Payment" ? "PAYM" : "RECV";
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            int lastNumber = 0;
+            var lastBill = _context.AmountTransactions
+                .Where(t => t.BillNo.StartsWith(prefix))
+                .OrderByDescending(t => t.BillNo)
+                .Select(t => t.BillNo)
+                .FirstOrDefault();
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            int lastNumber = 0;
+            if (!string.IsNullOrEmpty(lastBill))
             {
-                connection.Open();
-                SqlCommand command = new SqlCommand($"SELECT MAX(CAST(SUBSTRING(BillNo, 5, LEN(BillNo)) AS INT)) FROM AmountTransactions WHERE BillNo LIKE '{prefix}%'", connection);
-                object result = command.ExecuteScalar();
-                if (result != null && result != DBNull.Value)
-                {
-                    lastNumber = Convert.ToInt32(result);
-                }
-                lastNumber += 1;
-                string billNo = $"{prefix}{lastNumber:D4}";
-                if (billNo.Length > 20) throw new Exception("BillNo exceeds NVARCHAR(20) length.");
-                return billNo;
+                lastNumber = int.Parse(lastBill.Substring(prefix.Length));
             }
+            return $"{prefix}{(lastNumber + 1):D4}";
         }
 
         public IActionResult GenrateAmmountTransectionVoucher(string type = "Payment", int? accountId = null, string? billNo = null)
@@ -103,35 +90,18 @@ namespace Gold_Billing_Web_App.Controllers
 
             if (!string.IsNullOrEmpty(billNo))
             {
-                string? connectionString = configuration.GetConnectionString("ConnectionString");
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                var transaction = _context.AmountTransactions
+                    .Include(t => t.Account)
+                    .Include(t => t.PaymentMode)
+                    .FirstOrDefault(t => t.BillNo == billNo);
+
+                if (transaction == null)
                 {
-                    connection.Open();
-                    SqlCommand command = new SqlCommand("SP_AmountTransaction_SelectByBillNo", connection);
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.Parameters.AddWithValue("@BillNo", billNo);
-
-                    SqlDataReader reader = command.ExecuteReader();
-                    DataTable table = new DataTable();
-                    table.Load(reader);
-
-                    if (table.Rows.Count == 0)
-                    {
-                        return NotFound();
-                    }
-
-                    var row = table.Rows[0];
-                    model.Id = row.Field<int>("Id");
-                    model.BillNo = row.Field<string>("BillNo")!;
-                    model.Date = row.Field<DateTime>("Date");
-                    model.AccountId = row.Field<int>("AccountId");
-                    model.Type = row.Field<string>("Type")!;
-                    model.PaymentModeId = row.Field<int>("PaymentModeId");
-                    model.Amount = row.Field<decimal>("Amount");
-                    model.Narration = row["Narration"] != DBNull.Value ? row.Field<string>("Narration") : null;
-
-                    ViewBag.SelectedAccountId = model.AccountId;
+                    return NotFound();
                 }
+
+                model = transaction;
+                ViewBag.SelectedAccountId = model.AccountId;
             }
             else
             {
@@ -140,7 +110,6 @@ namespace Gold_Billing_Web_App.Controllers
                 model.Type = type;
                 model.Amount = 0;
                 model.PaymentModeId = 0;
-
                 if (accountId.HasValue)
                 {
                     ViewBag.SelectedAccountId = accountId;
@@ -154,52 +123,37 @@ namespace Gold_Billing_Web_App.Controllers
         [HttpGet]
         public IActionResult GetPreviousBalance(int accountId)
         {
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                SqlCommand command = new SqlCommand("SP_GetPreviousBalance", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.AddWithValue("@AccountId", accountId);
-                SqlDataReader reader = command.ExecuteReader();
-                if (reader.Read())
-                {
-                    return Json(new
-                    {
-                        fine = reader.GetDecimal("Fine"),
-                        amount = reader.GetDecimal("Amount")
-                    });
-                }
-            }
-            return Json(new { fine = 0.0, amount = 0.0 });
+            var account = _context.Accounts
+                .Where(a => a.AccountId == accountId)
+                .Select(a => new { a.Fine, a.Amount })
+                .FirstOrDefault();
+
+            return Json(account != null ? new { fine = account.Fine, amount = account.Amount } : new { fine = 0.0, amount = 0.0 });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult AddAmountTransaction(AmountTransactionModel model, int? SelectedAccountId)
+        public async Task<IActionResult> AddAmountTransaction(AmountTransactionModel model, int? SelectedAccountId)
         {
             ViewBag.AccountDropDown = SetAccountDropDown();
             ViewBag.PaymentModeDropDown = SetPaymentModeDropDown();
             ViewBag.SelectedAccountId = SelectedAccountId;
 
-            if (string.IsNullOrEmpty(model.Type))
-            {
-                model.Type = Request.Form["Type"].FirstOrDefault() ?? "Payment";
-            }
+            model.Type ??= Request.Form["Type"].FirstOrDefault() ?? "Payment";
 
             if (!SelectedAccountId.HasValue)
             {
                 ModelState.AddModelError("SelectedAccountId", "Account is required.");
             }
 
-            if (string.IsNullOrEmpty(model.BillNo) || model.BillNo.Length > 20)
+            if (string.IsNullOrEmpty(model.BillNo) || model.BillNo.Length > 40)
             {
-                ModelState.AddModelError("BillNo", "Bill Number is required and must not exceed 20 characters.");
+                ModelState.AddModelError("BillNo", "Bill Number is required and must not exceed 40 characters.");
             }
 
-            if (string.IsNullOrEmpty(model.Type) || model.Type.Length > 10)
+            if (string.IsNullOrEmpty(model.Type) || model.Type.Length > 20)
             {
-                ModelState.AddModelError("Type", "Type is required and must not exceed 10 characters.");
+                ModelState.AddModelError("Type", "Type is required and must not exceed 20 characters.");
             }
 
             if (model.PaymentModeId <= 0)
@@ -212,9 +166,9 @@ namespace Gold_Billing_Web_App.Controllers
                 ModelState.AddModelError("Amount", "Amount must be greater than 0.");
             }
 
-            if (model.Narration != null && model.Narration.Length > 500)
+            if (model.Narration?.Length > 1000)
             {
-                ModelState.AddModelError("Narration", "Narration must not exceed 500 characters.");
+                ModelState.AddModelError("Narration", "Narration must not exceed 1000 characters.");
             }
 
             if (!ModelState.IsValid)
@@ -223,45 +177,37 @@ namespace Gold_Billing_Web_App.Controllers
                 return Json(new { success = false, error = string.Join("; ", errors) });
             }
 
-            string? connectionString = configuration.GetConnectionString("ConnectionString");
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                model.AccountId = SelectedAccountId!.Value;
+                if (model.Id > 0)
                 {
-                    connection.Open();
-
-                    model.AccountId = SelectedAccountId!.Value;
-                    SqlCommand command = model.Id > 0 ? new SqlCommand("SP_AmountTransaction_Update", connection) : new SqlCommand("SP_AmountTransaction_Insert", connection);
-                    command.CommandType = CommandType.StoredProcedure;
-                    if (model.Id > 0) command.Parameters.AddWithValue("@Id", model.Id);
-                    command.Parameters.AddWithValue("@BillNo", model.BillNo);
-                    command.Parameters.AddWithValue("@Date", model.Date);
-                    command.Parameters.AddWithValue("@AccountId", model.AccountId);
-                    command.Parameters.AddWithValue("@Type", model.Type);
-                    command.Parameters.AddWithValue("@PaymentModeId", model.PaymentModeId);
-                    command.Parameters.AddWithValue("@Amount", model.Amount);
-                    command.Parameters.AddWithValue("@Narration", (object)model.Narration! ?? DBNull.Value);
-                    command.ExecuteNonQuery();
-
-                    var account = SetAccountDropDown().FirstOrDefault(a => a.Id == model.AccountId);
-                    if (account != null)
-                    {
-                        decimal amountAdjustment = 0;
-                        if (account.GroupName == "Supplier")
-                        {
-                            amountAdjustment = model.Type == "Payment" ? -model.Amount : model.Amount;
-                        }
-                        else if (account.GroupName == "Customer")
-                        {
-                            amountAdjustment = model.Type == "Receive" ? -model.Amount : model.Amount;
-                        }
-
-                        SqlCommand updateCommand = new SqlCommand("UPDATE Account SET Amount = ISNULL(Amount, 0) + @AmountAdjustment WHERE AccountId = @AccountId", connection);
-                        updateCommand.Parameters.AddWithValue("@AmountAdjustment", amountAdjustment);
-                        updateCommand.Parameters.AddWithValue("@AccountId", model.AccountId);
-                        updateCommand.ExecuteNonQuery();
-                    }
+                    _context.AmountTransactions.Update(model);
                 }
+                else
+                {
+                    _context.AmountTransactions.Add(model);
+                }
+
+                var account = await _context.Accounts
+                    .Include(a => a.GroupAccount)
+                    .FirstOrDefaultAsync(a => a.AccountId == model.AccountId);
+
+                if (account != null)
+                {
+                    decimal amountAdjustment = 0;
+                    if (account.GroupAccount?.GroupName == "Supplier")
+                    {
+                        amountAdjustment = model.Type == "Payment" ? -model.Amount : model.Amount;
+                    }
+                    else if (account.GroupAccount?.GroupName == "Customer")
+                    {
+                        amountAdjustment = model.Type == "Receive" ? -model.Amount : model.Amount;
+                    }
+                    account.Amount += amountAdjustment;
+                }
+
+                await _context.SaveChangesAsync();
 
                 string redirectUrl = Url.Action("Index", "Home")!;
                 return Json(new { success = true, redirectUrl });
@@ -272,6 +218,4 @@ namespace Gold_Billing_Web_App.Controllers
             }
         }
     }
-
-
 }

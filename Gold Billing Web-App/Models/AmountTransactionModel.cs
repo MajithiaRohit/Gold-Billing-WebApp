@@ -10,5 +10,8 @@
         public int PaymentModeId { get; set; }             // INT, not null
         public decimal Amount { get; set; }                // DECIMAL(18,2), not null
         public string? Narration { get; set; }             // NVARCHAR(500), nullable
+        public AccountModel Account { get; set; }
+        public PaymentModeDropDownModel PaymentMode { get; set; }
+      
     }
 }

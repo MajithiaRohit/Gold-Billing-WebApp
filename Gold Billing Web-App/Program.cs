@@ -1,5 +1,8 @@
-using Gold_Billing_Web_App.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Gold_Billing_Web_App.Models;
+using Gold_Billing_Web_App.Session;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
 
+// Configuration
 var configuration = builder.Configuration;
 builder.Services.AddSingleton<IConfiguration>(configuration);
 
@@ -14,9 +18,32 @@ builder.Services.AddSingleton<IConfiguration>(configuration);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(configuration.GetConnectionString("ConnectionString")));
 
+// Add session support
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// Add authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/UserAccount/Login";
+        options.LogoutPath = "/UserAccount/Logout";
+        options.AccessDeniedPath = "/UserAccount/Login";
+    });
+
+// Add global filter
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(typeof(LoginCheckAccess));
+});
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -26,10 +53,14 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+// Ensure session and authentication are before authorization
+app.UseSession();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=UserAccount}/{action=Login}/{id?}");
 
 app.Run();

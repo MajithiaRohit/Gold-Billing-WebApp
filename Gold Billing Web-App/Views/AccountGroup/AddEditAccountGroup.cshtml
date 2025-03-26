@@ -1,10 +1,10 @@
 ﻿@model Gold_Billing_Web_App.Models.AccountGroupModel
 
 <div class="container mt-4">
-    <h2>@(Model.Id.HasValue ? "Edit" : "Add") Account Group</h2>
+    <h2>@(Model.Id > 0 ? "Edit" : "Add") Account Group</h2>
     <div class="card">
         <div class="card-body">
-            <form asp-action="saveAddEditAccountGroup" asp-controller="AccountGroup" method="post" class="row g-3">
+            <form asp-action="SaveAddEditAccountGroup" asp-controller="AccountGroup" method="post" class="row g-3">
                 @Html.AntiForgeryToken()
                 @Html.HiddenFor(m => m.Id)
 
@@ -18,12 +18,10 @@
                     </div>
                 </div>
 
-                <!-- Validation Summary -->
                 <div class="col-12">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 </div>
 
-                <!-- Submit Button -->
                 <div class="d-flex justify-content-start mt-5">
                     <button type="submit" class="btn btn-primary">Save</button>
                     <a class="btn btn-secondary mx-2" asp-action="AccountGroupList">Cancel</a>

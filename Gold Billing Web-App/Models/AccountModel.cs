@@ -4,6 +4,7 @@ namespace Gold_Billing_Web_App.Models
 {
     public class AccountModel
     {
+        public AccountGroupModel GroupAccount { get; set; }
         public int? AccountId { get; set; }
 
         public DateTime Date { get; set; }

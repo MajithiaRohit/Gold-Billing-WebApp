@@ -1,0 +1,122 @@
+﻿@model Gold_Billing_Web_App.Models.LoginViewModel
+@{
+    Layout = "~/Views/Shared/_loginlayout.cshtml";
+}
+
+<!-- Debug: Login.cshtml rendered -->
+<section class="section login min-vh-100 d-flex flex-column align-items-center justify-content-center py-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-4 col-md-6 d-flex flex-column align-items-center justify-content-center">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-center py-4">
+                            <a class="align-items-center">
+                                <img src="~/images/ERPIcon.png" alt="Gold Billing Logo" width="150px" />
+                            </a>
+                        </div>
+                        <div class="d-flex justify-content-center py-4">
+                            <a class="logo d-flex align-items-center w-auto">
+                                <span class="d-none d-lg-block">Gold Billing WebApp</span>
+                            </a>
+                        </div>
+                        <div class="pt-4 pb-2">
+                            <h5 class="card-title text-center pb-0 fs-4">Login</h5>
+                            <p class="text-center small">Enter your credentials</p>
+                        </div>
+
+                        @if (TempData["SuccessMessage"] != null)
+                        {
+                            <div class="alert alert-success">
+                                @TempData["SuccessMessage"]
+                            </div>
+                        }
+                        @if (ViewBag.UsernameError != null || ViewBag.PasswordError != null)
+                        {
+                            <div class="alert alert-danger">
+                                @(ViewBag.UsernameError ?? ViewBag.PasswordError)
+                            </div>
+                        }
+
+                        <form asp-action="Login" method="post" class="row g-3 needs-validation" novalidate>
+                            @Html.AntiForgeryToken()
+
+                            <div class="col-12">
+                                <label asp-for="Username" class="form-label">Username</label>
+                                <div class="input-group has-validation">
+                                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                    <input type="text" asp-for="Username" class="form-control" required>
+                                    <div class="invalid-feedback">Please enter your username.</div>
+                                </div>
+                                @if (ViewBag.UsernameError != null)
+                                {
+                                    <span class="text-danger">@ViewBag.UsernameError</span>
+                                }
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Password" class="form-label">Password</label>
+                                <div class="input-group has-validation">
+                                    <input type="password" asp-for="Password" class="form-control" id="password" required>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('password', this)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <div class="invalid-feedback">Please enter your password.</div>
+                                </div>
+                                @if (ViewBag.PasswordError != null)
+                                {
+                                    <span class="text-danger">@ViewBag.PasswordError</span>
+                                }
+                            </div>
+
+                            <div class="col-12">
+                                <button class="btn btn-primary w-100" type="submit">Login</button>
+                            </div>
+
+                            <div class="col-12 text-center">
+                                <!-- Debug: Links rendered -->
+                                <p class="small mb-0">
+                                    <a asp-controller="UserAccount" asp-action="VerifyUsername">Forgot Password?</a>
+                                    <a asp-controller="UserAccount" asp-action="Register">Register</a>
+                                </p>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function togglePassword(inputId, button) {
+            var input = document.getElementById(inputId);
+            var icon = button.querySelector('i');
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            } else {
+                input.type = "password";
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        }
+
+        (function () {
+            'use strict';
+            var forms = document.querySelectorAll('.needs-validation');
+            Array.prototype.slice.call(forms).forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        })();
+    </script>
+}
