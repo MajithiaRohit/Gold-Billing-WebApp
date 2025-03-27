@@ -4,10 +4,7 @@ namespace Gold_Billing_Web_App.Models
 {
     public class AccountModel
     {
-        public AccountGroupModel GroupAccount { get; set; }
         public int? AccountId { get; set; }
-
-        public DateTime Date { get; set; }
 
         [Required(ErrorMessage = "Account Name is required")]
         [StringLength(100, MinimumLength = 2, ErrorMessage = "Account Name must be between 2 and 100 characters")]
@@ -16,6 +13,8 @@ namespace Gold_Billing_Web_App.Models
         [Required(ErrorMessage = "Account Group is required")]
         [Range(1, int.MaxValue, ErrorMessage = "Please select a valid Account Group")]
         public int AccountGroupId { get; set; }
+
+        public AccountGroupModel? GroupAccount { get; set; } // Navigation property
 
         [StringLength(500, ErrorMessage = "Address cannot exceed 500 characters")]
         public string Address { get; set; } = "";
@@ -43,6 +42,9 @@ namespace Gold_Billing_Web_App.Models
 
         [Range(0, double.MaxValue, ErrorMessage = "Amount cannot be negative")]
         public decimal Amount { get; set; }
+
+        public DateTime Date { get; set; }
+
+        public int UserId { get; set; } // Ensure UserId is present
     }
- 
 }

@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Gold_Billing_Web_App.Models;
+using Gold_Billing_Web_App.Session;
 using System.Data;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
+using System.Security.Claims;
 
 namespace Gold_Billing_Web_App.Controllers
 {
@@ -16,9 +18,21 @@ namespace Gold_Billing_Web_App.Controllers
             _context = context;
         }
 
+        private int GetCurrentUserId()
+        {
+            var userIdString = HttpContext.Session.GetString(CommonVariable.UserId) ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            }
+            return userId;
+        }
+
         public List<ItemGroupDropDownModel> SetItemGroupDropDown()
         {
+            var userId = GetCurrentUserId();
             return _context.ItemGroups
+                .Where(g => g.UserId == userId) // Filter by UserId
                 .Select(g => new ItemGroupDropDownModel
                 {
                     Id = (int)g.Id!,
@@ -29,7 +43,12 @@ namespace Gold_Billing_Web_App.Controllers
 
         public async Task<IActionResult> ItemList()
         {
-            var items = await _context.Items.Include(i => i.ItemGroup).ToListAsync();
+            var userId = GetCurrentUserId();
+            var items = await _context.Items
+                .Include(i => i.ItemGroup)
+                .Where(i => i.UserId == userId) // Filter by UserId
+                .ToListAsync();
+
             DataTable table = new DataTable();
             table.Columns.Add("Id", typeof(int));
             table.Columns.Add("Name", typeof(string));
@@ -44,18 +63,27 @@ namespace Gold_Billing_Web_App.Controllers
 
         public IActionResult AddEditItem(int? Id)
         {
+            var userId = GetCurrentUserId();
             ViewBag.ItemGroupList = SetItemGroupDropDown();
-            ItemModel item = new ItemModel();
+            ItemModel item = new ItemModel { UserId = userId }; // Set UserId for new item
+
             if (Id.HasValue && Id > 0)
             {
-                item = _context.Items.Find(Id) ?? new ItemModel();
+                item = _context.Items
+                    .Include(i => i.ItemGroup)
+                    .FirstOrDefault(i => i.Id == Id && i.UserId == userId) // Filter by UserId
+                    ?? throw new Exception("Item not found or you do not have access to it.");
             }
             return View(item);
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveItem(ItemModel item)
         {
+            var userId = GetCurrentUserId();
+            item.UserId = userId; // Ensure UserId is set
+
             if (!ModelState.IsValid)
             {
                 ViewBag.ItemGroupList = SetItemGroupDropDown();
@@ -64,14 +92,25 @@ namespace Gold_Billing_Web_App.Controllers
 
             try
             {
-                if (item.Id == null)
+                if (item.Id == null || item.Id == 0)
                 {
                     _context.Items.Add(item);
                     TempData["SuccessMessage"] = "Item successfully added!";
                 }
                 else
                 {
-                    _context.Items.Update(item);
+                    // Verify the item belongs to the current user
+                    var existingItem = await _context.Items
+                        .FirstOrDefaultAsync(i => i.Id == item.Id && i.UserId == userId);
+                    if (existingItem == null)
+                    {
+                        TempData["ErrorMessage"] = "Item not found or you do not have access to it.";
+                        return RedirectToAction("ItemList");
+                    }
+
+                    existingItem.Name = item.Name;
+                    existingItem.ItemGroupId = item.ItemGroupId;
+                    _context.Items.Update(existingItem);
                     TempData["SuccessMessage"] = "Item successfully updated!";
                 }
                 await _context.SaveChangesAsync();
@@ -86,18 +125,23 @@ namespace Gold_Billing_Web_App.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteItem(int Id)
         {
+            var userId = GetCurrentUserId();
+
             try
             {
-                var item = await _context.Items.FindAsync(Id);
-                if (item != null)
+                var item = await _context.Items
+                    .FirstOrDefaultAsync(i => i.Id == Id && i.UserId == userId); // Filter by UserId
+                if (item == null)
                 {
-                    _context.Items.Remove(item);
-                    await _context.SaveChangesAsync();
-                    return Json(new { success = true, message = "Item successfully deleted!" });
+                    return Json(new { success = false, message = "Item not found or you do not have access to it." });
                 }
-                return Json(new { success = false, message = "Item not found." });
+
+                _context.Items.Remove(item);
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, message = "Item successfully deleted!" });
             }
             catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx && sqlEx.Number == 547)
             {

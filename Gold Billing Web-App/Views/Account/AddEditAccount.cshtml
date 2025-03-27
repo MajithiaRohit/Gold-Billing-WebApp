@@ -8,6 +8,7 @@
                 @Html.AntiForgeryToken()
                 @Html.HiddenFor(m => m.AccountId)
                 @Html.HiddenFor(m => m.Date)
+                @Html.HiddenFor(m => m.UserId) <!-- Add hidden field for UserId -->
 
                 <div class="row">
                     <h5 class="mt-3">Account Details</h5>

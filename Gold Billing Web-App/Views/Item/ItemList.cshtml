@@ -3,36 +3,36 @@
 @{
     ViewData["Title"] = "Item List";
 }
-
-<!-- Add SweetAlert2 CDN -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<h2>Item List</h2>
-<a class="btn btn-primary" asp-action="AddEditItem">Add New Item</a>
-<table class="table table-bordered mt-3">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Group Name</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (DataRow row in Model.Rows)
-        {
-            <tr>
-                <td>@row["Id"]</td>
-                <td>@row["Name"]</td>
-                <td>@row["GroupName"]</td>
-                <td>
-                    <a class="btn btn-warning" asp-action="AddEditItem" asp-route-Id="@row["Id"]">Edit</a>
-                    <button class="btn btn-danger delete-btn" data-id="@row["Id"]">Delete</button>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+<div class="card mt-3">
+    <div class="card-body">
+        <h2 class="mt-4">Item List</h2>
+        <a class="btn btn-primary" asp-action="AddEditItem">Add New Item</a>
+        <table class="table table-bordered mt-3">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Group Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (DataRow row in Model.Rows)
+                {
+                    <tr>
+                        <td>@row["Id"]</td>
+                        <td>@row["Name"]</td>
+                        <td>@row["GroupName"]</td>
+                        <td>
+                            <a class="btn btn-warning" asp-action="AddEditItem" asp-route-Id="@row["Id"]">Edit</a>
+                            <button class="btn btn-danger delete-btn" data-id="@row["Id"]">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
 
 @section Scripts {
     <script>
@@ -61,11 +61,13 @@
                     confirmButtonText: 'Yes, delete it!'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        fetch('/Item/DeleteItem/' + itemId, {
+                        fetch('/Item/DeleteItem', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                            }
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                            },
+                            body: JSON.stringify({ Id: itemId })
                         })
                         .then(response => response.json())
                         .then(data => {

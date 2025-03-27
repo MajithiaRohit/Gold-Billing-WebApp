@@ -14,6 +14,9 @@ namespace Gold_Billing_Web_App.Models
         [Required(ErrorMessage = "Item Group is required")]
         [Range(1, int.MaxValue, ErrorMessage = "Please select a valid Item Group")]
         public int ItemGroupId { get; set; }
-        public ItemGroupModel ItemGroup { get; set; }
+
+        public ItemGroupModel? ItemGroup { get; set; } // Navigation property
+
+        public int UserId { get; set; } // Add UserId to associate with a user
     }
 }
