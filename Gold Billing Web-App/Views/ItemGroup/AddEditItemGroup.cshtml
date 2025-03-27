@@ -8,6 +8,7 @@
                 @Html.AntiForgeryToken()
                 @Html.HiddenFor(m => m.Id)
                 @Html.HiddenFor(m => m.Date) <!-- Hidden since set in controller -->
+                @Html.HiddenFor(m => m.UserId) <!-- Add hidden field for UserId -->
 
                 <div class="row">
                     <h5 class="mt-3">Item Group Details</h5>

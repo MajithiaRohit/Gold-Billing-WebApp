@@ -20,12 +20,13 @@ namespace Gold_Billing_Web_App.Session
                 return;
             }
 
-            // Check session or authentication
-            if (filterContext.HttpContext.Session.GetString(CommonVariable.UserId) == null &&
-                !filterContext.HttpContext.User.Identity.IsAuthenticated)
+            // Check session or authentication with null check
+            var userId = filterContext.HttpContext.Session.GetString(CommonVariable.UserId);
+            if (string.IsNullOrEmpty(userId) && !filterContext.HttpContext.User.Identity.IsAuthenticated)
             {
                 System.Diagnostics.Debug.WriteLine("User not authenticated, redirecting to Login");
                 filterContext.Result = new RedirectToActionResult("Login", "UserAccount", null);
+                return;
             }
         }
 

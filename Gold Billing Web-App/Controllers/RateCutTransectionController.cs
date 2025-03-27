@@ -83,7 +83,7 @@ namespace Gold_Billing_Web_App.Controllers
                     lastBalanceDate = account.Date.ToString("yyyy-MM-dd")
                 });
             }
-            return Json(new { fine = 0.0, amount = 0.0, lastBalanceDate = (string)null });
+            return Json(new { fine = 0.0, amount = 0.0, lastBalanceDate = (string?)null });
         }
 
         public IActionResult GenrateRateCutVoucher(string type = "GoldPurchaseRate", int? accountId = null, string? billNo = null)
@@ -137,7 +137,9 @@ namespace Gold_Billing_Web_App.Controllers
         {
             ViewBag.AccountDropDown = SetAccountDropDown();
 
-            model.Type ??= Request.Form["Type"].FirstOrDefault() ?? "GoldPurchaseRate";
+            // Fix for CS8600: Explicitly handle the null case for model.Type
+            var typeValue = Request.Form["Type"].FirstOrDefault();
+            model.Type = typeValue ?? "GoldPurchaseRate";
 
             if (!SelectedAccountId.HasValue)
             {

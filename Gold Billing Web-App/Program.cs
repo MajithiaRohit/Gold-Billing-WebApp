@@ -14,9 +14,14 @@ builder.Services.AddHttpClient();
 var configuration = builder.Configuration;
 builder.Services.AddSingleton<IConfiguration>(configuration);
 
-// Add DbContext
+// Add DbContext with null check for connection string
+var connectionString = configuration.GetConnectionString("ConnectionString");
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'ConnectionString' not found in configuration.");
+}
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(configuration.GetConnectionString("ConnectionString")));
+    options.UseSqlServer(connectionString));
 
 // Add session support
 builder.Services.AddDistributedMemoryCache();
@@ -44,13 +49,14 @@ builder.Services.AddControllersWithViews(options =>
 
 var app = builder.Build();
 
+// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
+    app.UseHttpsRedirection(); // Only enable HTTPS redirection in non-Development environments
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 

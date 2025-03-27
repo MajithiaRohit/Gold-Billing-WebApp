@@ -18,10 +18,11 @@ namespace Gold_Billing_Web_App.Controllers
             _context = context;
         }
 
+        #region Login Actions
+
         [HttpGet]
         public IActionResult Login()
         {
-            System.Diagnostics.Debug.WriteLine("Login GET accessed");
             return View();
         }
 
@@ -29,7 +30,6 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
-            System.Diagnostics.Debug.WriteLine($"Login POST: Username = '{model.Username}', Password = '{model.Password}'");
             if (!ModelState.IsValid)
             {
                 return View(model);
@@ -42,15 +42,8 @@ namespace Gold_Billing_Web_App.Controllers
                 return View(model);
             }
 
-            // Trim the password to avoid whitespace issues
-            model.Password = model.Password?.Trim();
-            System.Diagnostics.Debug.WriteLine($"Trimmed Password: '{model.Password}'");
-            System.Diagnostics.Debug.WriteLine($"Stored Hashed Password: {user.Password}");
-
-            // Verify the password
+            model.Password = model.Password.Trim();
             bool isPasswordValid = BCrypt.Net.BCrypt.Verify(model.Password, user.Password);
-            System.Diagnostics.Debug.WriteLine($"Password Verification Result: {isPasswordValid}");
-
             if (!isPasswordValid)
             {
                 ViewBag.PasswordError = "Password is incorrect";
@@ -58,14 +51,14 @@ namespace Gold_Billing_Web_App.Controllers
             }
 
             HttpContext.Session.SetString(CommonVariable.UserId, user.Id.ToString());
-            HttpContext.Session.SetString(CommonVariable.FullName, user.FullName);
+            HttpContext.Session.SetString(CommonVariable.FullName, user.FullName ?? "");
             HttpContext.Session.SetString(CommonVariable.GodName1, user.GodName1 ?? "");
             HttpContext.Session.SetString(CommonVariable.GodName2, user.GodName2 ?? "");
 
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.FullName)
+                new Claim(ClaimTypes.Name, user.FullName ?? "")
             };
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
@@ -73,10 +66,13 @@ namespace Gold_Billing_Web_App.Controllers
             return RedirectToAction("Index", "Home");
         }
 
+        #endregion
+
+        #region Register Actions
+
         [HttpGet]
         public IActionResult Register()
         {
-            System.Diagnostics.Debug.WriteLine("Register GET accessed");
             ViewData["Title"] = "Register";
             ViewBag.IsEdit = false;
             return View();
@@ -86,7 +82,6 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
-            System.Diagnostics.Debug.WriteLine($"Register POST: Username = '{model.Username}'");
             if (ModelState.IsValid)
             {
                 if (model.Password != model.ConfirmPassword)
@@ -105,7 +100,7 @@ namespace Gold_Billing_Web_App.Controllers
                     return View(model);
                 }
 
-                model.Password = model.Password?.Trim();
+                model.Password = model.Password.Trim();
                 var user = new UserAccountModel
                 {
                     FullName = model.FullName,
@@ -120,40 +115,34 @@ namespace Gold_Billing_Web_App.Controllers
                     GodName2 = model.GodName2
                 };
 
-                System.Diagnostics.Debug.WriteLine($"Register Hashed Password: {user.Password}");
-
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
                 return RedirectToAction("Login");
             }
+
             ViewData["Title"] = "Register";
             ViewBag.IsEdit = false;
             return View(model);
         }
+
+        #endregion
+
+        #region VerifyUsername Actions
+
         [HttpGet]
         public IActionResult VerifyUsername()
         {
-            Console.WriteLine("VerifyUsername GET action called.");
-            System.Diagnostics.Debug.WriteLine("VerifyUsername GET action called.");
             return View(new VerifyUsernameViewModel { IsUsernameVerified = false });
         }
 
         [HttpPost]
         public async Task<IActionResult> VerifyUsername(VerifyUsernameViewModel model)
         {
-            // Restore IsUsernameVerified from TempData if available
             if (TempData["IsUsernameVerified"] != null)
             {
-                model.IsUsernameVerified = (bool)TempData["IsUsernameVerified"];
+                model.IsUsernameVerified = (bool)TempData["IsUsernameVerified"]!;
             }
 
-            Console.WriteLine($"Received IsUsernameVerified: {model.IsUsernameVerified}");
-            System.Diagnostics.Debug.WriteLine($"Received IsUsernameVerified: {model.IsUsernameVerified}");
-
-            Console.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
-            System.Diagnostics.Debug.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
-
-            // Custom validation for NewPassword and ConfirmPassword when IsUsernameVerified is true
             if (model.IsUsernameVerified)
             {
                 if (string.IsNullOrWhiteSpace(model.NewPassword))
@@ -177,12 +166,6 @@ namespace Gold_Billing_Web_App.Controllers
 
             if (!ModelState.IsValid)
             {
-                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    Console.WriteLine($"ModelState Error: {error.ErrorMessage}");
-                    System.Diagnostics.Debug.WriteLine($"ModelState Error: {error.ErrorMessage}");
-                }
-                // Preserve IsUsernameVerified in TempData if validation fails
                 if (model.IsUsernameVerified)
                 {
                     TempData["IsUsernameVerified"] = true;
@@ -190,106 +173,73 @@ namespace Gold_Billing_Web_App.Controllers
                 return View(model);
             }
 
-            Console.WriteLine($"IsUsernameVerified: {model.IsUsernameVerified}, Username: '{model.Username}'");
-            System.Diagnostics.Debug.WriteLine($"IsUsernameVerified: {model.IsUsernameVerified}, Username: '{model.Username}'");
             if (!model.IsUsernameVerified)
             {
-                // Step 1: Verify the username
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == model.Username.ToLower());
-                Console.WriteLine($"User found: {user != null}");
-                System.Diagnostics.Debug.WriteLine($"User found: {user != null}");
                 if (user == null)
                 {
-                    Console.WriteLine("Username not found.");
-                    System.Diagnostics.Debug.WriteLine("Username not found.");
                     ViewBag.UsernameError = "Username not found.";
                     return View(model);
                 }
 
-                // Username verified, show password reset fields
-                Console.WriteLine("Username verified, setting IsUsernameVerified to true.");
-                System.Diagnostics.Debug.WriteLine("Username verified, setting IsUsernameVerified to true.");
                 model.IsUsernameVerified = true;
                 TempData["IsUsernameVerified"] = true;
-                Console.WriteLine($"After setting, IsUsernameVerified: {model.IsUsernameVerified}");
-                System.Diagnostics.Debug.WriteLine($"After setting, IsUsernameVerified: {model.IsUsernameVerified}");
                 return View(model);
             }
             else
             {
-                // Step 2: Reset the password
-                Console.WriteLine("Entering password reset logic.");
-                System.Diagnostics.Debug.WriteLine("Entering password reset logic.");
-
-                Console.WriteLine($"NewPassword: '{model.NewPassword}', ConfirmPassword: '{model.ConfirmPassword}'");
-                System.Diagnostics.Debug.WriteLine($"NewPassword: '{model.NewPassword}', ConfirmPassword: '{model.ConfirmPassword}'");
                 if (model.NewPassword != model.ConfirmPassword)
                 {
-                    Console.WriteLine("New password and confirm password do not match.");
-                    System.Diagnostics.Debug.WriteLine("New password and confirm password do not match.");
                     ViewBag.PasswordError = "New password and confirm password do not match.";
-                    TempData["IsUsernameVerified"] = true; // Preserve for the next request
+                    TempData["IsUsernameVerified"] = true;
                     return View(model);
                 }
 
-                // Trim the password to avoid whitespace issues
-                model.NewPassword = model.NewPassword?.Trim();
-                Console.WriteLine($"Trimmed New Password: '{model.NewPassword}'");
-                System.Diagnostics.Debug.WriteLine($"Trimmed New Password: '{model.NewPassword}'");
-
-                // Hash the new password
+                model.NewPassword = model.NewPassword!.Trim();
                 var hashedPassword = BCrypt.Net.BCrypt.HashPassword(model.NewPassword, 12);
-                Console.WriteLine($"New Hashed Password: '{hashedPassword}'");
-                System.Diagnostics.Debug.WriteLine($"New Hashed Password: '{hashedPassword}'");
-
-                // Update the user's password
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == model.Username.ToLower());
                 if (user == null)
                 {
-                    Console.WriteLine("User not found during password reset.");
-                    System.Diagnostics.Debug.WriteLine("User not found during password reset.");
                     ViewBag.UsernameError = "User not found.";
-                    TempData["IsUsernameVerified"] = true; // Preserve for the next request
+                    TempData["IsUsernameVerified"] = true;
                     return View(model);
                 }
 
                 user.Password = hashedPassword;
                 var rowsAffected = await _context.SaveChangesAsync();
-                Console.WriteLine($"Rows Affected: {rowsAffected}");
-                System.Diagnostics.Debug.WriteLine($"Rows Affected: {rowsAffected}");
-
-                // Verify the saved password
                 var verificationResult = BCrypt.Net.BCrypt.Verify(model.NewPassword, user.Password);
-                Console.WriteLine($"Post-Save Password Verification: {verificationResult}");
-                System.Diagnostics.Debug.WriteLine($"Post-Save Password Verification: {verificationResult}");
 
                 if (rowsAffected > 0 && verificationResult)
                 {
-                    Console.WriteLine("Password reset successful, redirecting to Login.");
-                    System.Diagnostics.Debug.WriteLine("Password reset successful, redirecting to Login.");
                     TempData["SuccessMessage"] = "Password reset successfully!";
+                    HttpContext.Session.Clear();
                     return RedirectToAction("Login");
                 }
 
-                Console.WriteLine("Password reset failed.");
-                System.Diagnostics.Debug.WriteLine("Password reset failed.");
                 ViewBag.PasswordError = "An error occurred while resetting the password.";
-                TempData["IsUsernameVerified"] = true; // Preserve for the next request
+                TempData["IsUsernameVerified"] = true;
                 return View(model);
             }
         }
 
+        #endregion
+
+        #region EditUser Actions
+
         [HttpGet]
         public async Task<IActionResult> EditUser()
         {
-            System.Diagnostics.Debug.WriteLine("EditUser GET accessed");
-            var userId = HttpContext.Session.GetString(CommonVariable.UserId);
-            if (string.IsNullOrEmpty(userId) && !User.Identity.IsAuthenticated)
+            // Get userId from session or claims
+            var userId = HttpContext.Session.GetString(CommonVariable.UserId) ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // If userId is null or empty, redirect to login regardless of authentication status
+            if (string.IsNullOrEmpty(userId))
             {
                 return RedirectToAction("Login");
             }
 
-            var user = await _context.Users.FindAsync(int.Parse(userId ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value));
+            // userId is guaranteed to be non-null here
+            var user = await _context.Users.FindAsync(int.Parse(userId));
             if (user == null)
             {
                 return NotFound();
@@ -297,7 +247,7 @@ namespace Gold_Billing_Web_App.Controllers
 
             var model = new RegisterViewModel
             {
-                FullName = user.FullName,
+                FullName = user.FullName!,
                 Username = user.Username,
                 CompanyName = user.CompanyName,
                 CompanyAddress = user.CompanyAddress,
@@ -317,21 +267,23 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUser(RegisterViewModel model)
         {
-            System.Diagnostics.Debug.WriteLine($"EditUser POST: Username = '{model.Username}'");
             if (!string.IsNullOrEmpty(model.Password))
             {
-                System.Diagnostics.Debug.WriteLine("Password entered in EditUser, redirecting to VerifyUsername");
                 return RedirectToAction("VerifyUsername");
             }
 
             if (ModelState.IsValid)
             {
+                // Get userId from session or claims
                 var userId = HttpContext.Session.GetString(CommonVariable.UserId) ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                // If userId is null or empty, redirect to login regardless of authentication status
                 if (string.IsNullOrEmpty(userId))
                 {
                     return RedirectToAction("Login");
                 }
 
+                // userId is guaranteed to be non-null here
                 var user = await _context.Users.FindAsync(int.Parse(userId));
                 if (user == null)
                 {
@@ -359,11 +311,11 @@ namespace Gold_Billing_Web_App.Controllers
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
-                HttpContext.Session.SetString(CommonVariable.FullName, user.FullName);
+                HttpContext.Session.SetString(CommonVariable.FullName, user.FullName ?? "");
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new Claim(ClaimTypes.Name, user.FullName)
+                    new Claim(ClaimTypes.Name, user.FullName ?? "")
                 };
                 var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
@@ -377,13 +329,18 @@ namespace Gold_Billing_Web_App.Controllers
             return View("Register", model);
         }
 
+        #endregion
+
+        #region Logout Action
+
         [HttpGet]
         public async Task<IActionResult> Logout()
         {
-            System.Diagnostics.Debug.WriteLine("Logout GET accessed");
             HttpContext.Session.Clear();
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Login");
         }
+
+        #endregion
     }
 }

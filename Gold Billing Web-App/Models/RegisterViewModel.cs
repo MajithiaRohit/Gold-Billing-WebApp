@@ -5,29 +5,24 @@ namespace Gold_Billing_Web_App.Models
     public class RegisterViewModel
     {
         [Required]
-        public string FullName { get; set; }
+        public string FullName { get; set; } = string.Empty;
 
         [Required]
-        public string Username { get; set; }
+        public string Username { get; set; } = string.Empty;
 
-        public string? Password { get; set; } // Nullable, only used in Register
+        [Required]
+        public string Password { get; set; } = string.Empty;
 
-        [Compare("Password", ErrorMessage = "Passwords do not match")]
-        public string? ConfirmPassword { get; set; } // Nullable, only used in Register
+        [Required]
+        [Compare("Password")]
+        public string ConfirmPassword { get; set; } = string.Empty;
 
         public string? CompanyName { get; set; }
-
         public string? CompanyAddress { get; set; }
-
-        [EmailAddress]
         public string? Email { get; set; }
-
         public string? MobileNo { get; set; }
-
         public string? GstNumber { get; set; }
-
         public string? GodName1 { get; set; }
-
         public string? GodName2 { get; set; }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Gold_Billing_Web_App.Models;
+using Gold_Billing_Web_App.Session;
 using System.Data;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Gold_Billing_Web_App.Controllers
@@ -15,13 +17,27 @@ namespace Gold_Billing_Web_App.Controllers
             _context = context;
         }
 
+        private int GetCurrentUserId()
+        {
+            var userIdString = HttpContext.Session.GetString(CommonVariable.UserId) ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            }
+            return userId;
+        }
+
         public async Task<IActionResult> ItemGroupList()
         {
-            var itemGroups = await _context.ItemGroups.ToListAsync();
+            var userId = GetCurrentUserId();
+            var itemGroups = await _context.ItemGroups
+                .Where(ig => ig.UserId == userId) // Filter by UserId
+                .ToListAsync();
+
             DataTable table = new DataTable();
             table.Columns.Add("Id", typeof(int));
             table.Columns.Add("Name", typeof(string));
-            table.Columns.Add("Date", typeof(DateTime)); // Added Date column
+            table.Columns.Add("Date", typeof(DateTime));
             foreach (var group in itemGroups)
             {
                 table.Rows.Add(group.Id, group.Name, group.Date);
@@ -31,10 +47,14 @@ namespace Gold_Billing_Web_App.Controllers
 
         public IActionResult AddEditItemGroup(int? Id)
         {
-            ItemGroupModel itemGroupModel = new ItemGroupModel();
+            var userId = GetCurrentUserId();
+            ItemGroupModel itemGroupModel = new ItemGroupModel { UserId = userId }; // Set UserId for new group
+
             if (Id.HasValue && Id > 0)
             {
-                itemGroupModel = _context.ItemGroups.Find(Id) ?? throw new Exception("Item group not found.");
+                itemGroupModel = _context.ItemGroups
+                    .FirstOrDefault(ig => ig.Id == Id && ig.UserId == userId) // Filter by UserId
+                    ?? throw new Exception("Item group not found or you do not have access to it.");
             }
             return View(itemGroupModel);
         }
@@ -43,6 +63,9 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveItemGroup(ItemGroupModel itemGroup)
         {
+            var userId = GetCurrentUserId();
+            itemGroup.UserId = userId; // Ensure UserId is set
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
@@ -60,7 +83,18 @@ namespace Gold_Billing_Web_App.Controllers
                 }
                 else // Update
                 {
-                    _context.ItemGroups.Update(itemGroup);
+                    // Verify the item group belongs to the current user
+                    var existingGroup = await _context.ItemGroups
+                        .FirstOrDefaultAsync(ig => ig.Id == itemGroup.Id && ig.UserId == userId);
+                    if (existingGroup == null)
+                    {
+                        TempData["ErrorMessage"] = "Item group not found or you do not have access to it.";
+                        return RedirectToAction("ItemGroupList");
+                    }
+
+                    existingGroup.Name = itemGroup.Name;
+                    existingGroup.Date = itemGroup.Date;
+                    _context.ItemGroups.Update(existingGroup);
                     TempData["SuccessMessage"] = "Item group updated successfully!";
                 }
                 await _context.SaveChangesAsync();
@@ -77,14 +111,18 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteItemGroup(int Id)
         {
+            var userId = GetCurrentUserId();
+
             try
             {
-                var itemGroup = await _context.ItemGroups.FindAsync(Id);
+                var itemGroup = await _context.ItemGroups
+                    .FirstOrDefaultAsync(ig => ig.Id == Id && ig.UserId == userId); // Filter by UserId
                 if (itemGroup == null)
                 {
-                    TempData["ErrorMessage"] = "Item group not found.";
+                    TempData["ErrorMessage"] = "Item group not found or you do not have access to it.";
                     return RedirectToAction("ItemGroupList");
                 }
+
                 _context.ItemGroups.Remove(itemGroup);
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Item group deleted successfully!";

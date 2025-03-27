@@ -12,5 +12,7 @@ namespace Gold_Billing_Web_App.Models
         public string? Name { get; set; }
 
         public DateTime Date { get; set; }
+
+        public int UserId { get; set; } 
     }
 }
