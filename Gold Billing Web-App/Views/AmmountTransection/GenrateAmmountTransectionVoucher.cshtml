@@ -6,10 +6,8 @@
 <div class="container-sm p-3" style="background-color: lightsteelblue; border-radius: 10px;">
     <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
 
-    <!-- Alert Container (for errors) -->
     <div id="alertContainer" class="mb-3"></div>
 
-    <!-- Bootstrap Validation Summary -->
     @if (!ViewData.ModelState.IsValid)
     {
         <div class="alert alert-danger" role="alert">
@@ -26,18 +24,17 @@
     <form asp-action="AddAmountTransaction" method="post" id="amountTransactionForm">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="Id" />
-        <input type="hidden" asp-for="Type" id="transactionType" />
+        <input type="hidden" asp-for="UserId" />
         <hr class="mb-3 mt-3" />
 
-        <!-- First Row: Account, Date, BillNo -->
         <div class="row mb-3">
             <div class="col-md-4">
-                <label class="form-label">Account</label>
-                <select id="accountSelect" name="SelectedAccountId" class="form-control" onchange="fetchPreviousBalance(); updateBalances();" required>
+                <label asp-for="AccountId" class="form-label">Account</label>
+                <select asp-for="AccountId" id="accountSelect" class="form-control" onchange="fetchPreviousBalance(); updateBalances();" required>
                     <option value="">Select Account</option>
                     @foreach (var account in ViewBag.AccountDropDown)
                     {
-                        if (ViewBag.SelectedAccountId == account.Id)
+                        if (Model.AccountId == account.Id)
                         {
                             <option value="@account.Id" data-group="@account.GroupName" selected>@account.AccountName</option>
                         }
@@ -47,7 +44,7 @@
                         }
                     }
                 </select>
-                <span id="account-error" class="text-danger"></span>
+                <span asp-validation-for="AccountId" class="text-danger" id="account-error"></span>
             </div>
             <div class="col-md-4">
                 <label asp-for="Date" class="form-label">Date</label>
@@ -61,7 +58,6 @@
             </div>
         </div>
 
-        <!-- Second Row: Narration -->
         <div class="row mb-3">
             <div class="col-md-12">
                 <label asp-for="Narration" class="form-label">Narration</label>
@@ -70,7 +66,6 @@
             </div>
         </div>
 
-        <!-- Third Row: Transaction Type -->
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Transaction Type</label><br />
@@ -78,8 +73,6 @@
                 <label><input type="radio" name="Type" value="Receive" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Receive" ? "checked" : "")> Receive</label>
             </div>
         </div>
-
-        <!-- Fourth Row: Payment Mode, Amount -->
         <div class="row mb-3">
             <div class="col-md-3">
                 <label asp-for="PaymentModeId" class="form-label">Payment Mode</label>
@@ -106,7 +99,6 @@
             </div>
         </div>
 
-        <!-- Balance Table -->
         <div class="table-responsive">
             <table class="table table-bordered">
                 <tfoot>
@@ -135,12 +127,9 @@
     </form>
 </div>
 
-<!-- Include jQuery and Validation Libraries -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
-
-<!-- Include SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
@@ -216,9 +205,9 @@
         let currentAmount = amount;
 
         if (transactionType === 'Payment') {
-            currentAmount = -amount; // Payment decreases balance
+            currentAmount = -amount;
         } else if (transactionType === 'Receive') {
-            currentAmount = amount;  // Receive increases balance
+            currentAmount = amount;
         }
 
         document.getElementById('currentAmount').value = currentAmount.toFixed(2);
@@ -227,61 +216,34 @@
 
     document.getElementById('amountTransactionForm').addEventListener('submit', function (e) {
         e.preventDefault();
-        let isFormValid = true;
-        let errorMessages = [];
-
-        document.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
-
-        if (!document.getElementById('accountSelect').value) {
-            document.getElementById('account-error').innerHTML = 'Please select an account.';
-            errorMessages.push('Account selection is required.');
-            isFormValid = false;
-        }
-
-        if (!document.getElementById('Date').value) {
-            document.querySelector('span[data-valmsg-for="Date"]').innerHTML = 'Date is required.';
-            errorMessages.push('Please specify a transaction date.');
-            isFormValid = false;
-        }
-
-        if (!document.querySelector('select[name="PaymentModeId"]').value) {
-            document.querySelector('span[data-valmsg-for="PaymentModeId"]').innerHTML = 'Payment Mode is required.';
-            errorMessages.push('Please select a payment mode.');
-            isFormValid = false;
-        }
-
-        let amount = parseFloat(document.getElementById('Amount').value) || 0;
-        if (amount <= 0) {
-            document.querySelector('span[data-valmsg-for="Amount"]').innerHTML = 'Amount must be greater than 0.';
-            errorMessages.push('Amount must be greater than 0.');
-            isFormValid = false;
-        }
-
-        let narration = document.querySelector('textarea[name="Narration"]').value;
-        if (narration.length > 500) {
-            document.querySelector('span[data-valmsg-for="Narration"]').innerHTML = 'Narration must not exceed 500 characters.';
-            errorMessages.push('Narration must not exceed 500 characters.');
-            isFormValid = false;
-        }
-
-        if (!isFormValid) {
-            let alertMessage = errorMessages.length > 0
-                ? errorMessages.join('<br>')
-                : 'Please correct all validation errors before submitting.';
-            showAlert(alertMessage, 'danger');
-            return;
-        }
-
         let formData = new FormData(this);
-        fetch('@Url.Action("AddAmountTransaction", "AmmountTransection")', {
+
+        // Ensure Type is set from radio buttons
+        const selectedType = document.querySelector('input[name="Type"]:checked')?.value;
+        if (selectedType) {
+            formData.set('Type', selectedType);
+        }
+
+        console.log('Submitting form data:');
+        for (var pair of formData.entries()) {
+            console.log(`${pair[0]}: ${pair[1]}`);
+        }
+
+        fetch(this.action, {
             method: 'POST',
-            body: formData,
-            headers: {
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-            }
+            body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(`Server returned ${response.status}: ${text}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
             if (data.success) {
                 Swal.fire({
                     title: 'Success!',
@@ -299,7 +261,7 @@
         })
         .catch(error => {
             console.error('Error during save:', error);
-            showAlert('An error occurred while saving the transaction.', 'danger');
+            showAlert('An error occurred while saving the transaction: ' + error.message, 'danger');
         });
     });
 </script>
