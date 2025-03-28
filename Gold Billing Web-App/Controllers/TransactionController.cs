@@ -1,6 +1,8 @@
 ﻿using Gold_Billing_Web_App.Models;
+using Gold_Billing_Web_App.Session;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Gold_Billing_Web_App.Controllers
 {
@@ -13,9 +15,21 @@ namespace Gold_Billing_Web_App.Controllers
             _context = context;
         }
 
+        private int GetCurrentUserId()
+        {
+            var userIdString = HttpContext.Session.GetString(CommonVariable.UserId) ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            }
+            return userId;
+        }
+
         private List<AccountDropDownModel> SetAccountDropDown()
         {
+            var userId = GetCurrentUserId();
             return _context.Accounts
+                .Where(a => a.UserId == userId) // Filter by UserId
                 .Select(a => new AccountDropDownModel
                 {
                     Id = a.AccountId!.Value,
@@ -26,6 +40,7 @@ namespace Gold_Billing_Web_App.Controllers
 
         private string GenerateSequentialBillNo(string transactionType)
         {
+            var userId = GetCurrentUserId();
             string prefix = transactionType switch
             {
                 "Purchase" => "P",
@@ -36,7 +51,7 @@ namespace Gold_Billing_Web_App.Controllers
             };
 
             var lastBill = _context.Transactions
-                .Where(t => t.BillNo.StartsWith(prefix))
+                .Where(t => t.BillNo.StartsWith(prefix) && t.UserId == userId) // Filter by UserId
                 .OrderByDescending(t => t.BillNo)
                 .Select(t => t.BillNo)
                 .FirstOrDefault();
@@ -51,8 +66,10 @@ namespace Gold_Billing_Web_App.Controllers
 
         private List<ItemDropDownModel> SetItemDropDown()
         {
+            var userId = GetCurrentUserId();
             return _context.Items
                 .Include(i => i.ItemGroup)
+                .Where(i => i.UserId == userId && i.ItemGroup!.Name != "Gold Metal")
                 .Select(i => new ItemDropDownModel
                 {
                     Id = i.Id!.Value,
@@ -82,70 +99,15 @@ namespace Gold_Billing_Web_App.Controllers
 
         private bool CheckIfTransactionExists(string billNo)
         {
-            return _context.Transactions.Any(t => t.BillNo == billNo);
+            var userId = GetCurrentUserId();
+            return _context.Transactions.Any(t => t.BillNo == billNo && t.UserId == userId); // Filter by UserId
         }
-
-        [HttpGet]
-        public IActionResult AddTransaction(string type, int? accountId = null, string? billNo = null)
-        {
-            if (!new[] { "Purchase", "Sale", "PurchaseReturn", "SaleReturn" }.Contains(type))
-            {
-                return NotFound();
-            }
-
-            ViewBag.ItemDropDown = SetItemDropDown();
-            ViewBag.AccountDropDown = SetAccountDropDown();
-            var model = new TransactionViewModel();
-
-            bool isExistingTransaction = !string.IsNullOrEmpty(billNo) && CheckIfTransactionExists(billNo);
-            ViewBag.IsExistingTransaction = isExistingTransaction;
-
-            if (isExistingTransaction)
-            {
-                var transactions = _context.Transactions
-                    .Where(t => t.BillNo == billNo)
-                    .Include(t => t.Account)
-                    .Include(t => t.Item)
-                    .ToList();
-
-                if (!transactions.Any())
-                {
-                    return NotFound();
-                }
-
-                model.BillNo = billNo!;
-                model.Date = transactions.First().Date;
-                model.Narration = transactions.First().Narration;
-                model.TransactionType = type;
-                model.Items = transactions;
-
-                if (model.Items.Any() && model.Items[0].AccountId.HasValue)
-                {
-                    ViewBag.SelectedAccountId = model.Items[0].AccountId;
-                }
-            }
-            else
-            {
-                model.BillNo = GenerateSequentialBillNo(type);
-                model.Date = DateTime.Now;
-                model.TransactionType = type;
-                model.Items = new List<TransactionModel> { new TransactionModel { TransactionType = type } };
-
-                if (accountId.HasValue)
-                {
-                    ViewBag.SelectedAccountId = accountId;
-                    model.Items[0].AccountId = accountId;
-                }
-            }
-
-            return View(model);
-        }
-
         [HttpGet]
         public IActionResult GetPreviousBalance(int accountId)
         {
+            var userId = GetCurrentUserId();
             var account = _context.Accounts
-                .Where(a => a.AccountId == accountId)
+                .Where(a => a.AccountId == accountId && a.UserId == userId) // Filter by UserId
                 .Select(a => new
                 {
                     Fine = a.Fine,
@@ -166,10 +128,94 @@ namespace Gold_Billing_Web_App.Controllers
             return Json(new { fine = 0.0, amount = 0.0, date = (string?)null });
         }
 
+        [HttpGet]
+        public IActionResult AddTransaction(string type, int? accountId = null, string? billNo = null)
+        {
+            if (!new[] { "Purchase", "Sale", "PurchaseReturn", "SaleReturn" }.Contains(type))
+            {
+                return NotFound();
+            }
+
+            var userId = GetCurrentUserId();
+            ViewBag.ItemDropDown = SetItemDropDown();
+            ViewBag.AccountDropDown = SetAccountDropDown();
+            var model = new TransactionViewModel { UserId = userId };
+
+            bool isExistingTransaction = !string.IsNullOrEmpty(billNo) && CheckIfTransactionExists(billNo);
+            ViewBag.IsExistingTransaction = isExistingTransaction;
+
+            if (isExistingTransaction)
+            {
+                var transactions = _context.Transactions
+                    .Where(t => t.BillNo == billNo && t.UserId == userId)
+                    .Include(t => t.Account)
+                    .Include(t => t.Item)
+                    .ToList();
+
+                if (!transactions.Any())
+                {
+                    return NotFound();
+                }
+
+                model.BillNo = billNo!;
+                model.Date = transactions.First().Date;
+                model.Narration = transactions.First().Narration;
+                model.TransactionType = type;
+                model.Items = transactions;
+                model.UserId = userId;
+
+                if (model.Items.Any() && model.Items[0].AccountId.HasValue)
+                {
+                    ViewBag.SelectedAccountId = model.Items[0].AccountId;
+                }
+            }
+            else
+            {
+                model.BillNo = GenerateSequentialBillNo(type);
+                model.Date = DateTime.Now;
+                model.TransactionType = type;
+                model.Items = new List<TransactionModel> { new TransactionModel { TransactionType = type, UserId = userId } };
+                model.UserId = userId;
+
+                if (accountId.HasValue)
+                {
+                    ViewBag.SelectedAccountId = accountId;
+                    model.Items[0].AccountId = accountId;
+                }
+            }
+
+            // Debug: Log the BillNo before rendering the view
+            Console.WriteLine($"GET - BillNo set to: {model.BillNo}");
+
+            return View(model);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddTransaction(TransactionViewModel model, int? SelectedAccountId)
         {
+            var userId = GetCurrentUserId();
+            model.UserId = userId;
+
+            Console.WriteLine($"POST - Received BillNo: {model.BillNo}");
+            Console.WriteLine($"POST - Received Date: {model.Date}");
+            if (model.Items != null)
+            {
+                for (int i = 0; i < model.Items.Count; i++)
+                {
+                    Console.WriteLine($"POST - Items[{i}].BillNo: {model.Items[i].BillNo}");
+                    Console.WriteLine($"POST - Items[{i}].Date: {model.Items[i].Date}");
+                }
+            }
+
+            // Log the raw form data
+            var formData = Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString());
+            Console.WriteLine("POST - Form Data:");
+            foreach (var kvp in formData)
+            {
+                Console.WriteLine($"  {kvp.Key}: {kvp.Value}");
+            }
+
             ViewBag.ItemDropDown = SetItemDropDown();
             ViewBag.AccountDropDown = SetAccountDropDown();
             ViewBag.SelectedAccountId = SelectedAccountId;
@@ -179,6 +225,12 @@ namespace Gold_Billing_Web_App.Controllers
             if (string.IsNullOrEmpty(model.TransactionType))
             {
                 model.TransactionType = Request.Form["TransactionType"].FirstOrDefault() ?? "Purchase";
+            }
+
+            if (string.IsNullOrEmpty(model.BillNo))
+            {
+                model.BillNo = GenerateSequentialBillNo(model.TransactionType);
+                Console.WriteLine($"POST - Generated new BillNo: {model.BillNo}");
             }
 
             if (!SelectedAccountId.HasValue)
@@ -227,6 +279,7 @@ namespace Gold_Billing_Web_App.Controllers
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                Console.WriteLine($"POST - Validation Errors: {string.Join("; ", errors)}");
                 return Json(new { success = false, error = string.Join("; ", errors) });
             }
 
@@ -235,7 +288,8 @@ namespace Gold_Billing_Web_App.Controllers
                 decimal totalFine = 0m;
                 decimal totalAmount = 0m;
 
-                var existingTransactions = _context.Transactions.Where(t => t.BillNo == model.BillNo);
+                var existingTransactions = _context.Transactions
+                    .Where(t => t.BillNo == model.BillNo && t.UserId == userId);
                 if (existingTransactions.Any())
                 {
                     _context.Transactions.RemoveRange(existingTransactions);
@@ -249,6 +303,7 @@ namespace Gold_Billing_Web_App.Controllers
                     item.Date = model.Date;
                     item.Narration = model.Narration;
                     item.LastUpdated = DateTime.Now;
+                    item.UserId = userId;
 
                     string groupName = itemGroups[item.ItemId!.Value];
                     CalculateDerivedFields(item, groupName);
@@ -267,7 +322,8 @@ namespace Gold_Billing_Web_App.Controllers
                     _context.Transactions.Add(item);
                 }
 
-                var account = await _context.Accounts.FirstOrDefaultAsync(a => a.AccountId == SelectedAccountId);
+                var account = await _context.Accounts
+                    .FirstOrDefaultAsync(a => a.AccountId == SelectedAccountId && a.UserId == userId);
                 if (account != null)
                 {
                     account.Fine += totalFine;
@@ -294,12 +350,15 @@ namespace Gold_Billing_Web_App.Controllers
                 return Json(new { success = false, error = "Bill number is required." });
             }
 
+            var userId = GetCurrentUserId();
+
             try
             {
-                var transactions = _context.Transactions.Where(t => t.BillNo == billNo);
+                var transactions = _context.Transactions
+                    .Where(t => t.BillNo == billNo && t.UserId == userId); // Filter by UserId
                 if (!transactions.Any())
                 {
-                    return Json(new { success = false, error = "No transaction found with this BillNo" });
+                    return Json(new { success = false, error = "No transaction found with this BillNo or you do not have access to it." });
                 }
 
                 _context.Transactions.RemoveRange(transactions);

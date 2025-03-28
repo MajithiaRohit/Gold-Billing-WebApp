@@ -4,8 +4,9 @@ namespace Gold_Billing_Web_App.Models
 {
     public class TransactionViewModel
     {
-        [Required(ErrorMessage = "Bill Number is required.")]
-        public string BillNo { get; set; } = "";
+        [Required]
+        [Display(Name = "Bill Number")]
+        public string? BillNo { get; set; }
 
         [Required(ErrorMessage = "Date is required.")]
         public DateTime Date { get; set; }
@@ -22,5 +23,7 @@ namespace Gold_Billing_Web_App.Models
         // Optional: Include these if you need them in the UI
         public AccountModel? Account { get; set; }
         public ItemModel? Item { get; set; }
+
+        public int UserId { get; set; } // Add UserId to the view model
     }
 }
