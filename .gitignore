@@ -362,3 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /Gold Billing Web-App/Views/AmmountTransection/GenrateAmmountTransectionVoucher.cshtml
+/Gold_Billing_WebApp.sln
+/Gold_Billing_WebApp.sln
