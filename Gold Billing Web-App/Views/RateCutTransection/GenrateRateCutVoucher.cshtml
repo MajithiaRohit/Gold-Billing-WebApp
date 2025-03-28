@@ -31,11 +31,11 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Account Name</label>
-                <select id="accountSelect" name="SelectedAccountId" class="form-control" onchange="fetchPreviousBalance(); updateBalances();" required>
+                <select asp-for="AccountId" id="accountSelect" class="form-control" onchange="fetchPreviousBalance(); updateBalances();" required>
                     <option value="">Select Account</option>
                     @foreach (var account in ViewBag.AccountDropDown)
                     {
-                        if (ViewBag.SelectedAccountId == account.Id)
+                        if (Model.AccountId == account.Id)
                         {
                             <option value="@account.Id" data-group="@account.GroupName" selected>@account.AccountName</option>
                         }
@@ -45,7 +45,7 @@
                         }
                     }
                 </select>
-                <span id="account-error" class="text-danger"></span>
+                <span asp-validation-for="AccountId" class="text-danger" id="account-error"></span>
             </div>
             <div class="col-md-3">
                 <label asp-for="Date" class="form-label">Date</label>

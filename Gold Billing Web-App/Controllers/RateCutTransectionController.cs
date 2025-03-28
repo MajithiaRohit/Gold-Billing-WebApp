@@ -1,25 +1,42 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Gold_Billing_Web_App.Models;
+using Gold_Billing_Web_App.Session; // Assuming this namespace for CommonVariable
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging; // Added for logging
 
 namespace Gold_Billing_Web_App.Controllers
 {
     public class RateCutTransectionController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly ILogger<RateCutTransectionController> _logger; // Added for logging
 
-        public RateCutTransectionController(AppDbContext context)
+        public RateCutTransectionController(AppDbContext context, ILogger<RateCutTransectionController> logger)
         {
             _context = context;
+            _logger = logger;
+        }
+
+        private int GetCurrentUserId()
+        {
+            var userIdString = HttpContext.Session.GetString(CommonVariable.UserId) ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            }
+            return userId;
         }
 
         private List<AccountDropDownModel> SetAccountDropDown()
         {
+            var userId = GetCurrentUserId();
             return _context.Accounts
+                .Where(a => a.UserId == userId) // Filter by UserId
                 .Include(a => a.GroupAccount)
                 .Select(a => new AccountDropDownModel
                 {
@@ -32,9 +49,10 @@ namespace Gold_Billing_Web_App.Controllers
 
         private string GenerateSequentialBillNo(string type)
         {
+            var userId = GetCurrentUserId();
             string prefix = type == "GoldPurchaseRate" ? "GPR" : "GSR";
             var lastBill = _context.RateCutTransactions
-                .Where(t => t.BillNo.StartsWith(prefix))
+                .Where(t => t.BillNo.StartsWith(prefix) && t.UserId == userId) // Filter by UserId
                 .OrderByDescending(t => t.BillNo)
                 .Select(t => t.BillNo)
                 .FirstOrDefault();
@@ -62,6 +80,7 @@ namespace Gold_Billing_Web_App.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error generating bill number for type {Type}", type);
                 return Json(new { success = false, error = $"Error generating bill number: {ex.Message}" });
             }
         }
@@ -69,8 +88,9 @@ namespace Gold_Billing_Web_App.Controllers
         [HttpGet]
         public IActionResult GetPreviousBalance(int accountId)
         {
+            var userId = GetCurrentUserId();
             var account = _context.Accounts
-                .Where(a => a.AccountId == accountId)
+                .Where(a => a.AccountId == accountId && a.UserId == userId) // Filter by UserId
                 .Select(a => new { a.Fine, a.Amount, a.Date })
                 .FirstOrDefault();
 
@@ -93,9 +113,11 @@ namespace Gold_Billing_Web_App.Controllers
                 return NotFound();
             }
 
+            var userId = GetCurrentUserId();
             ViewBag.AccountDropDown = SetAccountDropDown();
             var model = new RateCutTransactionModel
             {
+                UserId = userId,
                 Type = type,
                 Date = DateTime.Now,
                 Weight = 0,
@@ -107,6 +129,7 @@ namespace Gold_Billing_Web_App.Controllers
             if (!string.IsNullOrEmpty(billNo))
             {
                 var transaction = _context.RateCutTransactions
+                    .Where(t => t.UserId == userId)
                     .Include(t => t.Account)
                     .FirstOrDefault(t => t.BillNo == billNo);
 
@@ -116,88 +139,80 @@ namespace Gold_Billing_Web_App.Controllers
                 }
 
                 model = transaction;
-                ViewBag.SelectedAccountId = model.AccountId;
+                ViewBag.SelectedAccountId = model.AccountId; // Set only for existing transactions
             }
             else
             {
                 model.BillNo = GenerateSequentialBillNo(type);
-                if (accountId.HasValue)
+                if (accountId.HasValue && _context.Accounts.Any(a => a.AccountId == accountId.Value && a.UserId == userId))
                 {
-                    ViewBag.SelectedAccountId = accountId;
                     model.AccountId = accountId.Value;
+                    ViewBag.SelectedAccountId = accountId.Value;
                 }
             }
 
             return View(model);
         }
 
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddRateCutTransaction(RateCutTransactionModel model, int? SelectedAccountId)
+        public async Task<IActionResult> AddRateCutTransaction([FromForm] RateCutTransactionModel model)
         {
+            var userId = GetCurrentUserId();
+            model.UserId = userId;
             ViewBag.AccountDropDown = SetAccountDropDown();
 
-            // Fix for CS8600: Explicitly handle the null case for model.Type
-            var typeValue = Request.Form["Type"].FirstOrDefault();
-            model.Type = typeValue ?? "GoldPurchaseRate";
-
-            if (!SelectedAccountId.HasValue)
-            {
-                ModelState.AddModelError("SelectedAccountId", "Account is required.");
-            }
-            else
-            {
-                model.AccountId = SelectedAccountId.Value;
-            }
-
-            if (string.IsNullOrEmpty(model.BillNo) || model.BillNo.Length > 40)
-            {
-                ModelState.AddModelError("BillNo", "Bill Number is required and must not exceed 40 characters.");
-            }
-
-            if (model.Weight <= 0)
-            {
-                ModelState.AddModelError("Weight", "Weight must be greater than 0.");
-            }
-
-            if (model.Tunch <= 0 || model.Tunch > 100)
-            {
-                ModelState.AddModelError("Tunch", "Tunch must be between 0 and 100.");
-            }
-
-            if (model.Rate <= 0)
-            {
-                ModelState.AddModelError("Rate", "Rate must be greater than 0.");
-            }
-
-            if (model.Narration?.Length > 1000)
-            {
-                ModelState.AddModelError("Narration", "Narration must not exceed 1000 characters.");
-            }
+            model.Type = Request.Form["Type"].FirstOrDefault() ?? "GoldPurchaseRate";
 
             if (!ModelState.IsValid)
             {
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                return Json(new { success = false, error = string.Join("; ", errors) });
+                var errors = ModelState.Select(kvp => new
+                {
+                    Key = kvp.Key,
+                    Errors = kvp.Value!.Errors.Select(e => e.ErrorMessage).ToList()
+                }).Where(x => x.Errors.Any()).ToList();
+                _logger.LogWarning("ModelState invalid. Detailed errors: {@Errors}", errors);
+                return Json(new { success = false, error = string.Join("; ", errors.SelectMany(e => e.Errors)) });
             }
 
             try
             {
+                // Validate AccountId exists for the current user
+                var accountExists = await _context.Accounts
+                    .AnyAsync(a => a.AccountId == model.AccountId && a.UserId == userId);
+                if (!accountExists)
+                {
+                    _logger.LogWarning("Invalid AccountId {AccountId} for UserId {UserId}", model.AccountId, userId);
+                    return Json(new { success = false, error = "Selected account does not exist or is not associated with your user." });
+                }
+
                 decimal fineGold = (model.Weight * model.Tunch) / 100;
                 model.Amount = fineGold * model.Rate;
 
-                var account = await _context.Accounts
-                    .Include(a => a.GroupAccount)
-                    .FirstOrDefaultAsync(a => a.AccountId == model.AccountId);
+                var existingTransaction = await _context.RateCutTransactions
+                    .FirstOrDefaultAsync(t => t.BillNo == model.BillNo && t.UserId == userId);
 
-                if (model.Id > 0)
+                if (existingTransaction != null)
                 {
-                    _context.RateCutTransactions.Update(model);
+                    existingTransaction.Date = model.Date;
+                    existingTransaction.AccountId = model.AccountId;
+                    existingTransaction.Type = model.Type;
+                    existingTransaction.Weight = model.Weight;
+                    existingTransaction.Tunch = model.Tunch;
+                    existingTransaction.Rate = model.Rate;
+                    existingTransaction.Amount = model.Amount;
+                    existingTransaction.Narration = model.Narration;
+                    _context.RateCutTransactions.Update(existingTransaction);
                 }
                 else
                 {
                     _context.RateCutTransactions.Add(model);
                 }
+
+                var account = await _context.Accounts
+                    .Include(a => a.GroupAccount)
+                    .FirstOrDefaultAsync(a => a.AccountId == model.AccountId && a.UserId == userId);
 
                 if (account != null)
                 {
@@ -208,22 +223,26 @@ namespace Gold_Billing_Web_App.Controllers
                     {
                         if (model.Type == "GoldPurchaseRate")
                         {
-                            fineAdjustment = -fineGold;
+                            fineAdjustment = -fineGold; // Decrease Fine (paying metal)
+                            amountAdjustment = model.Amount; // Increase Amount (receiving money)
                         }
                         else if (model.Type == "GoldSaleRate")
                         {
-                            amountAdjustment = -model.Amount;
+                            fineAdjustment = fineGold; // Increase Fine (receiving metal)
+                            amountAdjustment = -model.Amount; // Decrease Amount (paying money)
                         }
                     }
                     else if (account.GroupAccount?.GroupName == "Customer")
                     {
                         if (model.Type == "GoldPurchaseRate")
                         {
-                            amountAdjustment = -model.Amount;
+                            fineAdjustment = -fineGold; // Decrease Fine (paying metal)
+                            amountAdjustment = model.Amount; // Increase Amount (receiving money)
                         }
                         else if (model.Type == "GoldSaleRate")
                         {
-                            fineAdjustment = -fineGold;
+                            fineAdjustment = fineGold; // Increase Fine (receiving metal)
+                            amountAdjustment = -model.Amount; // Decrease Amount (paying money)
                         }
                     }
 
@@ -232,14 +251,17 @@ namespace Gold_Billing_Web_App.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Transaction saved successfully for BillNo: {BillNo}", model.BillNo);
 
                 string redirectUrl = Url.Action("Index", "Home")!;
                 return Json(new { success = true, redirectUrl });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error saving transaction for BillNo: {BillNo}", model.BillNo);
                 return Json(new { success = false, error = $"An error occurred while saving: {ex.Message}" });
             }
         }
+
     }
 }
