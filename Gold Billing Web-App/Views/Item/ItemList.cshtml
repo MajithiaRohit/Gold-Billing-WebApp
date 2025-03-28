@@ -24,8 +24,8 @@
                         <td>@row["Name"]</td>
                         <td>@row["GroupName"]</td>
                         <td>
-                            <a class="btn btn-warning" asp-action="AddEditItem" asp-route-Id="@row["Id"]">Edit</a>
-                            <button class="btn btn-danger delete-btn" data-id="@row["Id"]">Delete</button>
+                            <a class="btn btn-outline-primary" asp-action="AddEditItem" asp-route-Id="@row["Id"]">Edit</a>
+                            <button class="btn btn-outline-danger delete-btn" data-id="@row["Id"]">Delete</button>
                         </td>
                     </tr>
                 }

@@ -74,35 +74,6 @@ namespace Gold_Billing_Web_App.Controllers
             return View(account);
         }
 
-        public async Task<IActionResult> DeleteAccount(int AccountId)
-        {
-            var userId = GetCurrentUserId();
-
-            try
-            {
-                var account = await _context.Accounts
-                    .FirstOrDefaultAsync(a => a.AccountId == AccountId && a.UserId == userId); // Filter by UserId
-                if (account == null)
-                {
-                    TempData["ErrorMessage"] = "Account not found or you do not have access to it.";
-                    return RedirectToAction("AccountList");
-                }
-
-                _context.Accounts.Remove(account);
-                await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Account deleted successfully!";
-            }
-            catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx && sqlEx.Number == 547)
-            {
-                TempData["ErrorMessage"] = "Cannot delete this account because it is referenced by other records.";
-            }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = $"Deletion failed: {ex.Message}";
-            }
-            return RedirectToAction("AccountList");
-        }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveAddEditAccount(AccountModel account)
@@ -164,6 +135,39 @@ namespace Gold_Billing_Web_App.Controllers
                 ModelState.AddModelError("", $"Save failed: {ex.Message}");
                 TempData["ErrorMessage"] = $"Save failed: {ex.Message}";
                 return View("AddEditAccount", account);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteAccount(int accountId)
+        {
+            try
+            {
+                var account = await _context.Accounts
+                    .FirstOrDefaultAsync(a => a.AccountId == accountId);
+
+                if (account == null)
+                {
+                    return Json(new { success = false, error = "Account not found" });
+                }
+
+                // Check for dependent records (e.g., in RateCutTransactions)
+                var hasTransactions = await _context.RateCutTransactions
+                    .AnyAsync(t => t.AccountId == accountId);
+
+                if (hasTransactions)
+                {
+                    return Json(new { success = false, error = "You have already entered data; you cannot delete this account." });
+                }
+
+                _context.Accounts.Remove(account);
+                await _context.SaveChangesAsync();
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = $"Error deleting account: {ex.Message}" });
             }
         }
     }

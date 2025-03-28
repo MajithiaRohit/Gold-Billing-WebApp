@@ -109,29 +109,35 @@ namespace Gold_Billing_Web_App.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteItemGroup(int Id)
+        public async Task<IActionResult> DeleteItemGroup(int id)
         {
-            var userId = GetCurrentUserId();
-
             try
             {
                 var itemGroup = await _context.ItemGroups
-                    .FirstOrDefaultAsync(ig => ig.Id == Id && ig.UserId == userId); // Filter by UserId
+                    .FirstOrDefaultAsync(ig => ig.Id == id);
+
                 if (itemGroup == null)
                 {
-                    TempData["ErrorMessage"] = "Item group not found or you do not have access to it.";
-                    return RedirectToAction("ItemGroupList");
+                    return Json(new { success = false, error = "Item group not found" });
+                }
+
+                // Check for dependent items
+                var hasItems = await _context.Items
+                    .AnyAsync(i => i.ItemGroupId == id);
+
+                if (hasItems)
+                {
+                    return Json(new { success = false, error = "This item group has associated items and cannot be deleted." });
                 }
 
                 _context.ItemGroups.Remove(itemGroup);
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Item group deleted successfully!";
+                return Json(new { success = true });
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Deletion failed: {ex.Message}";
+                return Json(new { success = false, error = $"Error deleting item group: {ex.Message}" });
             }
-            return RedirectToAction("ItemGroupList");
         }
     }
 }
