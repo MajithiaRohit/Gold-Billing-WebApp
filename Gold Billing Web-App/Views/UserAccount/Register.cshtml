@@ -5,157 +5,178 @@
     var isEdit = ViewBag.IsEdit ?? false;
 }
 
-<section class="section register min-vh-100 d-flex flex-column align-items-center justify-content-center py-4">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-4 col-md-6 d-flex flex-column align-items-center justify-content-center">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-center py-4">
-                            <a class="align-items-center">
-                                <img src="~/images/ERPIcon.png" alt="Gold Billing Logo" width="150px" />
-                            </a>
-                        </div>
-                        <div class="d-flex justify-content-center py-4">
-                            <a class="logo d-flex align-items-center w-auto">
-                                <span class="d-none d-lg-block">Gold Billing WebApp</span>
-                            </a>
-                        </div>
-                        <div class="pt-4 pb-2">
-                            <h5 class="card-title text-center pb-0 fs-4">@ViewData["Title"]</h5>
-                            <p class="text-center small">@(isEdit ? "Update your account details" : "Enter your details to register")</p>
-                        </div>
+<section class="auth-section">
+    <div class="auth-card">
+        <div class="d-flex justify-content-center py-4">
+            <a class="align-items-center">
+                <img src="~/images/ERPIcon.png" alt="Gold Billing Logo" width="80px" style="border-radius: 50%; border: 2px solid #3498db;" />
+            </a>
+        </div>
+        <div class="d-flex justify-content-center py-2">
+            <a class="logo d-flex align-items-center w-auto">
+                <span class="logo-text">Gold Billing WebApp</span>
+            </a>
+        </div>
+        <div class="pt-3 pb-2">
+            <h5 class="card-title">@ViewData["Title"]</h5>
+            <p class="text-muted">@(isEdit ? "Update your account details" : "Create your account today")</p>
+        </div>
 
-                        @if (ViewBag.UsernameError != null)
-                        {
-                            <div class="alert alert-danger">@ViewBag.UsernameError</div>
-                        }
-
-                        <form asp-action="@(isEdit ? "EditUser" : "Register")" method="post" class="row g-3 needs-validation" novalidate>
-                            @Html.AntiForgeryToken()
-                            @if (isEdit)
-                            {
-                                <input type="hidden" asp-for="Username" />
-                            }
-
-                            <div class="col-12">
-                                <label asp-for="FullName" class="form-label">Full Name</label>
-                                <input type="text" asp-for="FullName" class="form-control" required>
-                                <div class="invalid-feedback">Please enter your full name.</div>
-                                <span asp-validation-for="FullName" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="Username" class="form-label">Username</label>
-                                <div class="input-group has-validation">
-                                    <span class="input-group-text"><i class="bi bi-person"></i></span>
-                                    <input type="text" asp-for="Username" class="form-control" required="@(!isEdit)" readonly="@isEdit">
-                                    <div class="invalid-feedback">Please choose a username.</div>
-                                </div>
-                                <span asp-validation-for="Username" class="text-danger"></span>
-                            </div>
-
-                            @if (!isEdit)
-                            {
-                                <div class="col-12">
-                                    <label asp-for="Password" class="form-label">Password</label>
-                                    <div class="input-group has-validation">
-                                        <input type="password" asp-for="Password" class="form-control" id="password" required>
-                                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('password', this)">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <div class="invalid-feedback">Please enter a password.</div>
-                                    </div>
-                                    <span asp-validation-for="Password" class="text-danger"></span>
-                                </div>
-
-                                <div class="col-12">
-                                    <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
-                                    <div class="input-group has-validation">
-                                        <input type="password" asp-for="ConfirmPassword" class="form-control" id="confirmPassword" required>
-                                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('confirmPassword', this)">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <div class="invalid-feedback">Please confirm your password.</div>
-                                    </div>
-                                    <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="col-12">
-                                    <p class="text-center small">
-                                        To change your password, <a href="/UserAccount/VerifyUsername">click here</a>.
-                                    </p>
-                                </div>
-                            }
-
-                            <div class="col-12">
-                                <label asp-for="CompanyName" class="form-label">Company Name</label>
-                                <input type="text" asp-for="CompanyName" class="form-control" required>
-                                <div class="invalid-feedback">Please enter your company name.</div>
-                                <span asp-validation-for="CompanyName" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="CompanyAddress" class="form-label">Company Address</label>
-                                <input type="text" asp-for="CompanyAddress" class="form-control" required>
-                                <div class="invalid-feedback">Please enter your company address.</div>
-                                <span asp-validation-for="CompanyAddress" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="Email" class="form-label">Email</label>
-                                <input type="email" asp-for="Email" class="form-control" required>
-                                <div class="invalid-feedback">Please enter a valid email.</div>
-                                <span asp-validation-for="Email" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="MobileNo" class="form-label">Mobile Number</label>
-                                <input type="text" asp-for="MobileNo" class="form-control" required>
-                                <div class="invalid-feedback">Please enter your mobile number.</div>
-                                <span asp-validation-for="MobileNo" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="GstNumber" class="form-label">GST Number (Optional)</label>
-                                <input type="text" asp-for="GstNumber" class="form-control">
-                                <span asp-validation-for="GstNumber" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="GodName1" class="form-label">God Name 1 (Optional)</label>
-                                <input type="text" asp-for="GodName1" class="form-control">
-                                <span asp-validation-for="GodName1" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="GodName2" class="form-label">God Name 2 (Optional)</label>
-                                <input type="text" asp-for="GodName2" class="form-control">
-                                <span asp-validation-for="GodName2" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <button class="btn btn-primary w-100" type="submit">@(isEdit ? "Update" : "Register")</button>
-                            </div>
-
-                            <div class="col-12">
-                                <p class="small mb-0">
-                                    @(isEdit ? "Back to " : "Already have an account? ")
-                                    <a href="@(isEdit ? "/Home/Index" : "/UserAccount/Login")">
-                                        @(isEdit ? "Dashboard" : "Login here")
-                                    </a>
-                                </p>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="credits">
-                    Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
-                </div>
+        @if (ViewBag.UsernameError != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @ViewBag.UsernameError
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
+        }
+
+        <form asp-action="@(isEdit ? "EditUser" : "Register")" method="post" class="row g-3 needs-validation" novalidate>
+            @Html.AntiForgeryToken()
+            @if (isEdit)
+            {
+                <input type="hidden" asp-for="Username" />
+            }
+
+            <div class="col-12">
+                <label asp-for="FullName" class="form-label">Full Name</label>
+                <div class="input-group has-validation">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" asp-for="FullName" class="form-control" required placeholder="Your full name">
+                    <div class="invalid-feedback">Please enter your full name.</div>
+                </div>
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Username" class="form-label">Username</label>
+                <div class="input-group has-validation">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" asp-for="Username" class="form-control" required="@(!isEdit)" readonly="@isEdit" placeholder="Choose a username">
+                    <div class="invalid-feedback">Please choose a username.</div>
+                </div>
+                <span asp-validation-for="Username" class="text-danger"></span>
+            </div>
+
+            @if (!isEdit)
+            {
+                <div class="col-12">
+                    <label asp-for="Password" class="form-label">Password</label>
+                    <div class="input-group has-validation">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" asp-for="Password" class="form-control" id="password" required placeholder="Your password">
+                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('password', this)">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <div class="invalid-feedback">Please enter a password.</div>
+                    </div>
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
+                    <div class="input-group has-validation">
+                        <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                        <input type="password" asp-for="ConfirmPassword" class="form-control" id="confirmPassword" required placeholder="Confirm your password">
+                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('confirmPassword', this)">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <div class="invalid-feedback">Please.Concurrent your password.</div>
+                    </div>
+                    <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                </div>
+            }
+            else
+            {
+                <div class="col-12 text-center">
+                    <p class="small text-muted">
+                        To change your password, <a href="/UserAccount/VerifyUsername" class="links">click here</a>.
+                    </p>
+                </div>
+            }
+
+            <div class="col-12">
+                <label asp-for="CompanyName" class="form-label">Company Name</label>
+                <div class="input-group has-validation">
+                    <span class="input-group-text"><i class="bi bi-building"></i></span>
+                    <input type="text" asp-for="CompanyName" class="form-control" required placeholder="Your company name">
+                    <div class="invalid-feedback">Please enter your company name.</div>
+                </div>
+                <span asp-validation-for="CompanyName" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="CompanyAddress" class="form-label">Company Address</label>
+                <div class="input-group has-validation">
+                    <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                    <input type="text" asp-for="CompanyAddress" class="form-control" required placeholder="Company address">
+                    <div class="invalid-feedback">Please enter your company address.</div>
+                </div>
+                <span asp-validation-for="CompanyAddress" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Email" class="form-label">Email</label>
+                <div class="input-group has-validation">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" asp-for="Email" class="form-control" required placeholder="Your email">
+                    <div class="invalid-feedback">Please enter a valid email.</div>
+                </div>
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="MobileNo" class="form-label">Mobile Number</label>
+                <div class="input-group has-validation">
+                    <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                    <input type="text" asp-for="MobileNo" class="form-control" required placeholder="Your mobile number">
+                    <div class="invalid-feedback">Please enter your mobile number.</div>
+                </div>
+                <span asp-validation-for="MobileNo" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="GstNumber" class="form-label">GST Number (Optional)</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+                    <input type="text" asp-for="GstNumber" class="form-control" placeholder="GST number">
+                </div>
+                <span asp-validation-for="GstNumber" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="GodName1" class="form-label">God Name 1 (Optional)</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
+                    <input type="text" asp-for="GodName1" class="form-control" placeholder="God name 1">
+                </div>
+                <span asp-validation-for="GodName1" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="GodName2" class="form-label">God Name 2 (Optional)</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
+                    <input type="text" asp-for="GodName2" class="form-control" placeholder="God name 2">
+                </div>
+                <span asp-validation-for="GodName2" class="text-danger"></span>
+            </div>
+
+            <div class="col-12">
+                <button class="btn btn-primary" type="submit">@(isEdit ? "Update" : "Register")</button>
+            </div>
+
+            <div class="col-12 text-center links">
+                <p class="small mb-0">
+                    @(isEdit ? "Back to " : "Already have an account? ")
+                    <a href="@(isEdit ? "/Home/Index" : "/UserAccount/Login")">
+                        @(isEdit ? "Dashboard" : "Login here")
+                    </a>
+                </p>
+            </div>
+        </form>
+
+        <div class="credits text-muted">
+            Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
         </div>
     </div>
 </section>

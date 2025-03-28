@@ -1,0 +1,146 @@
+﻿/* Full-screen background */
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+.login-section {
+    background: linear-gradient(120deg, #1e3c72 0%, #2a5298 100%);
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+/* Card Styling */
+.login-card {
+    background: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    padding: 30px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    position: relative;
+}
+
+/* Typography */
+.card-title {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.text-muted {
+    color: #7f8c8d !important;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+}
+
+.form-label {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    color: #2c3e50;
+    text-align: left;
+    display: block;
+}
+
+/* Form Inputs */
+.form-control {
+    border-radius: 8px;
+    border: 1px solid #dcdcdc;
+    padding: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    z-index: 2; /* Ensure inputs are clickable */
+}
+
+    .form-control:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
+    }
+
+    .form-control::placeholder {
+        color: #bdc3c7;
+    }
+
+.input-group-text {
+    background: #f5f7fa;
+    border: 1px solid #dcdcdc;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    color: #2c3e50;
+    z-index: 2;
+}
+
+.input-group .form-control {
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+}
+
+.btn-outline-secondary {
+    border-radius: 0 8px 8px 0;
+    border: 1px solid #dcdcdc;
+    border-left: none;
+    background: #f5f7fa;
+    color: #2c3e50;
+    z-index: 2;
+}
+
+    .btn-outline-secondary:hover {
+        background: #e0e4e8;
+    }
+
+/* Button */
+.btn-primary {
+    background: #3498db;
+    border: none;
+    border-radius: 25px;
+    padding: 12px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    color: #ffffff;
+    width: 100%;
+    transition: all 0.3s ease;
+    z-index: 2; /* Ensure button is clickable */
+}
+
+    .btn-primary:hover {
+        background: #2980b9;
+        box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+    }
+
+/* Links */
+.links {
+    z-index: 2; /* Ensure links are clickable */
+}
+
+    .links a {
+        color: #3498db;
+        font-family: 'Roboto', sans-serif;
+        text-decoration: none;
+        margin: 0 10px;
+        font-size: 0.9rem;
+    }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+/* Alerts */
+.alert {
+    border-radius: 8px;
+    font-size: 0.9rem;
+    z-index: 2;
+}
