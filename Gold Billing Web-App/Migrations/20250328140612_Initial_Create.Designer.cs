@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Gold_Billing_WebApp.Migrations
+namespace Gold_Billing_Web_App.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250327141150_AddUserIdToGroupAccounts")]
-    partial class AddUserIdToGroupAccounts
+    [Migration("20250328140612_Initial_Create")]
+    partial class Initial_Create
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -100,6 +100,9 @@ namespace Gold_Billing_WebApp.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("AccountId");
 
                     b.HasIndex("AccountGroupId");
@@ -166,6 +169,9 @@ namespace Gold_Billing_WebApp.Migrations
                         .HasMaxLength(510)
                         .HasColumnType("nvarchar(510)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.ToTable("ItemGroup", (string)null);
@@ -186,6 +192,9 @@ namespace Gold_Billing_WebApp.Migrations
                         .IsRequired()
                         .HasMaxLength(510)
                         .HasColumnType("nvarchar(510)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -398,7 +407,7 @@ namespace Gold_Billing_WebApp.Migrations
                     b.Property<int>("ItemId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("LastUpdated")
+                    b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime");
 
                     b.Property<decimal?>("Less")
@@ -427,6 +436,9 @@ namespace Gold_Billing_WebApp.Migrations
 
                     b.Property<decimal?>("Tunch")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("Wastage")
                         .HasColumnType("decimal(18,2)");

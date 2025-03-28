@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Gold_Billing_WebApp.Migrations
+namespace Gold_Billing_Web_App.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Initial_Create : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -17,7 +17,8 @@ namespace Gold_Billing_WebApp.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    GroupName = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false)
+                    GroupName = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -31,7 +32,8 @@ namespace Gold_Billing_WebApp.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
-                    Date = table.Column<DateTime>(type: "date", nullable: false)
+                    Date = table.Column<DateTime>(type: "date", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -57,7 +59,7 @@ namespace Gold_Billing_WebApp.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    FullName = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
+                    FullName = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: true),
                     Username = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
                     Password = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: false, comment: "Stores BCrypt hashed password (60 characters)"),
                     CompanyName = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: true),
@@ -79,7 +81,6 @@ namespace Gold_Billing_WebApp.Migrations
                 {
                     AccountId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Date = table.Column<DateTime>(type: "date", nullable: false),
                     AccountName = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
                     AccountGroupId = table.Column<int>(type: "int", nullable: false),
                     Address = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
@@ -89,7 +90,9 @@ namespace Gold_Billing_WebApp.Migrations
                     PhoneNo = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     Email = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Fine = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Date = table.Column<DateTime>(type: "date", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -109,7 +112,8 @@ namespace Gold_Billing_WebApp.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
-                    ItemGroupId = table.Column<int>(type: "int", nullable: false)
+                    ItemGroupId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -252,9 +256,10 @@ namespace Gold_Billing_WebApp.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    TransactionType = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     BillNo = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Date = table.Column<DateTime>(type: "date", nullable: false),
-                    TransactionType = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
+                    Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     AccountId = table.Column<int>(type: "int", nullable: true),
                     ItemId = table.Column<int>(type: "int", nullable: false),
                     Pc = table.Column<int>(type: "int", nullable: true),
@@ -267,8 +272,8 @@ namespace Gold_Billing_WebApp.Migrations
                     Rate = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     Fine = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    LastUpdated = table.Column<DateTime>(type: "datetime", nullable: true),
-                    Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
+                    LastUpdated = table.Column<DateTime>(type: "datetime", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {

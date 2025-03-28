@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Gold_Billing_WebApp.Migrations
+namespace Gold_Billing_Web_App.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250326131413_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250328142942_AddUserIdMetalTransaction")]
+    partial class AddUserIdMetalTransaction
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -37,6 +37,9 @@ namespace Gold_Billing_WebApp.Migrations
                         .IsRequired()
                         .HasMaxLength(510)
                         .HasColumnType("nvarchar(510)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -96,6 +99,9 @@ namespace Gold_Billing_WebApp.Migrations
                     b.Property<string>("Pincode")
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("AccountId");
 
@@ -163,6 +169,9 @@ namespace Gold_Billing_WebApp.Migrations
                         .HasMaxLength(510)
                         .HasColumnType("nvarchar(510)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.ToTable("ItemGroup", (string)null);
@@ -184,6 +193,9 @@ namespace Gold_Billing_WebApp.Migrations
                         .HasMaxLength(510)
                         .HasColumnType("nvarchar(510)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ItemGroupId");
@@ -199,7 +211,7 @@ namespace Gold_Billing_WebApp.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AccountId")
+                    b.Property<int?>("AccountId")
                         .HasColumnType("int");
 
                     b.Property<string>("BillNo")
@@ -215,7 +227,7 @@ namespace Gold_Billing_WebApp.Migrations
                     b.Property<decimal?>("GrossWeight")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("ItemId")
+                    b.Property<int?>("ItemId")
                         .HasColumnType("int");
 
                     b.Property<string>("Narration")
@@ -229,6 +241,9 @@ namespace Gold_Billing_WebApp.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -395,7 +410,7 @@ namespace Gold_Billing_WebApp.Migrations
                     b.Property<int>("ItemId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("LastUpdated")
+                    b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime");
 
                     b.Property<decimal?>("Less")
@@ -424,6 +439,9 @@ namespace Gold_Billing_WebApp.Migrations
 
                     b.Property<decimal?>("Tunch")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("Wastage")
                         .HasColumnType("decimal(18,2)");
@@ -461,7 +479,6 @@ namespace Gold_Billing_WebApp.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("FullName")
-                        .IsRequired()
                         .HasMaxLength(510)
                         .HasColumnType("nvarchar(510)");
 
@@ -543,14 +560,12 @@ namespace Gold_Billing_WebApp.Migrations
                     b.HasOne("Gold_Billing_Web_App.Models.AccountModel", "Account")
                         .WithMany()
                         .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Gold_Billing_Web_App.Models.ItemModel", "Item")
                         .WithMany()
                         .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Account");
 

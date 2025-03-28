@@ -5,11 +5,7 @@
 
 <div class="container p-3" style="background-color: lavender; border-radius: 10px;">
     <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
-
-    <!-- Alert Container (still used for errors) -->
     <div id="alertContainer" class="mb-3"></div>
-
-    <!-- Bootstrap Validation Summary -->
     @if (!ViewData.ModelState.IsValid)
     {
         <div class="alert alert-danger" role="alert">
@@ -26,15 +22,16 @@
     <form asp-action="AddMetalTransaction" method="post" id="metalTransactionForm">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="Type" id="transactionType" />
+        <input type="hidden" asp-for="UserId" />
         <hr class="mb-3 mt-3" />
         <div class="row mb-3">
             <div class="col-md-4">
-                <label class="form-label">Account</label>
-                <select id="accountSelect" name="SelectedAccountId" class="form-control" onchange="fetchPreviousBalance(); syncAccountIds();" required>
+                <label asp-for="SelectedAccountId" class="form-label">Account</label>
+                <select asp-for="SelectedAccountId" id="accountSelect" class="form-control" onchange="fetchPreviousBalance(); syncAccountIds();" required>
                     <option value="">Select Account</option>
                     @foreach (var account in ViewBag.AccountDropDown)
                     {
-                        if (ViewBag.SelectedAccountId == account.Id)
+                        if (Model.SelectedAccountId == account.Id)
                         {
                             <option value="@account.Id" data-group="@account.GroupName" selected>@account.AccountName</option>
                         }
@@ -44,7 +41,7 @@
                         }
                     }
                 </select>
-                <span id="account-error" class="text-danger"></span>
+                <span asp-validation-for="SelectedAccountId" class="text-danger" id="account-error"></span>
             </div>
             <div class="col-md-4">
                 <label asp-for="Date" class="form-label">Date</label>
@@ -60,7 +57,7 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label asp-for="Narration" class="form-label">Narration</label>
-                <textarea asp-for="Narration" type="text" class="form-control"></textarea>
+                <textarea asp-for="Narration" class="form-control"></textarea>
                 <span asp-validation-for="Narration" class="text-danger"></span>
             </div>
             <div class="col-md-6">
@@ -166,12 +163,9 @@
     </form>
 </div>
 
-<!-- Include jQuery and Validation Libraries -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
-
-<!-- Include SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
@@ -181,12 +175,10 @@
         syncAccountIds();
         fetchBillNo(document.querySelector('input[name="Type"]:checked').value);
         document.querySelectorAll('.item-select').forEach(select => {
-            console.log('Initial item selected:', select.options[select.selectedIndex]?.text);
             setDefaultTunch(select);
         });
     });
 
-    // Keep showAlert for error messages
     function showAlert(message, type) {
         const alertContainer = document.getElementById('alertContainer');
         alertContainer.innerHTML = `
@@ -195,7 +187,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
-        // No auto-dismiss for errors; keep for manual close
     }
 
     function calculateFine(element) {
@@ -362,74 +353,31 @@
     document.getElementById('metalTransactionForm').addEventListener('submit', function (e) {
         e.preventDefault();
         syncAccountIds();
-        let isFormValid = true;
-        let errorMessages = [];
-
-        document.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
-
-        if (!document.getElementById('accountSelect').value) {
-            document.getElementById('account-error').innerHTML = 'Please select an account.';
-            errorMessages.push('Account selection is required.');
-            isFormValid = false;
-        }
-
-        if (!document.getElementById('Date').value) {
-            document.querySelector('span[data-valmsg-for="Date"]').innerHTML = 'Date is required.';
-            errorMessages.push('Please specify a transaction date.');
-            isFormValid = false;
-        }
-
-        document.querySelectorAll('#metalTransactionTable tbody tr').forEach((row, index) => {
-            let itemId = row.querySelector('.item-select').value;
-            let grossWeight = parseFloat(row.querySelector('.weight-input').value) || 0;
-            let tunch = parseFloat(row.querySelector('.tunch-input').value) || 0;
-
-            if (!itemId) {
-                row.querySelector('.item-select + .text-danger').innerHTML = 'Please select an item.';
-                errorMessages.push(`Item selection is required for row ${index + 1}.`);
-                isFormValid = false;
-            }
-            if (grossWeight <= 0) {
-                row.querySelector('.weight-input + .text-danger').innerHTML = 'Gross Weight must be greater than 0.';
-                errorMessages.push(`Gross Weight must be greater than 0 for row ${index + 1}.`);
-                isFormValid = false;
-            }
-            if (tunch <= 0 || tunch > 100) {
-                row.querySelector('.tunch-input + .text-danger').innerHTML = 'Tunch must be between 0 and 100.';
-                errorMessages.push(`Tunch must be between 0 and 100 for row ${index + 1}.`);
-                isFormValid = false;
-            }
-        });
-
-        if (!isFormValid) {
-            let alertMessage = errorMessages.length > 0
-                ? errorMessages.join('<br>')
-                : 'Please correct all validation errors before submitting.';
-            showAlert(alertMessage, 'danger');
-            return;
-        }
 
         let formData = new FormData(this);
-        fetch('@Url.Action("AddMetalTransaction", "MetalTransection")', {
+
+        console.log('FormData being sent:');
+        for (var pair of formData.entries()) {
+            console.log(`${pair[0]}: ${pair[1]}`);
+        }
+
+        fetch(this.action, {
             method: 'POST',
-            body: formData,
-            headers: {
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-            }
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Server response:', data);
             if (data.success) {
-                // Use SweetAlert2 for success
                 Swal.fire({
                     title: 'Success!',
                     text: 'Transaction has been successfully saved!',
                     icon: 'success',
                     confirmButtonText: 'OK',
-                    timer: 2000, // Auto-close after 2 seconds
+                    timer: 2000,
                     timerProgressBar: true
                 }).then(() => {
-                    window.location.href = data.redirectUrl; // Redirect after SweetAlert closes
+                    window.location.href = data.redirectUrl;
                 });
             } else {
                 showAlert(data.error || 'Failed to save the transaction.', 'danger');

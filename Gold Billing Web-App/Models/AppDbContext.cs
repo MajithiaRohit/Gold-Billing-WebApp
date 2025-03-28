@@ -102,21 +102,25 @@ namespace Gold_Billing_Web_App.Models
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.BillNo).HasMaxLength(100);
                 entity.Property(e => e.Date).HasColumnType("datetime");
-                entity.Property(e => e.AccountId).IsRequired();
+                entity.Property(e => e.AccountId); // Optional, not required
                 entity.Property(e => e.Narration).HasMaxLength(1000);
                 entity.Property(e => e.Type).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.ItemId).IsRequired();
+                entity.Property(e => e.ItemId); // Optional, not required
                 entity.Property(e => e.GrossWeight).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Tunch).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Fine).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.UserId).IsRequired();
+
                 entity.HasOne(e => e.Item)
                       .WithMany()
                       .HasForeignKey(e => e.ItemId)
-                      .OnDelete(DeleteBehavior.Restrict);
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false); // Optional foreign key
                 entity.HasOne(e => e.Account)
                       .WithMany()
                       .HasForeignKey(e => e.AccountId)
-                      .OnDelete(DeleteBehavior.Restrict);
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false); // Optional foreign key
             });
 
             // OpeningStock
