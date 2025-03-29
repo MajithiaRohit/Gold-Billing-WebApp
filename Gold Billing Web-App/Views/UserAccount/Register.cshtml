@@ -4,12 +4,12 @@
     Layout = "~/Views/Shared/_loginlayout.cshtml";
     var isEdit = ViewBag.IsEdit ?? false;
 }
-
-<section class="auth-section">
-    <div class="auth-card">
+<link href="~/css/register.css" rel="stylesheet" />
+<section class="register-section">
+    <div class="register-card w-100">
         <div class="d-flex justify-content-center py-4">
             <a class="align-items-center">
-                <img src="~/images/ERPIcon.png" alt="Gold Billing Logo" width="80px" style="border-radius: 50%; border: 2px solid #3498db;" />
+                <img src="~/images/ERPIcon.png" alt="Gold Billing Logo" width="80px" style="border-radius: 50%; border: 2px solid #e67e22;" />
             </a>
         </div>
         <div class="d-flex justify-content-center py-2">
@@ -37,52 +37,56 @@
                 <input type="hidden" asp-for="Username" />
             }
 
-            <div class="col-12">
-                <label asp-for="FullName" class="form-label">Full Name</label>
-                <div class="input-group has-validation">
-                    <span class="input-group-text"><i class="bi bi-person"></i></span>
-                    <input type="text" asp-for="FullName" class="form-control" required placeholder="Your full name">
-                    <div class="invalid-feedback">Please enter your full name.</div>
+            <div class="row">
+                <div class="col-6">
+                    <label asp-for="FullName" class="form-label">Full Name</label>
+                    <div class="input-group has-validation">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input type="text" asp-for="FullName" class="form-control" required placeholder="Your full name">
+                        <div class="invalid-feedback">Please enter your full name.</div>
+                    </div>
+                    <span asp-validation-for="FullName" class="text-danger"></span>
                 </div>
-                <span asp-validation-for="FullName" class="text-danger"></span>
-            </div>
 
-            <div class="col-12">
-                <label asp-for="Username" class="form-label">Username</label>
-                <div class="input-group has-validation">
-                    <span class="input-group-text"><i class="bi bi-person"></i></span>
-                    <input type="text" asp-for="Username" class="form-control" required="@(!isEdit)" readonly="@isEdit" placeholder="Choose a username">
-                    <div class="invalid-feedback">Please choose a username.</div>
+                <div class="col-6">
+                    <label asp-for="Username" class="form-label">Username</label>
+                    <div class="input-group has-validation">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input type="text" asp-for="Username" class="form-control" required="@(!isEdit)" readonly="@isEdit" placeholder="Choose a username">
+                        <div class="invalid-feedback">Please choose a username.</div>
+                    </div>
+                    <span asp-validation-for="Username" class="text-danger"></span>
                 </div>
-                <span asp-validation-for="Username" class="text-danger"></span>
             </div>
 
             @if (!isEdit)
             {
-                <div class="col-12">
-                    <label asp-for="Password" class="form-label">Password</label>
-                    <div class="input-group has-validation">
-                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" asp-for="Password" class="form-control" id="password" required placeholder="Your password">
-                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('password', this)">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        <div class="invalid-feedback">Please enter a password.</div>
+                <div class="row">
+                    <div class="col-6">
+                        <label asp-for="Password" class="form-label">Password</label>
+                        <div class="input-group has-validation">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input type="password" asp-for="Password" class="form-control" id="password" required placeholder="Your password">
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <div class="invalid-feedback">Please enter a password.</div>
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger"></span>
                     </div>
-                    <span asp-validation-for="Password" class="text-danger"></span>
-                </div>
 
-                <div class="col-12">
-                    <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
-                    <div class="input-group has-validation">
-                        <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                        <input type="password" asp-for="ConfirmPassword" class="form-control" id="confirmPassword" required placeholder="Confirm your password">
-                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('confirmPassword', this)">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        <div class="invalid-feedback">Please.Concurrent your password.</div>
+                    <div class="col-6">
+                        <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
+                        <div class="input-group has-validation">
+                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                            <input type="password" asp-for="ConfirmPassword" class="form-control" id="confirmPassword" required placeholder="Confirm your password">
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('confirmPassword', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <div class="invalid-feedback">Please confirm your password.</div>
+                        </div>
+                        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
                     </div>
-                    <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
                 </div>
             }
             else
@@ -94,71 +98,80 @@
                 </div>
             }
 
-            <div class="col-12">
-                <label asp-for="CompanyName" class="form-label">Company Name</label>
-                <div class="input-group has-validation">
-                    <span class="input-group-text"><i class="bi bi-building"></i></span>
-                    <input type="text" asp-for="CompanyName" class="form-control" required placeholder="Your company name">
-                    <div class="invalid-feedback">Please enter your company name.</div>
+            <div class="row">
+                <div class="col-6">
+                    <label asp-for="CompanyName" class="form-label">Company Name</label>
+                    <div class="input-group has-validation">
+                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                        <input type="text" asp-for="CompanyName" class="form-control" required placeholder="Your company name">
+                        <div class="invalid-feedback">Please enter your company name.</div>
+                    </div>
+                    <span asp-validation-for="CompanyName" class="text-danger"></span>
                 </div>
-                <span asp-validation-for="CompanyName" class="text-danger"></span>
+
+                <div class="col-6">
+                    <label asp-for="CompanyAddress" class="form-label">Company Address</label>
+                    <div class="input-group has-validation">
+                        <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                        <input type="text" asp-for="CompanyAddress" class="form-control" required placeholder="Company address">
+                        <div class="invalid-feedback">Please enter your company address.</div>
+                    </div>
+                    <span asp-validation-for="CompanyAddress" class="text-danger"></span>
+                </div>
             </div>
 
-            <div class="col-12">
-                <label asp-for="CompanyAddress" class="form-label">Company Address</label>
-                <div class="input-group has-validation">
-                    <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
-                    <input type="text" asp-for="CompanyAddress" class="form-control" required placeholder="Company address">
-                    <div class="invalid-feedback">Please enter your company address.</div>
+            <div class="row">
+                <div class="col-6">
+                    <label asp-for="Email" class="form-label">Email</label>
+                    <div class="input-group has-validation">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="text" asp-for="Email" class="form-control" required placeholder="Your email">
+                        <div class="invalid-feedback">Please enter a valid email.</div>
+                    </div>
+                    <span asp-validation-for="Email" class="text-danger"></span>
                 </div>
-                <span asp-validation-for="CompanyAddress" class="text-danger"></span>
+
+                <div class="col-6">
+                    <label asp-for="MobileNo" class="form-label">Mobile Number</label>
+                    <div class="input-group has-validation">
+                        <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                        <input type="text" asp-for="MobileNo" class="form-control" required placeholder="Your mobile number">
+                        <div class="invalid-feedback">Please enter your mobile number.</div>
+                    </div>
+                    <span asp-validation-for="MobileNo" class="text-danger"></span>
+                </div>
             </div>
 
-            <div class="col-12">
-                <label asp-for="Email" class="form-label">Email</label>
-                <div class="input-group has-validation">
-                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                    <input type="email" asp-for="Email" class="form-control" required placeholder="Your email">
-                    <div class="invalid-feedback">Please enter a valid email.</div>
+            <div class="row">
+                <div class="col-6">
+                    <label asp-for="GstNumber" class="form-label">GST Number (Optional)</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+                        <input type="text" asp-for="GstNumber" class="form-control" placeholder="GST number">
+                    </div>
+                    <span asp-validation-for="GstNumber" class="text-danger"></span>
                 </div>
-                <span asp-validation-for="Email" class="text-danger"></span>
+
+                <div class="col-6">
+                    <label asp-for="GodName1" class="form-label">God Name 1 (Optional)</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
+                        <input type="text" asp-for="GodName1" class="form-control" placeholder="God name 1">
+                    </div>
+                    <span asp-validation-for="GodName1" class="text-danger"></span>
+                </div>
             </div>
 
-            <div class="col-12">
-                <label asp-for="MobileNo" class="form-label">Mobile Number</label>
-                <div class="input-group has-validation">
-                    <span class="input-group-text"><i class="bi bi-telephone"></i></span>
-                    <input type="text" asp-for="MobileNo" class="form-control" required placeholder="Your mobile number">
-                    <div class="invalid-feedback">Please enter your mobile number.</div>
+            <div class="row">
+                <div class="col-6">
+                    <label asp-for="GodName2" class="form-label">God Name 2 (Optional)</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
+                        <input type="text" asp-for="GodName2" class="form-control" placeholder="God name 2">
+                    </div>
+                    <span asp-validation-for="GodName2" class="text-danger"></span>
                 </div>
-                <span asp-validation-for="MobileNo" class="text-danger"></span>
-            </div>
-
-            <div class="col-12">
-                <label asp-for="GstNumber" class="form-label">GST Number (Optional)</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-card-text"></i></span>
-                    <input type="text" asp-for="GstNumber" class="form-control" placeholder="GST number">
-                </div>
-                <span asp-validation-for="GstNumber" class="text-danger"></span>
-            </div>
-
-            <div class="col-12">
-                <label asp-for="GodName1" class="form-label">God Name 1 (Optional)</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
-                    <input type="text" asp-for="GodName1" class="form-control" placeholder="God name 1">
-                </div>
-                <span asp-validation-for="GodName1" class="text-danger"></span>
-            </div>
-
-            <div class="col-12">
-                <label asp-for="GodName2" class="form-label">God Name 2 (Optional)</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
-                    <input type="text" asp-for="GodName2" class="form-control" placeholder="God name 2">
-                </div>
-                <span asp-validation-for="GodName2" class="text-danger"></span>
+                <div class="col-6"></div>
             </div>
 
             <div class="col-12">
@@ -174,13 +187,8 @@
                 </p>
             </div>
         </form>
-
-        <div class="credits text-muted">
-            Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
-        </div>
     </div>
 </section>
-
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>

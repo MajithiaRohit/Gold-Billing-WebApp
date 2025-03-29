@@ -29,13 +29,23 @@
     <!-- Template Main CSS File -->
     <link href="~/assets/css/style.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <style>
+        #darkModeToggle i {
+            transition: all 0.3s ease;
+        }
+
+        body.dark-mode #darkModeToggle i {
+            color: #00d4ff;
+            text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
+        }
+    </style>
 </head>
 <body>
     <!-- ======= Header ======= -->
     <header id="header" class="header fixed-top d-flex align-items-center">
         <div class="d-flex align-items-center justify-content-between">
             <a href="index.html" class="logo d-flex align-items-center">
-				<img src="~/images/erpicon.png" />
+                <img src="~/images/erpicon.png" />
                 <span class="d-none d-lg-block">Gold Billing</span>
             </a>
             <i class="bi bi-list toggle-sidebar-btn"></i>
@@ -51,6 +61,13 @@
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
                         <li class="dropdown-header">
                             <h6>@(User.Identity.IsAuthenticated ? User.FindFirst(ClaimTypes.Name)?.Value : "User")</h6>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <!-- Dark Mode Toggle -->
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center" href="#" id="darkModeToggle">
+                                <i class="bi bi-moon"></i><span>Toggle Dark Mode</span>
+                            </a>
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
@@ -248,6 +265,34 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        // Dark Mode Toggle Functionality
+        document.addEventListener('DOMContentLoaded', function () {
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const body = document.body;
+
+            // Check for saved dark mode preference
+            if (localStorage.getItem('darkMode') === 'enabled') {
+                body.classList.add('dark-mode');
+                darkModeToggle.querySelector('i').classList.replace('bi-moon', 'bi-sun');
+                darkModeToggle.querySelector('span').textContent = 'Toggle Light Mode';
+            }
+
+            darkModeToggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                body.classList.toggle('dark-mode');
+                if (body.classList.contains('dark-mode')) {
+                    localStorage.setItem('darkMode', 'enabled');
+                    darkModeToggle.querySelector('i').classList.replace('bi-moon', 'bi-sun');
+                    darkModeToggle.querySelector('span').textContent = 'Toggle Light Mode';
+                } else {
+                    localStorage.setItem('darkMode', 'disabled');
+                    darkModeToggle.querySelector('i').classList.replace('bi-sun', 'bi-moon');
+                    darkModeToggle.querySelector('span').textContent = 'Toggle Dark Mode';
+                }
+            });
+        });
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
