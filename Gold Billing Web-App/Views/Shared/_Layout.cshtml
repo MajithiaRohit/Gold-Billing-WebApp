@@ -30,19 +30,15 @@
     <link href="~/assets/css/style.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
-        #darkModeToggle i {
-            transition: all 0.3s ease;
-        }
-
-        body.dark-mode #darkModeToggle i {
-            color: #00d4ff;
-            text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
-        }
         /* Enhanced Global Styles */
         body {
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             font-family: 'Poppins', sans-serif;
             transition: all 0.3s ease;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
         }
 
         /* Header Styling */
@@ -50,6 +46,10 @@
             background: linear-gradient(to right, #1e3c72, #2a5298);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             color: #fff;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
         }
 
         .logo img {
@@ -77,6 +77,9 @@
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
             border-radius: 0 10px 10px 0;
             transition: all 0.3s ease;
+            position: fixed;
+            top: 60px;
+            height: calc(100vh - 60px);
         }
 
         .sidebar-nav .nav-link {
@@ -111,6 +114,23 @@
                 background: rgba(30, 60, 114, 0.1);
                 border-radius: 5px;
             }
+
+        /* Main Content Styling */
+        #main {
+            padding-bottom: 60px;
+            min-height: calc(100vh - 60px - 60px);
+            margin-top: 60px;
+        }
+
+        @@media (min-width: 992px) {
+            #main
+
+        {
+            margin-left: 250px;
+        }
+
+        }
+
         /* Footer Styling */
         #footer {
             background: linear-gradient(to right, #2a5298, #1e3c72);
@@ -118,6 +138,8 @@
             border-radius: 10px 10px 0 0;
             padding: 15px;
             box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+            width: 100%;
         }
 
         .footer .copyright strong {
