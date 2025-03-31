@@ -1,10 +1,9 @@
 ﻿using Gold_Billing_Web_App.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
-using OfficeOpenXml;
-using System.Data;
 using System.Security.Claims;
+using System.Data;
+using OfficeOpenXml;
 
 namespace Gold_Billing_Web_App.Controllers
 {
@@ -19,9 +18,13 @@ namespace Gold_Billing_Web_App.Controllers
 
         private async Task<string> GetCurrentUserId()
         {
-            // Assuming User.FindFirstValue is synchronous, wrap it in Task.FromResult
-            // If you're fetching the user ID asynchronously (e.g., from a database), replace this with the actual async call
-            return await Task.FromResult(User.FindFirstValue(ClaimTypes.NameIdentifier)) ?? throw new InvalidOperationException("User not logged in.");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                Console.WriteLine("Error: User not logged in or user ID not found.");
+                throw new InvalidOperationException("User not logged in.");
+            }
+            return await Task.FromResult(userId);
         }
 
         private async Task<string> GenerateSequentialBillNo(string prefix = "BILL")
@@ -49,20 +52,22 @@ namespace Gold_Billing_Web_App.Controllers
 
         private List<ItemDropDownModel> SetItemDropDown()
         {
-            // This method is synchronous; if you need to make it async, update accordingly
-            return _context.Items
+            var items = _context.Items
                 .Select(i => new ItemDropDownModel
                 {
                     Id = i.Id!.Value,
                     ItemName = i.Name!
                 })
                 .ToList();
+            Console.WriteLine($"Fetched {items.Count} items for dropdown.");
+            return items;
         }
 
         public async Task<IActionResult> AddOpeningStock()
         {
             if (await IsOpeningStockAdded())
             {
+                Console.WriteLine("Opening stock already added for user. Redirecting to ViewStock.");
                 TempData["Message"] = "Opening stock has already been added. Use 'New Stock' to add more.";
                 return RedirectToAction("ViewStock");
             }
@@ -83,21 +88,21 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddOpeningStock(OpeningStockViewModel model)
         {
-            // Set BillNo and UserId if they're not provided
             model.BillNo = string.IsNullOrEmpty(model.BillNo) ? await GenerateSequentialBillNo() : model.BillNo;
             model.UserId = string.IsNullOrEmpty(model.UserId) ? await GetCurrentUserId() : model.UserId;
 
             if (!ModelState.IsValid)
             {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                Console.WriteLine($"Validation failed for AddOpeningStock: {string.Join(", ", errors)}");
                 ViewBag.ItemDropDown = SetItemDropDown();
-                ViewBag.Action = "AddOpeningStock";
-                ViewBag.Title = "Add Opening Stock";
                 return View(model);
             }
 
             try
             {
                 var userId = await GetCurrentUserId();
+                Console.WriteLine($"Adding opening stock for BillNo: {model.BillNo}, UserId: {userId}");
                 foreach (var item in model.Items)
                 {
                     CalculateDerivedFields(item);
@@ -107,23 +112,37 @@ namespace Gold_Billing_Web_App.Controllers
                     item.LastUpdated = DateTime.Now;
                     item.UserId = userId;
                     _context.OpeningStocks.Add(item);
+                    Console.WriteLine($"Added item to context: ItemId={item.ItemId}, Weight={item.Weight}, Fine={item.Fine}");
                 }
+                Console.WriteLine($"Saving changes to database for BillNo: {model.BillNo}");
                 await _context.SaveChangesAsync();
+                Console.WriteLine($"Successfully saved opening stock for BillNo: {model.BillNo}");
+                TempData["SweetAlertMessage"] = $"Opening stock for BillNo {model.BillNo} added successfully!";
                 return RedirectToAction("ViewStock");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error occurred while saving opening stock for BillNo: {model.BillNo}: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
                 ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
                 ViewBag.ItemDropDown = SetItemDropDown();
-                ViewBag.Action = "AddOpeningStock";
-                ViewBag.Title = "Add Opening Stock";
                 return View(model);
             }
         }
 
         public async Task<IActionResult> AddNewStock()
         {
-            ViewBag.ItemDropDown = SetItemDropDown();
+            var items = SetItemDropDown();
+            if (!items.Any())
+            {
+                Console.WriteLine("No items available in the Item table for AddNewStock.");
+                TempData["Error"] = "No items available. Please add items before adding new stock.";
+                return RedirectToAction("ViewStock");
+            }
+            ViewBag.ItemDropDown = items;
             var model = new OpeningStockViewModel
             {
                 BillNo = await GenerateSequentialBillNo("NEW"),
@@ -140,20 +159,66 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddNewStock(OpeningStockViewModel model)
         {
+            if (string.IsNullOrEmpty(model.BillNo) || !model.BillNo.StartsWith("NEW"))
+            {
+                model.BillNo = await GenerateSequentialBillNo("NEW");
+            }
+            model.UserId = string.IsNullOrEmpty(model.UserId) ? await GetCurrentUserId() : model.UserId;
+
+            var existingBill = await _context.OpeningStocks.AnyAsync(os => os.BillNo == model.BillNo);
+            if (existingBill)
+            {
+                Console.WriteLine($"Duplicate BillNo detected: {model.BillNo}. Generating a new one.");
+                model.BillNo = await GenerateSequentialBillNo("NEW");
+            }
+
             if (!ModelState.IsValid)
             {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                Console.WriteLine($"Validation failed for AddNewStock: {string.Join(", ", errors)}");
                 ViewBag.ItemDropDown = SetItemDropDown();
-                ViewBag.Action = "AddNewStock";
-                ViewBag.Title = "Add New Stock";
                 return View("AddOpeningStock", model);
             }
-            return await AddOpeningStock(model);
+
+            try
+            {
+                var userId = await GetCurrentUserId();
+                Console.WriteLine($"Adding new stock for BillNo: {model.BillNo}, UserId: {userId}");
+                foreach (var item in model.Items)
+                {
+                    CalculateDerivedFields(item);
+                    item.BillNo = model.BillNo;
+                    item.Date = model.Date;
+                    item.Narration = model.Narration;
+                    item.LastUpdated = DateTime.Now;
+                    item.UserId = string.IsNullOrEmpty(item.UserId) ? userId : item.UserId;
+                    _context.OpeningStocks.Add(item);
+                    Console.WriteLine($"Added item to context: ItemId={item.ItemId}, Weight={item.Weight}, Fine={item.Fine}, UserId={item.UserId}");
+                }
+                Console.WriteLine($"Saving changes to database for BillNo: {model.BillNo}");
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"Successfully saved new stock for BillNo: {model.BillNo}");
+                TempData["SweetAlertMessage"] = $"Stock for BillNo {model.BillNo} added successfully!";
+                return RedirectToAction("ViewStock");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error occurred while saving new stock for BillNo: {model.BillNo}: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
+                ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
+                ViewBag.ItemDropDown = SetItemDropDown();
+                return View("AddOpeningStock", model);
+            }
         }
 
         public async Task<IActionResult> EditOpeningStock(string billNo)
         {
             if (string.IsNullOrEmpty(billNo))
             {
+                Console.WriteLine("BillNo is null or empty in EditOpeningStock.");
                 return NotFound();
             }
 
@@ -165,6 +230,7 @@ namespace Gold_Billing_Web_App.Controllers
 
             if (!stocks.Any())
             {
+                Console.WriteLine($"No stock entries found for BillNo: {billNo}, UserId: {userId}");
                 return NotFound();
             }
 
@@ -180,6 +246,7 @@ namespace Gold_Billing_Web_App.Controllers
             ViewBag.ItemDropDown = SetItemDropDown();
             ViewBag.Action = "EditOpeningStock";
             ViewBag.Title = "Edit Stock";
+            ViewBag.AllowNewStock = true; // Enable adding new stock in edit mode
             return View("AddOpeningStock", model);
         }
 
@@ -189,19 +256,29 @@ namespace Gold_Billing_Web_App.Controllers
         {
             if (!ModelState.IsValid)
             {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                Console.WriteLine($"Validation failed for EditOpeningStock: {string.Join(", ", errors)}");
                 ViewBag.ItemDropDown = SetItemDropDown();
-                ViewBag.Action = "EditOpeningStock";
-                ViewBag.Title = "Edit Stock";
                 return View("AddOpeningStock", model);
             }
 
             try
             {
                 var userId = await GetCurrentUserId();
-                var existingStocks = _context.OpeningStocks
-                    .Where(os => os.BillNo == model.BillNo && os.UserId == userId);
-                _context.OpeningStocks.RemoveRange(existingStocks);
+                Console.WriteLine($"Editing stock for BillNo: {model.BillNo}, UserId: {userId}");
 
+                // Fetch existing items
+                var existingStocks = await _context.OpeningStocks
+                    .Where(os => os.BillNo == model.BillNo && os.UserId == userId)
+                    .ToListAsync();
+
+                if (!existingStocks.Any())
+                {
+                    Console.WriteLine($"No stock entries found for BillNo: {model.BillNo}, UserId: {userId}");
+                    return NotFound();
+                }
+
+                // Update existing items
                 foreach (var item in model.Items)
                 {
                     CalculateDerivedFields(item);
@@ -210,17 +287,35 @@ namespace Gold_Billing_Web_App.Controllers
                     item.Narration = model.Narration;
                     item.LastUpdated = DateTime.Now;
                     item.UserId = userId;
-                    _context.OpeningStocks.Add(item);
+
+                    var existingItem = existingStocks.FirstOrDefault(os => os.Id == item.Id);
+                    if (existingItem != null)
+                    {
+                        _context.Entry(existingItem).CurrentValues.SetValues(item);
+                        Console.WriteLine($"Added item to context for edit: ItemId={item.ItemId}, Weight={item.Weight}, Fine={item.Fine}");
+                    }
+                    else
+                    {
+                        _context.OpeningStocks.Add(item);
+                        Console.WriteLine($"Added new item to context: ItemId={item.ItemId}, Weight={item.Weight}, Fine={item.Fine}, UserId={item.UserId}");
+                    }
                 }
+
+                Console.WriteLine($"Saving changes to database for BillNo: {model.BillNo}");
                 await _context.SaveChangesAsync();
+                Console.WriteLine($"Successfully edited stock for BillNo: {model.BillNo}");
+                TempData["SweetAlertMessage"] = $"Stock for BillNo {model.BillNo} edited successfully!";
                 return RedirectToAction("ViewStock");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error occurred while editing stock for BillNo: {model.BillNo}: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
                 ModelState.AddModelError("", $"An error occurred while saving: {ex.Message}");
                 ViewBag.ItemDropDown = SetItemDropDown();
-                ViewBag.Action = "EditOpeningStock";
-                ViewBag.Title = "Edit Stock";
                 return View("AddOpeningStock", model);
             }
         }
@@ -369,6 +464,7 @@ namespace Gold_Billing_Web_App.Controllers
             return View("PrintStock", table);
         }
 
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteOpeningStock([FromBody] DeleteStockRequest request)
@@ -377,6 +473,7 @@ namespace Gold_Billing_Web_App.Controllers
             {
                 if (string.IsNullOrEmpty(request?.BillNo))
                 {
+                    Console.WriteLine("DeleteOpeningStock failed: BillNo is null or empty.");
                     return Json(new { success = false, error = "BillNo is required" });
                 }
 
@@ -385,15 +482,18 @@ namespace Gold_Billing_Web_App.Controllers
                     .Where(os => os.BillNo == request.BillNo && os.UserId == userId);
                 if (!stocks.Any())
                 {
+                    Console.WriteLine($"No stock entries found to delete for BillNo: {request.BillNo}, UserId: {userId}");
                     return Json(new { success = false, error = "No stock entry found with this BillNo for the current user" });
                 }
 
                 _context.OpeningStocks.RemoveRange(stocks);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true });
+                Console.WriteLine($"Successfully deleted stock entries for BillNo: {request.BillNo}");
+                return Json(new { success = true, message = $"Stock for BillNo {request.BillNo} deleted successfully!" });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error occurred while deleting stock for BillNo: {request?.BillNo}: {ex.Message}");
                 return Json(new { success = false, error = ex.Message });
             }
         }

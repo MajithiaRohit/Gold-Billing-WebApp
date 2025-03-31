@@ -10,6 +10,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
 
+// Add logging services
+builder.Services.AddLogging(logging =>
+{
+    logging.ClearProviders(); // Optional: Clear default providers if you only want console logs
+    logging.AddConsole(); // Add console logging
+    logging.AddDebug(); // Add debug logging (useful for development)
+    logging.SetMinimumLevel(LogLevel.Debug); // Set minimum log level to Debug to capture detailed logs
+});
+
 // Configuration
 var configuration = builder.Configuration;
 builder.Services.AddSingleton<IConfiguration>(configuration);
