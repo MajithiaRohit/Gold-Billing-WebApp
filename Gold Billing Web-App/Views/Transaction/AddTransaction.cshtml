@@ -14,202 +14,290 @@
     bool isEdit = !string.IsNullOrEmpty(Model.BillNo) && ViewBag.IsExistingTransaction == true;
 }
 
-<div class="container p-3" style="background-color: @bgColor; border-radius: 10px;">
-    <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
+<div class="card-body" style="background: linear-gradient(135deg, @bgColor, #ffffff); border-radius: 15px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);">
+    <h3 class="text-center mb-4 mt-3" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: #2a5298; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);">@ViewBag.Title</h3>
 
     @if (!ViewData.ModelState.IsValid)
     {
-        <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading">Validation Errors</h4>
-            <ul>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); background: linear-gradient(to right, #f8d7da, #f1aeb5);">
+            <h4 class="alert-heading" style="font-family: 'Poppins', sans-serif; font-weight: 500; color: #721c24;">Validation Errors</h4>
+            <ul style="padding-left: 20px;">
                 @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
                 {
-                    <li>@error.ErrorMessage</li>
+                    <li style="color: #721c24;">@error.ErrorMessage</li>
                 }
             </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
-    <form asp-action="AddTransaction" method="post" id="transactionForm">
+    <form asp-action="AddTransaction" method="post" id="transactionForm" style="font-family: 'Poppins', sans-serif;">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="TransactionType" />
         <input type="hidden" asp-for="UserId" />
-        <input type="hidden" asp-for="BillNo" /> <!-- Ensure BillNo is submitted -->
-        <hr class="mb-3 mt-3" />
-        <div class="row mb-3">
+        <input type="hidden" asp-for="BillNo" />
+        <hr class="mb-4 mt-3" style="border: 1px solid #2a5298; opacity: 0.2;" />
+
+        <div class="row mb-4">
             <div class="col-md-4">
-                <label class="form-label">Account</label>
-                <select id="accountSelect" name="SelectedAccountId" class="form-control" required>
+                <label class="form-label" style="font-weight: 500; color: #1e3c72;">Account</label>
+                <select id="accountSelect" name="SelectedAccountId" class="form-control custom-select" style="border-radius: 10px; border: 1px solid #ced4da; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); padding: 10px; background: #fff; transition: all 0.3s ease;" required>
                     <option value="">Select Account</option>
                     @foreach (var account in ViewBag.AccountDropDown)
                     {
                         <option value="@account.Id" selected="@(ViewBag.SelectedAccountId == account.Id ? "selected" : null)">@account.AccountName</option>
                     }
                 </select>
-                <span id="account-error" class="text-danger"></span>
+                <span id="account-error" class="text-danger" style="font-size: 0.9em;"></span>
             </div>
             <div class="col-md-4">
-                <label asp-for="Date" class="form-label">Date</label>
-                <input asp-for="Date" type="date" class="form-control" />
-                <span asp-validation-for="Date" class="text-danger"></span>
+                <label asp-for="Date" class="form-label" style="font-weight: 500; color: #1e3c72;">Date</label>
+                <input asp-for="Date" type="date" class="form-control" style="border-radius: 10px; border: 1px solid #ced4da; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); padding: 10px; transition: all 0.3s ease;" />
+                <span asp-validation-for="Date" class="text-danger" style="font-size: 0.9em;"></span>
             </div>
             <div class="col-md-4 form-group">
-                <label asp-for="BillNo" class="form-label">Bill Number</label>
-                <input class="form-control" readonly value="@Model.BillNo" /> <!-- Display-only input -->
-                <span asp-validation-for="BillNo" class="text-danger"></span>
+                <label asp-for="BillNo" class="form-label" style="font-weight: 500; color: #1e3c72;">Bill Number</label>
+                <input class="form-control" readonly value="@Model.BillNo" style="border-radius: 10px; background: #e9ecef; border: 1px solid #ced4da; padding: 10px; transition: all 0.3s ease;" />
+                <span asp-validation-for="BillNo" class="text-danger" style="font-size: 0.9em;"></span>
             </div>
         </div>
-        <div class="row mb-3">
+        <div class="row mb-4">
             <div class="col-md-6">
-                <label asp-for="Narration" class="form-label">Narration</label>
-                <textarea asp-for="Narration" class="form-control"></textarea>
-                <span asp-validation-for="Narration" class="text-danger"></span>
+                <label asp-for="Narration" class="form-label" style="font-weight: 500; color: #1e3c72;">Narration</label>
+                <textarea asp-for="Narration" class="form-control" style="border-radius: 10px; border: 1px solid #ced4da; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); padding: 10px; resize: vertical; transition: all 0.3s ease;"></textarea>
+                <span asp-validation-for="Narration" class="text-danger" style="font-size: 0.9em;"></span>
             </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-bordered" id="transactionTable">
-                <thead class="bg-light">
+        <div class="table-responsive" style="background: #fff; border-radius: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); padding: 20px;">
+            <table class="table table-bordered" id="transactionTable" style="border-radius: 10px; overflow: hidden; border-collapse: separate; border-spacing: 0;">
+                <thead class="bg-gradient" style="background: linear-gradient(135deg, #1e3c72, #2a5298); color: #fff; text-transform: uppercase; letter-spacing: 1px;">
                     <tr>
-                        <th>Item Name</th>
-                        <th>Pc</th>
-                        <th>Gr.Wt.</th>
-                        <th>Less</th>
-                        <th>Net.Wt.</th>
-                        <th>Tunch (%)</th>
-                        <th>Wstg (%)</th>
-                        <th>TW (%)</th>
-                        <th>Rate</th>
-                        <th>Gold Fine</th>
-                        <th>Total Amount</th>
-                        <th>Action</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Item Name</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Pc</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Gr.Wt.</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Less</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Net.Wt.</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Tunch (%)</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Wstg (%)</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">TW (%)</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Rate</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Gold Fine</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Total Amount</th>
+                        <th style="padding: 15px; font-weight: 600; border: none; border-bottom: 2px solid #00d4ff;">Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody style="background: #fff;">
                     @for (int i = 0; i < Model.Items.Count; i++)
                     {
-                        <tr>
-                            <td>
+                        <tr style="transition: all 0.3s ease; border-bottom: 1px solid #dee2e6;">
+                            <td style="padding: 10px;">
                                 <input asp-for="Items[i].Id" type="hidden" />
                                 <input asp-for="Items[i].TransactionType" type="hidden" value="@Model.TransactionType" />
                                 <input asp-for="Items[i].AccountId" type="hidden" class="account-id-input" />
                                 <input asp-for="Items[i].UserId" type="hidden" />
-                                <select asp-for="Items[i].ItemId" class="form-control item-select" required>
+                                <select asp-for="Items[i].ItemId" class="form-control custom-select item-select" required style="border-radius: 10px; padding: 8px; border: 1px solid #ced4da; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); transition: all 0.3s ease;">
                                     <option value="">Select Item</option>
                                     @foreach (var item in ViewBag.ItemDropDown)
                                     {
                                         <option value="@item.Id" data-group="@item.GroupName" selected="@(Model.Items[i].ItemId == item.Id ? "selected" : null)">@item.ItemName</option>
                                     }
                                 </select>
-                                <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
+                                <span asp-validation-for="Items[i].ItemId" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" min="0" step="1" value="@(Model.Items[i].Pc?.ToString() ?? "")" />
-                                <span asp-validation-for="Items[i].Pc" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].Pc" type="number" class="form-control pc-input" min="0" step="1" value="@(Model.Items[i].Pc?.ToString() ?? "")" style="border-radius: 10px; padding: 8px; border: 1px solid #ced4da; transition: all 0.3s ease;" />
+                                <span asp-validation-for="Items[i].Pc" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].Weight" type="number" class="form-control weight-input" min="0" step="0.01" value="@(Model.Items[i].Weight?.ToString("F2") ?? "")" />
-                                <span asp-validation-for="Items[i].Weight" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].Weight" type="number" class="form-control weight-input" min="0" step="0.01" value="@(Model.Items[i].Weight?.ToString("F2") ?? "")" style="border-radius: 10px; padding: 8px; border: 1px solid #ced4da; transition: all 0.3s ease;" />
+                                <span asp-validation-for="Items[i].Weight" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].Less" type="number" class="form-control less-input" min="0" step="0.01" value="@(Model.Items[i].Less?.ToString("F2") ?? "")" />
-                                <span asp-validation-for="Items[i].Less" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].Less" type="number" class="form-control less-input" min="0" step="0.01" value="@(Model.Items[i].Less?.ToString("F2") ?? "")" style="border-radius: 10px; padding: 8px; border: 1px solid #ced4da; transition: all 0.3s ease;" />
+                                <span asp-validation-for="Items[i].Less" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].NetWt" type="number" class="form-control netwt-input" step="0.01" readonly value="@(Model.Items[i].NetWt?.ToString("F2") ?? "0.00")" />
-                                <span asp-validation-for="Items[i].NetWt" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].NetWt" type="number" class="form-control netwt-input" step="0.01" readonly value="@(Model.Items[i].NetWt?.ToString("F2") ?? "0.00")" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" />
+                                <span asp-validation-for="Items[i].NetWt" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].Tunch" type="number" class="form-control tunch-input" min="0" step="0.01" value="@(Model.Items[i].Tunch?.ToString("F2") ?? "")" />
-                                <span asp-validation-for="Items[i].Tunch" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].Tunch" type="number" class="form-control tunch-input" min="0" step="0.01" value="@(Model.Items[i].Tunch?.ToString("F2") ?? "")" style="border-radius: 10px; padding: 8px; border: 1px solid #ced4da; transition: all 0.3s ease;" />
+                                <span asp-validation-for="Items[i].Tunch" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].Wastage" type="number" class="form-control wastage-input" min="0" step="0.01" value="@(Model.Items[i].Wastage?.ToString("F2") ?? "")" />
-                                <span asp-validation-for="Items[i].Wastage" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].Wastage" type="number" class="form-control wastage-input" min="0" step="0.01" value="@(Model.Items[i].Wastage?.ToString("F2") ?? "")" style="border-radius: 10px; padding: 8px; border: 1px solid #ced4da; transition: all 0.3s ease;" />
+                                <span asp-validation-for="Items[i].Wastage" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].TW" type="number" class="form-control tw-input" step="0.01" readonly value="@(Model.Items[i].TW?.ToString("F2") ?? "0.00")" />
-                                <span asp-validation-for="Items[i].TW" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].TW" type="number" class="form-control tw-input" step="0.01" readonly value="@(Model.Items[i].TW?.ToString("F2") ?? "0.00")" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" />
+                                <span asp-validation-for="Items[i].TW" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].Rate" type="number" class="form-control rate-input" min="0" step="0.01" value="@(Model.Items[i].Rate?.ToString("F2") ?? "")" />
-                                <span asp-validation-for="Items[i].Rate" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].Rate" type="number" class="form-control rate-input" min="0" step="0.01" value="@(Model.Items[i].Rate?.ToString("F2") ?? "")" style="border-radius: 10px; padding: 8px; border: 1px solid #ced4da; transition: all 0.3s ease;" />
+                                <span asp-validation-for="Items[i].Rate" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input asp-for="Items[i].Fine" type="number" class="form-control fine-input" step="0.01" readonly value="@(Model.Items[i].Fine?.ToString("F2") ?? "0.00")" />
-                                <span asp-validation-for="Items[i].Fine" class="text-danger"></span>
+                            <td style="padding: 10px;">
+                                <input asp-for="Items[i].Fine" type="number" class="form-control fine-input" step="0.01" readonly value="@(Model.Items[i].Fine?.ToString("F2") ?? "0.00")" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" />
+                                <span asp-validation-for="Items[i].Fine" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
-                                <input type="number" class="form-control amount-input" step="0.01" readonly value="@(Model.Items[i].Amount?.ToString("F2") ?? "0.00")" />
+                            <td style="padding: 10px;">
+                                <input type="number" class="form-control amount-input" step="0.01" readonly value="@(Model.Items[i].Amount?.ToString("F2") ?? "0.00")" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" />
                                 <input type="hidden" asp-for="Items[i].Amount" class="hidden-amount-input" value="@(Model.Items[i].Amount?.ToString("F2") ?? "0.00")" />
-                                <span asp-validation-for="Items[i].Amount" class="text-danger"></span>
+                                <span asp-validation-for="Items[i].Amount" class="text-danger" style="font-size: 0.9em;"></span>
                             </td>
-                            <td>
+                            <td style="padding: 10px;">
                                 @if (i > 0)
                                 {
-                                    <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)" style="border-radius: 50%; padding: 8px 12px; background: linear-gradient(to right, #dc3545, #ff6b6b); border: none; transition: all 0.3s ease; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);"><i class="bi bi-trash"></i></button>
                                 }
                             </td>
                         </tr>
                     }
                 </tbody>
                 <tfoot>
-                    <tr class="bg-secondary text-white">
-                        <td colspan="2" class="text-right"><strong>Total:</strong></td>
-                        <td><input type="number" step="0.01" id="totalGrWt" class="form-control" readonly value="0.00" /></td>
-                        <td><input type="number" step="0.01" id="totalLess" class="form-control" readonly value="0.00" /></td>
-                        <td><input type="number" step="0.01" id="totalNetWt" class="form-control" readonly value="0.00" /></td>
-                        <td colspan="4"></td>
-                        <td><input type="number" step="0.01" id="totalFine" class="form-control" readonly value="0.00" /></td>
-                        <td><input type="number" step="0.01" id="totalAmount" class="form-control" readonly value="0.00" /></td>
-                        <td></td>
+                    <tr class="bg-gradient text-white" style="background: linear-gradient(135deg, #6c757d, #adb5bd);">
+                        <td colspan="2" class="text-right" style="font-weight: 600; padding: 15px; border: none;"><strong>Total:</strong></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="totalGrWt" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="totalLess" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="totalNetWt" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td colspan="4" style="border: none;"></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="totalFine" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="totalAmount" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="border: none;"></td>
                     </tr>
-                    <tr class="bg-info text-white">
-                        <td colspan="7"></td>
-                        <td colspan="2" class="text-right">
-                            <div id="prevDate" style="color: red; font-size: 0.8em;"></div>
+                    <tr class="bg-gradient text-white" style="background: linear-gradient(135deg, #17a2b8, #6ec1e4);">
+                        <td colspan="7" style="border: none;"></td>
+                        <td colspan="2" class="text-right" style="font-weight: 600; padding: 15px; border: none;">
+                            <div id="prevDate" style="color: #ff6b6b; font-size: 0.8em;"></div>
                             <strong>Previous Balance:</strong>
                         </td>
-                        <td>
-                            <input type="number" step="0.01" id="prevFine" class="form-control" readonly value="0.00" />
-                        </td>
-                        <td><input type="number" step="0.01" id="prevAmount" class="form-control" readonly value="0.00" /></td>
-                        <td></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="prevFine" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="prevAmount" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="border: none;"></td>
                     </tr>
-                    <tr class="bg-warning text-dark">
-                        <td colspan="7"></td>
-                        <td colspan="2" class="text-right"><strong>Current Transaction:</strong></td>
-                        <td><input type="number" step="0.01" id="currentFine" class="form-control" readonly value="0.00" /></td>
-                        <td><input type="number" step="0.01" id="currentAmount" class="form-control" readonly value="0.00" /></td>
-                        <td></td>
+                    <tr class="bg-gradient text-dark" style="background: linear-gradient(135deg, #ffc107, #ffda6a);">
+                        <td colspan="7" style="border: none;"></td>
+                        <td colspan="2" class="text-right" style="font-weight: 600; padding: 15px; border: none;"><strong>Current Transaction:</strong></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="currentFine" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="currentAmount" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="border: none;"></td>
                     </tr>
-                    <tr class="bg-success text-white">
-                        <td colspan="7"></td>
-                        <td colspan="2" class="text-right"><strong>Total Balance:</strong></td>
-                        <td><input type="number" step="0.01" id="totalBalanceFine" class="form-control" readonly value="0.00" /></td>
-                        <td><input type="number" step="0.01" id="totalBalanceAmount" class="form-control" readonly value="0.00" /></td>
-                        <td></td>
+                    <tr class="bg-gradient text-white" style="background: linear-gradient(135deg, #28a745, #67b26f);">
+                        <td colspan="7" style="border: none;"></td>
+                        <td colspan="2" class="text-right" style="font-weight: 600; padding: 15px; border: none;"><strong>Total Balance:</strong></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="totalBalanceFine" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="padding: 10px;"><input type="number" step="0.01" id="totalBalanceAmount" class="form-control" readonly value="0.00" style="border-radius: 10px; padding: 8px; background: #e9ecef; border: none;" /></td>
+                        <td style="border: none;"></td>
                     </tr>
                 </tfoot>
             </table>
-            <button type="button" class="btn btn-primary mb-3" onclick="addNewRow('@Model.TransactionType')">Add New Row</button>
+            <button type="button" class="btn btn-primary mb-3" onclick="addNewRow('@Model.TransactionType')" style="border-radius: 25px; padding: 10px 25px; background: linear-gradient(to right, #007bff, #00d4ff); border: none; transition: all 0.3s ease; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">Add New Row</button>
         </div>
 
-        <div class="row mt-3">
+        <div class="row mt-4">
             <div class="col-md-12 text-center">
-                <button type="submit" class="btn btn-success">Save</button>
-                <button type="button" class="btn btn-info" onclick="printTransaction()">Print</button>
-                <button type="button" class="btn btn-secondary" onclick="exportToExcel()">Export to Excel</button>
-                <button type="button" class="btn btn-secondary" onclick="exportToPDF()">Export to PDF</button>
+                <button type="submit" class="btn btn-success" style="border-radius: 25px; padding: 12px 30px; background: linear-gradient(to right, #28a745, #67b26f); border: none; transition: all 0.3s ease; margin: 0 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">Save</button>
+                <button type="button" class="btn btn-info" onclick="printTransaction()" style="border-radius: 25px; padding: 12px 30px; background: linear-gradient(to right, #17a2b8, #6ec1e4); border: none; transition: all 0.3s ease; margin: 0 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">Print</button>
+                <button type="button" class="btn btn-secondary" onclick="exportToExcel()" style="border-radius: 25px; padding: 12px 30px; background: linear-gradient(to right, #6c757d, #adb5bd); border: none; transition: all 0.3s ease; margin: 0 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">Export to Excel</button>
+                <button type="button" class="btn btn-secondary" onclick="exportToPDF()" style="border-radius: 25px; padding: 12px 30px; background: linear-gradient(to right, #6c757d, #adb5bd); border: none; transition: all 0.3s ease; margin: 0 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">Export to PDF</button>
                 @if (ViewBag.IsExistingTransaction)
                 {
-                    <button type="button" class="btn btn-danger" onclick="deleteTransaction('@Model.BillNo')">Delete Transaction</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteTransaction('@Model.BillNo')" style="border-radius: 25px; padding: 12px 30px; background: linear-gradient(to right, #dc3545, #ff6b6b); border:авис
+
+                    none; transition: all 0.3s ease; margin: 0 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+                        Delete Transaction
+                    </button>
                 }
-                <a href="@Url.Action("ViewStock", "OpeningStock")" class="btn btn-danger">Cancel</a>
+                <a href="@Url.Action("ViewStock", "OpeningStock")" class="btn btn-danger" style="border-radius: 25px; padding: 12px 30px; background: linear-gradient(to right, #dc3545, #ff6b6b); border: none; transition: all 0.3s ease; margin: 0 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">Cancel</a>
             </div>
         </div>
     </form>
 </div>
+
+<style>
+    /* Custom Dropdown Styling */
+    .custom-select {
+        appearance: none;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"><path fill="%231e3c72" d="M7 10l5 5 5-5z"/></svg>') no-repeat right 10px center;
+        background-size: 12px;
+    }
+
+        .custom-select:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
+        }
+
+        .custom-select:focus {
+            border-color: #00d4ff;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+            outline: none;
+        }
+
+    /* Table Enhancements */
+    #transactionTable tbody tr:hover {
+        background: linear-gradient(to right, rgba(30, 60, 114, 0.05), rgba(0, 212, 255, 0.1));
+        transform: scale(1.01);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    #transactionTable th, #transactionTable td {
+        vertical-align: middle;
+    }
+
+    #transactionTable tfoot tr {
+        transition: all 0.3s ease;
+    }
+
+        #transactionTable tfoot tr:hover {
+            transform: scale(1.02);
+        }
+
+    /* Form Control Styling */
+    .form-control {
+        transition: all 0.3s ease;
+    }
+
+        .form-control:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
+        }
+
+        .form-control:focus {
+            border-color: #00d4ff;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+        }
+
+    /* Button Hover Effects */
+    .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Responsive Adjustments */
+    @@media (max-width: 768px) {
+        .table-responsive
+
+    {
+        padding: 15px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.9em;
+    }
+
+    #transactionTable th, #transactionTable td {
+        padding: 8px;
+    }
+
+    }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

@@ -7,8 +7,7 @@ namespace Gold_Billing_Web_App.Models
     {
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "Bill Number is required")]
-        public string BillNo { get; set; } = "";
+        public string BillNo { get; set; } = ""; // Remove [Required]
 
         [Required(ErrorMessage = "Date is required")]
         [DataType(DataType.Date)]
@@ -20,7 +19,7 @@ namespace Gold_Billing_Web_App.Models
         [Range(1, int.MaxValue, ErrorMessage = "Please select a valid Item")]
         public int ItemId { get; set; }
 
-        [NotMapped] // Ensure EF Core doesn't try to map this to the database
+        [NotMapped]
         public string ItemName { get; set; } = "";
 
         [Range(0, int.MaxValue, ErrorMessage = "Pieces cannot be negative")]
@@ -55,6 +54,8 @@ namespace Gold_Billing_Web_App.Models
 
         public DateTime? LastUpdated { get; set; }
 
-        public ItemModel Item { get; set; }
+        public string UserId { get; set; } = ""; // Remove [Required]
+
+        public ItemModel? Item { get; set; }
     }
 }

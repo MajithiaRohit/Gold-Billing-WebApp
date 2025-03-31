@@ -1,8 +1,10 @@
 ﻿using Gold_Billing_Web_App.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.Data;
+using System.Security.Claims;
 
 namespace Gold_Billing_Web_App.Controllers
 {
@@ -15,13 +17,21 @@ namespace Gold_Billing_Web_App.Controllers
             _context = context;
         }
 
-        private string GenerateSequentialBillNo(string prefix = "BILL")
+        private async Task<string> GetCurrentUserId()
         {
-            var lastBill = _context.OpeningStocks
-                .Where(os => os.BillNo.StartsWith(prefix))
+            // Assuming User.FindFirstValue is synchronous, wrap it in Task.FromResult
+            // If you're fetching the user ID asynchronously (e.g., from a database), replace this with the actual async call
+            return await Task.FromResult(User.FindFirstValue(ClaimTypes.NameIdentifier)) ?? throw new InvalidOperationException("User not logged in.");
+        }
+
+        private async Task<string> GenerateSequentialBillNo(string prefix = "BILL")
+        {
+            var userId = await GetCurrentUserId();
+            var lastBill = await _context.OpeningStocks
+                .Where(os => os.BillNo.StartsWith(prefix) && os.UserId == userId)
                 .OrderByDescending(os => os.BillNo)
                 .Select(os => os.BillNo)
-                .FirstOrDefault();
+                .FirstOrDefaultAsync();
 
             int lastNumber = 0;
             if (!string.IsNullOrEmpty(lastBill))
@@ -31,13 +41,15 @@ namespace Gold_Billing_Web_App.Controllers
             return $"{prefix}{(lastNumber + 1):D4}";
         }
 
-        private bool IsOpeningStockAdded()
+        private async Task<bool> IsOpeningStockAdded()
         {
-            return _context.OpeningStocks.Any();
+            var userId = await GetCurrentUserId();
+            return await _context.OpeningStocks.AnyAsync(os => os.UserId == userId);
         }
 
         private List<ItemDropDownModel> SetItemDropDown()
         {
+            // This method is synchronous; if you need to make it async, update accordingly
             return _context.Items
                 .Select(i => new ItemDropDownModel
                 {
@@ -47,9 +59,9 @@ namespace Gold_Billing_Web_App.Controllers
                 .ToList();
         }
 
-        public IActionResult AddOpeningStock()
+        public async Task<IActionResult> AddOpeningStock()
         {
-            if (IsOpeningStockAdded())
+            if (await IsOpeningStockAdded())
             {
                 TempData["Message"] = "Opening stock has already been added. Use 'New Stock' to add more.";
                 return RedirectToAction("ViewStock");
@@ -57,8 +69,9 @@ namespace Gold_Billing_Web_App.Controllers
             ViewBag.ItemDropDown = SetItemDropDown();
             var model = new OpeningStockViewModel
             {
-                BillNo = GenerateSequentialBillNo(),
+                BillNo = await GenerateSequentialBillNo(),
                 Date = DateTime.Now,
+                UserId = await GetCurrentUserId(),
                 Items = new List<OpeningStockModel> { new OpeningStockModel() }
             };
             ViewBag.Action = "AddOpeningStock";
@@ -70,6 +83,10 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddOpeningStock(OpeningStockViewModel model)
         {
+            // Set BillNo and UserId if they're not provided
+            model.BillNo = string.IsNullOrEmpty(model.BillNo) ? await GenerateSequentialBillNo() : model.BillNo;
+            model.UserId = string.IsNullOrEmpty(model.UserId) ? await GetCurrentUserId() : model.UserId;
+
             if (!ModelState.IsValid)
             {
                 ViewBag.ItemDropDown = SetItemDropDown();
@@ -80,6 +97,7 @@ namespace Gold_Billing_Web_App.Controllers
 
             try
             {
+                var userId = await GetCurrentUserId();
                 foreach (var item in model.Items)
                 {
                     CalculateDerivedFields(item);
@@ -87,6 +105,7 @@ namespace Gold_Billing_Web_App.Controllers
                     item.Date = model.Date;
                     item.Narration = model.Narration;
                     item.LastUpdated = DateTime.Now;
+                    item.UserId = userId;
                     _context.OpeningStocks.Add(item);
                 }
                 await _context.SaveChangesAsync();
@@ -102,13 +121,14 @@ namespace Gold_Billing_Web_App.Controllers
             }
         }
 
-        public IActionResult AddNewStock()
+        public async Task<IActionResult> AddNewStock()
         {
             ViewBag.ItemDropDown = SetItemDropDown();
             var model = new OpeningStockViewModel
             {
-                BillNo = GenerateSequentialBillNo("NEW"),
+                BillNo = await GenerateSequentialBillNo("NEW"),
                 Date = DateTime.Now,
+                UserId = await GetCurrentUserId(),
                 Items = new List<OpeningStockModel> { new OpeningStockModel() }
             };
             ViewBag.Action = "AddNewStock";
@@ -130,17 +150,18 @@ namespace Gold_Billing_Web_App.Controllers
             return await AddOpeningStock(model);
         }
 
-        public IActionResult EditOpeningStock(string billNo)
+        public async Task<IActionResult> EditOpeningStock(string billNo)
         {
             if (string.IsNullOrEmpty(billNo))
             {
                 return NotFound();
             }
 
-            var stocks = _context.OpeningStocks
-                .Where(os => os.BillNo == billNo)
+            var userId = await GetCurrentUserId();
+            var stocks = await _context.OpeningStocks
+                .Where(os => os.BillNo == billNo && os.UserId == userId)
                 .Include(os => os.Item)
-                .ToList();
+                .ToListAsync();
 
             if (!stocks.Any())
             {
@@ -152,6 +173,7 @@ namespace Gold_Billing_Web_App.Controllers
                 BillNo = billNo,
                 Date = stocks.First().Date,
                 Narration = stocks.First().Narration,
+                UserId = userId,
                 Items = stocks
             };
 
@@ -175,7 +197,9 @@ namespace Gold_Billing_Web_App.Controllers
 
             try
             {
-                var existingStocks = _context.OpeningStocks.Where(os => os.BillNo == model.BillNo);
+                var userId = await GetCurrentUserId();
+                var existingStocks = _context.OpeningStocks
+                    .Where(os => os.BillNo == model.BillNo && os.UserId == userId);
                 _context.OpeningStocks.RemoveRange(existingStocks);
 
                 foreach (var item in model.Items)
@@ -185,6 +209,7 @@ namespace Gold_Billing_Web_App.Controllers
                     item.Date = model.Date;
                     item.Narration = model.Narration;
                     item.LastUpdated = DateTime.Now;
+                    item.UserId = userId;
                     _context.OpeningStocks.Add(item);
                 }
                 await _context.SaveChangesAsync();
@@ -200,33 +225,44 @@ namespace Gold_Billing_Web_App.Controllers
             }
         }
 
-        public IActionResult ViewStock(int page = 1)
+        public async Task<IActionResult> ViewStock(int page = 1, string sortBy = "BillNoAsc")
         {
             const int pageSize = 10;
 
+            var userId = await GetCurrentUserId();
             var billNosQuery = _context.OpeningStocks
+                .Where(os => os.UserId == userId)
                 .Select(os => os.BillNo)
-                .Distinct()
-                .OrderBy(billNo => billNo);
+                .Distinct();
 
-            var totalRecords = billNosQuery.Count();
+            if (sortBy == "BillNoDesc")
+            {
+                billNosQuery = billNosQuery.OrderByDescending(billNo => billNo);
+            }
+            else
+            {
+                billNosQuery = billNosQuery.OrderBy(billNo => billNo);
+            }
+
+            var totalRecords = await billNosQuery.CountAsync();
             int totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
             page = Math.Max(1, Math.Min(page, totalPages));
 
-            var paginatedBillNos = billNosQuery
+            var paginatedBillNos = await billNosQuery
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .ToList();
+                .ToListAsync();
 
-            var stocks = _context.OpeningStocks
+            var stocks = await _context.OpeningStocks
                 .Include(os => os.Item)
-                .Where(os => paginatedBillNos.Contains(os.BillNo))
+                .Where(os => paginatedBillNos.Contains(os.BillNo) && os.UserId == userId)
                 .OrderBy(os => os.BillNo)
-                .ToList();
+                .ToListAsync();
 
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
             ViewBag.PageSize = pageSize;
+            ViewBag.SortBy = sortBy;
 
             DataTable table = new DataTable();
             table.Columns.Add("BillNo", typeof(string));
@@ -268,9 +304,13 @@ namespace Gold_Billing_Web_App.Controllers
         }
 
         [HttpGet]
-        public IActionResult ExportToExcel()
+        public async Task<IActionResult> ExportToExcel()
         {
-            var stocks = _context.OpeningStocks.Include(os => os.Item).ToList();
+            var userId = await GetCurrentUserId();
+            var stocks = await _context.OpeningStocks
+                .Include(os => os.Item)
+                .Where(os => os.UserId == userId)
+                .ToListAsync();
 
             decimal totalWeight = stocks.Sum(os => os.Weight ?? 0);
             decimal totalLess = stocks.Sum(os => os.Less ?? 0);
@@ -309,9 +349,14 @@ namespace Gold_Billing_Web_App.Controllers
         }
 
         [HttpGet]
-        public IActionResult PrintStock()
+        public async Task<IActionResult> PrintStock()
         {
-            var stocks = _context.OpeningStocks.Include(os => os.Item).ToList();
+            var userId = await GetCurrentUserId();
+            var stocks = await _context.OpeningStocks
+                .Include(os => os.Item)
+                .Where(os => os.UserId == userId)
+                .ToListAsync();
+
             DataTable table = new DataTable();
             table.Columns.Add("BillNo", typeof(string));
             table.Columns.Add("Date", typeof(DateTime));
@@ -335,10 +380,12 @@ namespace Gold_Billing_Web_App.Controllers
                     return Json(new { success = false, error = "BillNo is required" });
                 }
 
-                var stocks = _context.OpeningStocks.Where(os => os.BillNo == request.BillNo);
+                var userId = await GetCurrentUserId();
+                var stocks = _context.OpeningStocks
+                    .Where(os => os.BillNo == request.BillNo && os.UserId == userId);
                 if (!stocks.Any())
                 {
-                    return Json(new { success = false, error = "No stock entry found with this BillNo" });
+                    return Json(new { success = false, error = "No stock entry found with this BillNo for the current user" });
                 }
 
                 _context.OpeningStocks.RemoveRange(stocks);

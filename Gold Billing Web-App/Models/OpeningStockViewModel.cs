@@ -1,11 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Gold_Billing_Web_App.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace Gold_Billing_Web_App.Models
 {
     public class OpeningStockViewModel
     {
-        [Required(ErrorMessage = "Bill Number is required")]
-        public string BillNo { get; set; } = "";
+        public string BillNo { get; set; } = ""; // Remove [Required]
 
         [Required(ErrorMessage = "Date is required")]
         [DataType(DataType.Date)]
@@ -13,11 +13,9 @@ namespace Gold_Billing_Web_App.Models
 
         public string? Narration { get; set; }
 
-        [Required(ErrorMessage = "At least one item is required")]
+        public string UserId { get; set; } = ""; // Remove [Required]
+
         [MinLength(1, ErrorMessage = "At least one item is required")]
         public List<OpeningStockModel> Items { get; set; } = new List<OpeningStockModel>();
-
-        // Optional: Include this if you need it in the UI
-        public ItemModel? Item { get; set; }
     }
 }
