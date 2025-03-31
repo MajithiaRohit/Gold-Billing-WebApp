@@ -3,46 +3,126 @@
     ViewData["Title"] = Model.Id.HasValue ? "Edit Item" : "Add Item";
 }
 
-<div class="container mt-4">
-    <h2>@ViewData["Title"]</h2>
-    <div class="card">
-        <div class="card-body">
-            <form asp-action="SaveItem" asp-controller="Item" method="post" class="row g-3">
+<div class="container mt-5">
+    <h2 class="text-center fw-bold mb-4" style="color: #2d3436; letter-spacing: 1px; text-transform: uppercase;">@ViewData["Title"]</h2>
+    <div class="card shadow-lg border-0 rounded-3">
+        <div class="card-body p-4">
+            <form asp-action="SaveItem" asp-controller="Item" method="post" class="row g-4 needs-validation" novalidate>
                 @Html.AntiForgeryToken()
                 <input type="hidden" asp-for="Id" />
-                <input type="hidden" asp-for="UserId" /> <!-- Add hidden field for UserId -->
+                <input type="hidden" asp-for="UserId" />
 
-                <div class="row">
-                    <h5 class="mt-5">Item Details</h5>
-                    <hr>
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="Name" class="form-label">Item Name</label>
-                        <input asp-for="Name" class="form-control" />
-                        <span asp-validation-for="Name" class="text-danger"></span>
+                <!-- Item Details Section -->
+                <div class="col-12">
+                    <h5 class="mb-3 fw-bold" style="color: #34495e;">Item Details</h5>
+                    <hr class="mb-4" style="border-color: #dfe6e9;">
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Name" class="form-label fw-medium">Item Name</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="bi bi-box"></i></span>
+                        <input asp-for="Name" class="form-control shadow-sm" required />
                     </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="ItemGroupId" class="form-label">Item Group</label>
-                        <select asp-for="ItemGroupId" class="form-control" asp-items="@(new SelectList(ViewBag.ItemGroupList, "Id", "GroupName"))">
+                    <div class="invalid-feedback">Please enter an item name.</div>
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="ItemGroupId" class="form-label fw-medium">Item Group</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="bi bi-diagram-3"></i></span>
+                        <select asp-for="ItemGroupId" class="form-control shadow-sm" asp-items="@(new SelectList(ViewBag.ItemGroupList, "Id", "GroupName"))" required>
                             <option value="">Select Item Group</option>
                         </select>
-                        <span asp-validation-for="ItemGroupId" class="text-danger"></span>
                     </div>
+                    <div class="invalid-feedback">Please select an item group.</div>
+                    <span asp-validation-for="ItemGroupId" class="text-danger"></span>
                 </div>
 
                 <div class="col-12">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 </div>
 
-                <div class="d-flex justify-content-start mt-4">
-                    <button type="submit" class="btn btn-success">Save</button>
-                    <a asp-action="ItemList" class="btn btn-secondary mx-2">Cancel</a>
+                <!-- Buttons -->
+                <div class="d-flex justify-content-start gap-3 mt-5">
+                    <button type="submit" class="btn btn-gradient btn-success shadow-sm me-3">
+                        <i class="bi bi-save me-2"></i>Save
+                    </button>
+                    <a asp-action="ItemList" class="btn btn-gradient btn-secondary shadow-sm">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<!-- Bootstrap 5 CSS and Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            'use strict';
+            var forms = document.querySelectorAll('.needs-validation');
+            Array.prototype.slice.call(forms).forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        })();
+    </script>
 }
+
+<style>
+    .card {
+        background: #f8f9fa;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+
+    .input-group-text {
+        border-radius: 8px 0 0 8px;
+        color: #7f8c8d;
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        border: none;
+        padding: 10px 20px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-gradient.btn-secondary {
+            background: linear-gradient(135deg, #b2bec3, #636e72);
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+
+    label {
+        color: #2c3e50;
+    }
+
+    .invalid-feedback {
+        font-size: 0.9em;
+    }
+</style>

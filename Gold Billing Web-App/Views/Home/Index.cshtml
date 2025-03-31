@@ -1,70 +1,142 @@
 ﻿@model Gold_Billing_Web_App.Models.DashboardViewModel
 
-<div class="pagetitle">
-    <h1>Dashboard</h1>
+<div class="pagetitle mb-4">
+    <h1 class="fw-bold text-center" style="color: #2d3436; letter-spacing: 1px; text-transform: uppercase;">Dashboard</h1>
     <nav>
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="index.html">Home</a></li>
-            <li class="breadcrumb-item active">Dashboard</li>
+        <ol class="breadcrumb justify-content-center mt-2">
+            <li class="breadcrumb-item"><a href="index.html" class="text-primary">Home</a></li>
+            <li class="breadcrumb-item active" style="color: #7f8c8d;">Dashboard</li>
         </ol>
     </nav>
-</div><!-- End Page Title -->
+</div>
 
 <section class="section dashboard">
-    <div class="row">
-        <!-- Left side columns -->
-        <div class="col-lg">
-            <div class="row">
-                <!-- Total Sales Gross Weight Card -->
-                <div class="col-xxl-4 col-md-6">
-                    <div class="card info-card sales-card">
-                        <div class="card-body">
-                            <h5 class="card-title">Gross Weight (Sales) <span>| All Time</span></h5>
-                            <div class="d-flex align-items-center">
-                                <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                                    <i class="bi bi-cart"></i>
-                                </div>
-                                <div class="ps-3">
-                                    <h6>@Model.TotalSales.ToString("N2") g</h6>
-                                    <span class="text-success small pt-1 fw-bold">12%</span> <span class="text-muted small pt-2 ps-1">increase</span>
-                                </div>
-                            </div>
+    <div class="row g-4">
+        <!-- Total Sales Gross Weight Card -->
+        <div class="col-xxl-4 col-md-6">
+            <div class="card info-card sales-card shadow-lg border-0 rounded-3 animate-card">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-medium text-muted">Gross Weight (Sales) <span class="text-dark">| All Time</span></h5>
+                    <div class="d-flex align-items-center">
+                        <div class="card-icon rounded-circle d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-cart fs-3"></i>
+                        </div>
+                        <div class="ps-3">
+                            <h6 class="fw-bold" style="color: #2980b9;">@Model.TotalSales.ToString("N2") g</h6>
+                            <span class="text-success small pt-1 fw-bold">12%</span>
+                            <span class="text-muted small pt-2 ps-1">increase</span>
                         </div>
                     </div>
-                </div><!-- End Total Sales Gross Weight Card -->
-                <!-- Total Purchase Gross Weight Card -->
-                <div class="col-xxl-4 col-md-6">
-                    <div class="card info-card revenue-card">
-                        <div class="card-body">
-                            <h5 class="card-title">Gross Weight (Purchases) <span>| All Time</span></h5>
-                            <div class="d-flex align-items-center">
-                                <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                                    <i class="bi bi-currency-rupee"></i>
-                                </div>
-                                <div class="ps-3">
-                                    <h6>@Model.TotalPurchase.ToString("N2") g</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div><!-- End Total Purchase Gross Weight Card -->
-                <!-- Gross Weight Stock Card -->
-                <div class="col-xxl-4 col-md-6">
-                    <div class="card info-card sales-card">
-                        <div class="card-body">
-                            <h5 class="card-title">Gross Weight (Stock) <span>| Current</span></h5>
-                            <div class="d-flex align-items-center">
-                                <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                                    <i class="bi bi-box"></i>
-                                </div>
-                                <div class="ps-3">
-                                    <h6>@Model.GrossWeight.ToString("N2") g</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div><!-- End Gross Weight Stock Card -->
+                </div>
             </div>
-        </div><!-- End Left side columns -->
+        </div>
+
+        <!-- Total Purchase Gross Weight Card -->
+        <div class="col-xxl-4 col-md-6">
+            <div class="card info-card revenue-card shadow-lg border-0 rounded-3 animate-card">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-medium text-muted">Gross Weight (Purchases) <span class="text-dark">| All Time</span></h5>
+                    <div class="d-flex align-items-center">
+                        <div class="card-icon rounded-circle d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-currency-rupee fs-3"></i>
+                        </div>
+                        <div class="ps-3">
+                            <h6 class="fw-bold" style="color: #27ae60;">@Model.TotalPurchase.ToString("N2") g</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gross Weight Stock Card -->
+        <div class="col-xxl-4 col-md-6">
+            <div class="card info-card stock-card shadow-lg border-0 rounded-3 animate-card">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-medium text-muted">Gross Weight (Stock) <span class="text-dark">| Current</span></h5>
+                    <div class="d-flex align-items-center">
+                        <div class="card-icon rounded-circle d-flex align-items-center justify-content-center bg-info bg-opacity-10 text-info">
+                            <i class="bi bi-box fs-3"></i>
+                        </div>
+                        <div class="ps-3">
+                            <h6 class="fw-bold" style="color: #00b894;">@Model.GrossWeight.ToString("N2") g</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
+
+<!-- Bootstrap 5 CSS and Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    .pagetitle {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .breadcrumb-item a {
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+        .breadcrumb-item a:hover {
+            color: #3498db;
+        }
+
+    .info-card {
+        background: #fff;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+    .card-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        transition: background-color 0.3s ease;
+    }
+
+    .sales-card .card-icon {
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+    }
+
+    .revenue-card .card-icon {
+        background: rgba(39, 174, 96, 0.1);
+        color: #27ae60;
+    }
+
+    .stock-card .card-icon {
+        background: rgba(0, 184, 148, 0.1);
+        color: #00b894;
+    }
+
+    .card-body {
+        border-radius: 15px;
+    }
+
+    .animate-card {
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>

@@ -1,43 +1,55 @@
 ﻿@model List<Gold_Billing_Web_App.Models.AccountGroupModel>
 
-<div class="card">
-    <div class="card-body">
-        <h2 class="h2 card-title mt-3 fs-3">Account Groups</h2>
-        <div class="mb-3">
-            <a asp-action="AddEditAccountGroup" asp-controller="AccountGroup" class="btn btn-primary">
-                Add Account Group
+<div class="card shadow-lg border-0 rounded-3">
+    <div class="card-body p-4">
+        <h2 class="card-title text-center fs-3 fw-bold mb-4" style="color: #2d3436; letter-spacing: 1px; text-transform: uppercase;">Account Groups</h2>
+        <div class="mb-4 text-end">
+            <a asp-action="AddEditAccountGroup" asp-controller="AccountGroup" class="btn btn-gradient btn-primary shadow-sm">
+                <i class="bi bi-plus-circle me-2"></i>Add Account Group
             </a>
         </div>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th scope="col">ID</th>
-                    <th scope="col">Group Name</th>
-                    <th scope="col">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var GA in Model)
-                {
+        <div class="table-responsive rounded-3 shadow-sm" style="background: #fff;">
+            <table class="table table-striped table-hover table-bordered mb-0">
+                <thead style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white;">
                     <tr>
-                        <td>@GA.Id</td>
-                        <td>@GA.GroupName</td>
-                        <td>
-                            <form asp-action="AddEditAccountGroup" asp-controller="AccountGroup" method="get" class="d-inline">
-                                <input type="hidden" name="Id" value="@GA.Id" />
-                                <button type="submit" class="btn btn-outline-primary">Edit</button>
-                            </form>
-                            <form asp-action="DeleteAccountGroup" asp-controller="AccountGroup" method="post" class="d-inline" onsubmit="return confirmDelete(event, @GA.Id)">
-                                <input type="hidden" name="Id" value="@GA.Id" />
-                                <button type="submit" class="btn btn-outline-danger">Delete</button>
-                            </form>
-                        </td>
+                        <th scope="col">ID</th>
+                        <th scope="col">Group Name</th>
+                        <th scope="col" class="text-center">Actions</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var GA in Model)
+                    {
+                        <tr class="zoom-row" style="transition: all 0.3s ease;">
+                            <td class="fw-medium">@GA.Id</td>
+                            <td class="fw-bold" style="color: #2980b9;">@GA.GroupName</td>
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    <form asp-action="AddEditAccountGroup" asp-controller="AccountGroup" method="get" class="d-inline">
+                                        <input type="hidden" name="Id" value="@GA.Id" />
+                                        <button type="submit" class="btn btn-gradient btn-primary btn-sm shadow-sm">
+                                            <i class="bi bi-pencil-square me-1"></i>Edit
+                                        </button>
+                                    </form>
+                                    <form asp-action="DeleteAccountGroup" asp-controller="AccountGroup" method="post" class="d-inline delete-form" data-group-id="@GA.Id">
+                                        <input type="hidden" name="Id" value="@GA.Id" />
+                                        <button type="submit" class="btn btn-gradient btn-danger btn-sm shadow-sm">
+                                            <i class="bi bi-trash me-1"></i>Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+<!-- Bootstrap 5 CSS and Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -45,46 +57,124 @@
         document.addEventListener('DOMContentLoaded', function () {
         @if (TempData["SuccessMessage"] != null)
         {
-            <text>
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: '@TempData["SuccessMessage"]',
-                            confirmButtonColor: '#3085d6',
-                            confirmButtonText: 'OK'
-                        });
-            </text>
+            @:Swal.fire({
+            @:icon: 'success',
+            @:title: 'Success',
+            @:text: '@TempData["SuccessMessage"]',
+            @:confirmButtonColor: '#2ecc71',
+            @:confirmButtonText: 'OK'
+            @:});
         }
         @if (TempData["ErrorMessage"] != null)
         {
-            <text>
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: '@TempData["ErrorMessage"]',
-                            confirmButtonColor: '#d33',
-                            confirmButtonText: 'OK'
-                        });
-            </text>
+            @:Swal.fire({
+            @:icon: 'error',
+            @:title: 'Error',
+            @:text: '@TempData["ErrorMessage"]',
+            @:confirmButtonColor: '#e74c3c',
+            @:confirmButtonText: 'OK'
+            @:});
         }
-        });
 
-        function confirmDelete(event, id) {
-            event.preventDefault();
-            Swal.fire({
-                title: 'Are you sure?',
-                text: 'Do you want to delete this account group?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    event.target.submit();
-                }
+            document.querySelectorAll('.delete-form').forEach(form => {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: 'Do you want to delete this account group?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#e74c3c',
+                        cancelButtonColor: '#3498db',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'No, keep it'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            fetch(form.action, {
+                                method: 'POST',
+                                body: new FormData(form),
+                                headers: {
+                                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                                }
+                            })
+                            .then(response => {
+                                if (!response.ok) throw new Error('Server error');
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (data.success) {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Deleted!',
+                                        text: 'The account group has been deleted.',
+                                        confirmButtonColor: '#2ecc71'
+                                    }).then(() => {
+                                        form.closest('tr').style.transition = 'opacity 0.5s ease';
+                                        form.closest('tr').style.opacity = '0';
+                                        setTimeout(() => form.closest('tr').remove(), 500);
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error',
+                                        text: data.error || 'Failed to delete the account group.',
+                                        confirmButtonColor: '#e74c3c'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: 'An error occurred: ' + error.message,
+                                    confirmButtonColor: '#e74c3c'
+                                });
+                            });
+                        }
+                    });
+                });
             });
-            return false;
-        }
+        });
     </script>
 }
+
+<style>
+    .card {
+        background: #f8f9fa;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        border: none;
+        padding: 8px 16px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-gradient.btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+
+   
+
+    .table th, .table td {
+        vertical-align: middle;
+        padding: 12px;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: #f9fbfd;
+    }
+
+    .btn-group .btn {
+        margin: 0 2px;
+        border-radius: 8px !important;
+    }
+</style>
