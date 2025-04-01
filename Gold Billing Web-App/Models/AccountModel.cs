@@ -1,50 +1,50 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 
 namespace Gold_Billing_Web_App.Models
 {
     public class AccountModel
     {
-        public int? AccountId { get; set; }
+        public int AccountId { get; set; }
 
-        [Required(ErrorMessage = "Account Name is required")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Account Name must be between 2 and 100 characters")]
-        public string AccountName { get; set; } = "";
+        [Required(ErrorMessage = "Account name is required.")]
+        public string AccountName { get; set; }
 
-        [Required(ErrorMessage = "Account Group is required")]
-        [Range(1, int.MaxValue, ErrorMessage = "Please select a valid Account Group")]
+        [Required(ErrorMessage = "Account group is required.")]
         public int AccountGroupId { get; set; }
 
-        public AccountGroupModel? GroupAccount { get; set; } // Navigation property
+        public string Address { get; set; }
+        public string City { get; set; }
+        public string Pincode { get; set; }
+        public string MobileNo { get; set; }
+        public string PhoneNo { get; set; }
 
-        [StringLength(500, ErrorMessage = "Address cannot exceed 500 characters")]
-        public string Address { get; set; } = "";
+        [EmailAddress(ErrorMessage = "Invalid email address.")]
+        public string Email { get; set; }
 
-        [StringLength(50, ErrorMessage = "City cannot exceed 50 characters")]
-        public string City { get; set; } = "";
-
-        [StringLength(10, ErrorMessage = "Pincode cannot exceed 10 characters")]
-        [RegularExpression(@"^\d{6}$", ErrorMessage = "Pincode must be a 6-digit number")]
-        public string? Pincode { get; set; }
-
-        [Required(ErrorMessage = "Mobile Number is required")]
-        [RegularExpression(@"^\d{10}$", ErrorMessage = "Mobile Number must be a 10-digit number")]
-        public string MobileNo { get; set; } = "";
-
-        [StringLength(15, ErrorMessage = "Phone Number cannot exceed 15 characters")]
-        [RegularExpression(@"^\d+$", ErrorMessage = "Phone Number must contain only digits")]
-        public string PhoneNo { get; set; } = "";
-
-        [EmailAddress(ErrorMessage = "Invalid Email Address")]
-        public string Email { get; set; } = "";
-
-        [Range(0, double.MaxValue, ErrorMessage = "Fine cannot be negative")]
         public decimal Fine { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "Amount cannot be negative")]
         public decimal Amount { get; set; }
 
-        public DateTime Date { get; set; }
+        [Required(ErrorMessage = "Opening date is required.")]
+        [DataType(DataType.Date)]
+        [CustomValidation(typeof(AccountModel), nameof(ValidateOpeningDate))]
+        public DateTime OpeningDate { get; set; }
 
-        public int UserId { get; set; } // Ensure UserId is present
+        public DateTime? LastUpdated { get; set; }
+        public int UserId { get; set; }
+        [NotMapped]
+        public AccountGroupModel GroupAccount { get; set; }
+        [NotMapped]
+        public UserAccountModel User { get; set; } // Added
+
+        public static ValidationResult ValidateOpeningDate(DateTime openingDate, ValidationContext context)
+        {
+            if (openingDate > DateTime.Now)
+            {
+                return new ValidationResult("Opening date cannot be in the future.");
+            }
+            return ValidationResult.Success;
+        }
     }
 }

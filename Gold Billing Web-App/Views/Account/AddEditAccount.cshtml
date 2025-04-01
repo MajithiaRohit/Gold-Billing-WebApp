@@ -2,16 +2,16 @@
 
 <div class="container mt-5">
     <h2 class="text-center fw-bold mb-4" style="color: #2d3436; letter-spacing: 1px; text-transform: uppercase;">
-        @(Model.AccountId.HasValue ? "Edit" : "Add") Account
+        @(Model.AccountId > 0 ? "Edit" : "Add") Account
     </h2>
     <div class="card shadow-lg border-0 rounded-3">
         <div class="card-body p-4">
             <form asp-action="SaveAddEditAccount" asp-controller="Account" method="post" class="row g-4 needs-validation" novalidate>
                 @Html.AntiForgeryToken()
                 @Html.HiddenFor(m => m.AccountId)
-                @Html.HiddenFor(m => m.Date)
                 @Html.HiddenFor(m => m.UserId)
-
+                @Html.HiddenFor(m => m.OpeningDate) <!-- Hidden since it's set automatically -->
+                @Html.HiddenFor(m => m.LastUpdated) <!-- LastUpdated is managed by the controller -->
                 <!-- Account Details Section -->
                 <div class="col-12">
                     <h5 class="mb-3 fw-bold" style="color: #34495e;">Account Details</h5>
@@ -37,6 +37,16 @@
                     <div class="invalid-feedback">Please select an account group.</div>
                     <span asp-validation-for="AccountGroupId" class="text-danger"></span>
                 </div>
+                @if (Model.AccountId > 0) // Display OpeningDate as read-only when editing
+                {
+                    <div class="col-md-6">
+                        <label class="form-label fw-medium" asp-for="OpeningDate">Opening Date</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-calendar"></i></span>
+                            <input type="text" class="form-control shadow-sm" value="@Model.OpeningDate.ToString("yyyy-MM-dd")" readonly />
+                        </div>
+                    </div>
+                }
                 <div class="col-md-12">
                     <label class="form-label fw-medium" asp-for="Address">Address</label>
                     <textarea class="form-control shadow-sm" asp-for="Address" rows="3"></textarea>
@@ -52,7 +62,7 @@
                     <label class="form-label fw-medium" asp-for="City">City</label>
                     <div class="input-group">
                         <span class="input-group-text bg-light"><i class="bi bi-geo-alt"></i></span>
-                        <input type="text" class="form-control shadow071-sm" asp-for="City" />
+                        <input type="text" class="form-control shadow-sm" asp-for="City" />
                     </div>
                     <span asp-validation-for="City" class="text-danger"></span>
                 </div>

@@ -4,15 +4,19 @@ using Gold_Billing_Web_App.Models;
 using Gold_Billing_Web_App.Session;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Gold_Billing_Web_App.Controllers
 {
-    public class AmmountTransectionController : Controller
+    public class AmountTransactionController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<AmmountTransectionController> _logger;
+        private readonly ILogger<AmountTransactionController> _logger;
 
-        public AmmountTransectionController(AppDbContext context, ILogger<AmmountTransectionController> logger)
+        public AmountTransactionController(AppDbContext context, ILogger<AmountTransactionController> logger)
         {
             _context = context;
             _logger = logger;
@@ -37,7 +41,7 @@ namespace Gold_Billing_Web_App.Controllers
                 .Include(a => a.GroupAccount)
                 .Select(a => new AccountDropDownModel
                 {
-                    Id = a.AccountId!.Value,
+                    Id = a.AccountId,
                     AccountName = a.AccountName,
                     GroupName = a.GroupAccount != null ? a.GroupAccount.GroupName : ""
                 })
@@ -61,6 +65,7 @@ namespace Gold_Billing_Web_App.Controllers
         {
             if (!new[] { "Payment", "Receive" }.Contains(type))
             {
+                _logger.LogWarning("Invalid transaction type: {Type}", type);
                 return BadRequest("Invalid transaction type");
             }
 
@@ -89,7 +94,11 @@ namespace Gold_Billing_Web_App.Controllers
             int lastNumber = 0;
             if (!string.IsNullOrEmpty(lastBill))
             {
-                lastNumber = int.Parse(lastBill.Substring(prefix.Length));
+                if (!int.TryParse(lastBill.Substring(prefix.Length), out lastNumber))
+                {
+                    _logger.LogWarning("Failed to parse bill number: {BillNo}", lastBill);
+                    lastNumber = 0;
+                }
             }
             return $"{prefix}{(lastNumber + 1):D4}";
         }
@@ -103,13 +112,20 @@ namespace Gold_Billing_Web_App.Controllers
                 .Select(a => new { a.Fine, a.Amount })
                 .FirstOrDefault();
 
-            return Json(account != null ? new { fine = account.Fine, amount = account.Amount } : new { fine = 0.0, amount = 0.0 });
+            if (account == null)
+            {
+                _logger.LogWarning("Account not found for AccountId: {AccountId} and UserId: {UserId}", accountId, userId);
+                return Json(new { fine = 0.0m, amount = 0.0m });
+            }
+
+            return Json(new { fine = account.Fine, amount = account.Amount });
         }
 
-        public IActionResult GenrateAmmountTransectionVoucher(string type = "Payment", int? accountId = null, string? billNo = null)
+        public IActionResult GenerateAmountTransactionVoucher(string type = "Payment", int? accountId = null, string? billNo = null)
         {
             if (!new[] { "Payment", "Receive" }.Contains(type))
             {
+                _logger.LogWarning("Invalid transaction type: {Type}", type);
                 return NotFound();
             }
 
@@ -131,6 +147,7 @@ namespace Gold_Billing_Web_App.Controllers
 
                 if (transaction == null)
                 {
+                    _logger.LogWarning("Transaction not found for BillNo: {BillNo} and UserId: {UserId}", billNo, userId);
                     return NotFound();
                 }
 
@@ -192,8 +209,42 @@ namespace Gold_Billing_Web_App.Controllers
                 var existingTransaction = await _context.AmountTransactions
                     .FirstOrDefaultAsync(t => t.BillNo == model.BillNo && t.UserId == userId);
 
+                var account = await _context.Accounts
+                    .Include(a => a.GroupAccount)
+                    .FirstOrDefaultAsync(a => a.AccountId == model.AccountId && a.UserId == userId);
+
+                if (account == null)
+                {
+                    _logger.LogWarning("Account not found for AccountId: {AccountId} and UserId: {UserId}", model.AccountId, userId);
+                    return Json(new { success = false, error = "Account not found or you do not have access to it." });
+                }
+
+                // Calculate the amount adjustment for the new transaction
+                decimal newAmountAdjustment = 0;
+                string groupName = account.GroupAccount?.GroupName ?? "";
+                if (groupName == "Supplier")
+                {
+                    newAmountAdjustment = model.Type == "Payment" ? -model.Amount : model.Amount;
+                }
+                else if (groupName == "Customer")
+                {
+                    newAmountAdjustment = model.Type == "Receive" ? -model.Amount : model.Amount;
+                }
+
+                // If this is an update, reverse the previous transaction's effect
+                decimal previousAmountAdjustment = 0;
                 if (existingTransaction != null)
                 {
+                    if (groupName == "Supplier")
+                    {
+                        previousAmountAdjustment = existingTransaction.Type == "Payment" ? existingTransaction.Amount : -existingTransaction.Amount;
+                    }
+                    else if (groupName == "Customer")
+                    {
+                        previousAmountAdjustment = existingTransaction.Type == "Receive" ? existingTransaction.Amount : -existingTransaction.Amount;
+                    }
+
+                    // Update the existing transaction
                     existingTransaction.Date = model.Date;
                     existingTransaction.AccountId = model.AccountId;
                     existingTransaction.Type = model.Type;
@@ -204,27 +255,15 @@ namespace Gold_Billing_Web_App.Controllers
                 }
                 else
                 {
+                    // Add a new transaction
                     _context.AmountTransactions.Add(model);
                 }
 
-                var account = await _context.Accounts
-                    .Include(a => a.GroupAccount)
-                    .FirstOrDefaultAsync(a => a.AccountId == model.AccountId && a.UserId == userId);
+                // Adjust the account balance
+                account.Amount = account.Amount - previousAmountAdjustment + newAmountAdjustment;
 
-                if (account != null)
-                {
-                    decimal amountAdjustment = 0;
-                    string groupName = account.GroupAccount?.GroupName ?? "";
-                    if (groupName == "Supplier")
-                    {
-                        amountAdjustment = model.Type == "Payment" ? -model.Amount : model.Amount;
-                    }
-                    else if (groupName == "Customer")
-                    {
-                        amountAdjustment = model.Type == "Receive" ? -model.Amount : model.Amount;
-                    }
-                    account.Amount += amountAdjustment;
-                }
+                // Update LastUpdated since the Amount has changed
+                account.LastUpdated = DateTime.Now;
 
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Transaction saved successfully for BillNo: {BillNo}", model.BillNo);
@@ -238,6 +277,5 @@ namespace Gold_Billing_Web_App.Controllers
                 return Json(new { success = false, error = $"An error occurred while saving: {ex.Message}" });
             }
         }
-
     }
 }

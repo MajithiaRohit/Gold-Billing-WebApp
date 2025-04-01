@@ -28,5 +28,6 @@ namespace Gold_Billing_Web_App.Models
         public string? Narration { get; set; }
         public int UserId { get; set; } // For logical separation
         public AccountModel? Account { get; set; } // Nullable navigation property
+        public UserAccountModel User { get; set; } // Added
     }
 }

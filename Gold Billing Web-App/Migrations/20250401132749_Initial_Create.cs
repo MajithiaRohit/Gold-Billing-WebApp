@@ -12,35 +12,6 @@ namespace Gold_Billing_Web_App.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "GroupAccount",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    GroupName = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
-                    UserId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_GroupAccount", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ItemGroup",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
-                    Date = table.Column<DateTime>(type: "date", nullable: false),
-                    UserId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ItemGroup", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "PaymentModes",
                 columns: table => new
                 {
@@ -76,6 +47,47 @@ namespace Gold_Billing_Web_App.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "GroupAccount",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    GroupName = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GroupAccount", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_GroupAccount_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ItemGroup",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
+                    Date = table.Column<DateTime>(type: "date", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ItemGroup", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ItemGroup_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Account",
                 columns: table => new
                 {
@@ -85,13 +97,14 @@ namespace Gold_Billing_Web_App.Migrations
                     AccountGroupId = table.Column<int>(type: "int", nullable: false),
                     Address = table.Column<string>(type: "nvarchar(510)", maxLength: 510, nullable: false),
                     City = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Pincode = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: true),
+                    Pincode = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     MobileNo = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     PhoneNo = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     Email = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Fine = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Fine = table.Column<decimal>(type: "decimal(18,3)", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Date = table.Column<DateTime>(type: "date", nullable: false),
+                    OpeningDate = table.Column<DateTime>(type: "date", nullable: false),
+                    LastUpdated = table.Column<DateTime>(type: "datetime", nullable: true),
                     UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -101,6 +114,12 @@ namespace Gold_Billing_Web_App.Migrations
                         name: "FK_Account_GroupAccount_AccountGroupId",
                         column: x => x.AccountGroupId,
                         principalTable: "GroupAccount",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Account_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -124,6 +143,12 @@ namespace Gold_Billing_Web_App.Migrations
                         principalTable: "ItemGroup",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Item_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -138,7 +163,8 @@ namespace Gold_Billing_Web_App.Migrations
                     Type = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     PaymentModeId = table.Column<int>(type: "int", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
+                    Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -155,6 +181,12 @@ namespace Gold_Billing_Web_App.Migrations
                         principalTable: "PaymentModes",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_AmountTransactions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -167,11 +199,12 @@ namespace Gold_Billing_Web_App.Migrations
                     Date = table.Column<DateTime>(type: "date", nullable: false),
                     AccountId = table.Column<int>(type: "int", nullable: false),
                     Type = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
-                    Weight = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Tunch = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Weight = table.Column<decimal>(type: "decimal(18,3)", nullable: false),
+                    Tunch = table.Column<decimal>(type: "decimal(18,3)", nullable: false),
                     Rate = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
+                    Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -181,6 +214,12 @@ namespace Gold_Billing_Web_App.Migrations
                         column: x => x.AccountId,
                         principalTable: "Account",
                         principalColumn: "AccountId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RateCutTransactions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
 
@@ -192,13 +231,14 @@ namespace Gold_Billing_Web_App.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     BillNo = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Date = table.Column<DateTime>(type: "datetime", nullable: false),
-                    AccountId = table.Column<int>(type: "int", nullable: false),
+                    AccountId = table.Column<int>(type: "int", nullable: true),
                     Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     Type = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    ItemId = table.Column<int>(type: "int", nullable: false),
-                    GrossWeight = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Tunch = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Fine = table.Column<decimal>(type: "decimal(18,2)", nullable: true)
+                    ItemId = table.Column<int>(type: "int", nullable: true),
+                    GrossWeight = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    Tunch = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    Fine = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -215,6 +255,12 @@ namespace Gold_Billing_Web_App.Migrations
                         principalTable: "Item",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_MetalTransactions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -228,16 +274,17 @@ namespace Gold_Billing_Web_App.Migrations
                     Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     ItemId = table.Column<int>(type: "int", nullable: false),
                     Pc = table.Column<int>(type: "int", nullable: true),
-                    Weight = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Less = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    NetWt = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Tunch = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Wastage = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    TW = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    Weight = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    Less = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    NetWt = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    Tunch = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    Wastage = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    TW = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
                     Rate = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Fine = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    Fine = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    LastUpdated = table.Column<DateTime>(type: "datetime", nullable: true)
+                    LastUpdated = table.Column<DateTime>(type: "datetime", nullable: true),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -246,6 +293,12 @@ namespace Gold_Billing_Web_App.Migrations
                         name: "FK_OpeningStock_Item_ItemId",
                         column: x => x.ItemId,
                         principalTable: "Item",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_OpeningStock_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -261,16 +314,16 @@ namespace Gold_Billing_Web_App.Migrations
                     Date = table.Column<DateTime>(type: "date", nullable: false),
                     Narration = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     AccountId = table.Column<int>(type: "int", nullable: true),
-                    ItemId = table.Column<int>(type: "int", nullable: false),
+                    ItemId = table.Column<int>(type: "int", nullable: true),
                     Pc = table.Column<int>(type: "int", nullable: true),
-                    Weight = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Less = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    NetWt = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Tunch = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Wastage = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    TW = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    Weight = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    Less = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    NetWt = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    Tunch = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    Wastage = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
+                    TW = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
                     Rate = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Fine = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    Fine = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     LastUpdated = table.Column<DateTime>(type: "datetime", nullable: false),
                     UserId = table.Column<int>(type: "int", nullable: false)
@@ -290,6 +343,12 @@ namespace Gold_Billing_Web_App.Migrations
                         principalTable: "Item",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Transactions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(
@@ -298,9 +357,19 @@ namespace Gold_Billing_Web_App.Migrations
                 column: "AccountGroupId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Account_UserId",
+                table: "Account",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_AmountTransactions_AccountId",
                 table: "AmountTransactions",
                 column: "AccountId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AmountTransactions_BillNo_UserId",
+                table: "AmountTransactions",
+                columns: new[] { "BillNo", "UserId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AmountTransactions_PaymentModeId",
@@ -308,9 +377,29 @@ namespace Gold_Billing_Web_App.Migrations
                 column: "PaymentModeId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AmountTransactions_UserId",
+                table: "AmountTransactions",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GroupAccount_UserId",
+                table: "GroupAccount",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Item_ItemGroupId",
                 table: "Item",
                 column: "ItemGroupId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Item_UserId",
+                table: "Item",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ItemGroup_UserId",
+                table: "ItemGroup",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MetalTransactions_AccountId",
@@ -318,9 +407,24 @@ namespace Gold_Billing_Web_App.Migrations
                 column: "AccountId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_MetalTransactions_BillNo_UserId",
+                table: "MetalTransactions",
+                columns: new[] { "BillNo", "UserId" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MetalTransactions_ItemId",
                 table: "MetalTransactions",
                 column: "ItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MetalTransactions_UserId",
+                table: "MetalTransactions",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OpeningStock_BillNo_UserId",
+                table: "OpeningStock",
+                columns: new[] { "BillNo", "UserId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_OpeningStock_ItemId",
@@ -328,9 +432,30 @@ namespace Gold_Billing_Web_App.Migrations
                 column: "ItemId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_OpeningStock_UserId",
+                table: "OpeningStock",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaymentModes_ModeName",
+                table: "PaymentModes",
+                column: "ModeName",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_RateCutTransactions_AccountId",
                 table: "RateCutTransactions",
                 column: "AccountId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RateCutTransactions_BillNo_UserId",
+                table: "RateCutTransactions",
+                columns: new[] { "BillNo", "UserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RateCutTransactions_UserId",
+                table: "RateCutTransactions",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Transactions_AccountId",
@@ -338,9 +463,19 @@ namespace Gold_Billing_Web_App.Migrations
                 column: "AccountId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Transactions_BillNo_UserId",
+                table: "Transactions",
+                columns: new[] { "BillNo", "UserId" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Transactions_ItemId",
                 table: "Transactions",
                 column: "ItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Transactions_UserId",
+                table: "Transactions",
+                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -362,9 +497,6 @@ namespace Gold_Billing_Web_App.Migrations
                 name: "Transactions");
 
             migrationBuilder.DropTable(
-                name: "Users");
-
-            migrationBuilder.DropTable(
                 name: "PaymentModes");
 
             migrationBuilder.DropTable(
@@ -378,6 +510,9 @@ namespace Gold_Billing_Web_App.Migrations
 
             migrationBuilder.DropTable(
                 name: "ItemGroup");
+
+            migrationBuilder.DropTable(
+                name: "Users");
         }
     }
 }

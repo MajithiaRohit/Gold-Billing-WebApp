@@ -57,5 +57,6 @@ namespace Gold_Billing_Web_App.Models
         public int UserId { get; set; } // Remove [Required]
 
         public ItemModel? Item { get; set; }
+        public UserAccountModel User { get; set; } // Added
     }
 }

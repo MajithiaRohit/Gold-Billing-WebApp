@@ -18,5 +18,6 @@ namespace Gold_Billing_Web_App.Models
         public ItemGroupModel? ItemGroup { get; set; } // Navigation property
 
         public int UserId { get; set; } // Add UserId to associate with a user
+        public UserAccountModel User { get; set; } // Added
     }
 }

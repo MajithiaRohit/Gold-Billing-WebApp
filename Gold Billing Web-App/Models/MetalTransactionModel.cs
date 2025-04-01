@@ -15,6 +15,7 @@
         public ItemModel? Item { get; set; }
         public AccountModel? Account { get; set; }
         public int UserId { get; set; }
+        public UserAccountModel User { get; set; } // Added
     }
 
     public class MetalTransactionViewModel
@@ -26,5 +27,6 @@
         public string Type { get; set; } = "Payment";
         public List<MetalTransactionModel> Items { get; set; } = new List<MetalTransactionModel>();
         public int UserId { get; set; }
+        public UserAccountModel User { get; set; } // Added
     }
 }

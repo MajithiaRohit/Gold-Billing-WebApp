@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Gold_Billing_Web_App.Models;
 
 namespace Gold_Billing_Web_App.Models
 {
@@ -26,7 +25,6 @@ namespace Gold_Billing_Web_App.Models
             {
                 entity.ToTable("Account");
                 entity.HasKey(e => e.AccountId);
-                entity.Property(e => e.Date).HasColumnType("date");
                 entity.Property(e => e.AccountName).IsRequired().HasMaxLength(510);
                 entity.Property(e => e.AccountGroupId).IsRequired();
                 entity.Property(e => e.Address).HasMaxLength(510);
@@ -35,11 +33,18 @@ namespace Gold_Billing_Web_App.Models
                 entity.Property(e => e.MobileNo).HasMaxLength(30);
                 entity.Property(e => e.PhoneNo).HasMaxLength(30);
                 entity.Property(e => e.Email).HasMaxLength(200);
-                entity.Property(e => e.Fine).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Fine).HasColumnType("decimal(18,3)");
                 entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.OpeningDate).HasColumnType("date");
+                entity.Property(e => e.LastUpdated).HasColumnType("datetime");
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
                 entity.HasOne(e => e.GroupAccount)
                       .WithMany()
                       .HasForeignKey(e => e.AccountGroupId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -55,6 +60,7 @@ namespace Gold_Billing_Web_App.Models
                 entity.Property(e => e.PaymentModeId).IsRequired();
                 entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Narration).HasMaxLength(1000);
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
                 entity.HasOne(e => e.Account)
                       .WithMany()
                       .HasForeignKey(e => e.AccountId)
@@ -63,6 +69,11 @@ namespace Gold_Billing_Web_App.Models
                       .WithMany()
                       .HasForeignKey(e => e.PaymentModeId)
                       .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.BillNo, e.UserId });
             });
 
             // GroupAccount
@@ -71,6 +82,11 @@ namespace Gold_Billing_Web_App.Models
                 entity.ToTable("GroupAccount");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.GroupName).IsRequired().HasMaxLength(510);
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Item
@@ -80,9 +96,14 @@ namespace Gold_Billing_Web_App.Models
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(510);
                 entity.Property(e => e.ItemGroupId).IsRequired();
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
                 entity.HasOne(e => e.ItemGroup)
                       .WithMany()
                       .HasForeignKey(e => e.ItemGroupId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -93,6 +114,11 @@ namespace Gold_Billing_Web_App.Models
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(510);
                 entity.Property(e => e.Date).HasColumnType("date");
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // MetalTransactions
@@ -102,25 +128,27 @@ namespace Gold_Billing_Web_App.Models
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.BillNo).HasMaxLength(100);
                 entity.Property(e => e.Date).HasColumnType("datetime");
-                entity.Property(e => e.AccountId); // Optional, not required
                 entity.Property(e => e.Narration).HasMaxLength(1000);
                 entity.Property(e => e.Type).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.ItemId); // Optional, not required
-                entity.Property(e => e.GrossWeight).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Tunch).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Fine).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.UserId).IsRequired();
-
+                entity.Property(e => e.GrossWeight).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Tunch).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Fine).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
                 entity.HasOne(e => e.Item)
                       .WithMany()
                       .HasForeignKey(e => e.ItemId)
                       .OnDelete(DeleteBehavior.Restrict)
-                      .IsRequired(false); // Optional foreign key
+                      .IsRequired(false);
                 entity.HasOne(e => e.Account)
                       .WithMany()
                       .HasForeignKey(e => e.AccountId)
                       .OnDelete(DeleteBehavior.Restrict)
-                      .IsRequired(false); // Optional foreign key
+                      .IsRequired(false);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.BillNo, e.UserId });
             });
 
             // OpeningStock
@@ -133,20 +161,26 @@ namespace Gold_Billing_Web_App.Models
                 entity.Property(e => e.Narration).HasMaxLength(1000);
                 entity.Property(e => e.ItemId).IsRequired();
                 entity.Property(e => e.Pc).HasColumnType("int");
-                entity.Property(e => e.Weight).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Less).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.NetWt).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Tunch).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Wastage).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.TW).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Less).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.NetWt).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Tunch).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Wastage).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.TW).HasColumnType("decimal(18,3)");
                 entity.Property(e => e.Rate).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Fine).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Fine).HasColumnType("decimal(18,3)");
                 entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.LastUpdated).HasColumnType("datetime");
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
                 entity.HasOne(e => e.Item)
                       .WithMany()
                       .HasForeignKey(e => e.ItemId)
                       .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.BillNo, e.UserId });
             });
 
             // PaymentModes
@@ -155,6 +189,7 @@ namespace Gold_Billing_Web_App.Models
                 entity.ToTable("PaymentModes");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.ModeName).IsRequired().HasMaxLength(100);
+                entity.HasIndex(e => e.ModeName).IsUnique();
             });
 
             // RateCutTransactions
@@ -166,15 +201,21 @@ namespace Gold_Billing_Web_App.Models
                 entity.Property(e => e.Date).HasColumnType("date");
                 entity.Property(e => e.AccountId).IsRequired();
                 entity.Property(e => e.Type).IsRequired().HasMaxLength(40);
-                entity.Property(e => e.Weight).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Tunch).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Tunch).HasColumnType("decimal(18,3)");
                 entity.Property(e => e.Rate).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Narration).HasMaxLength(1000);
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
                 entity.HasOne(e => e.Account)
                       .WithMany()
                       .HasForeignKey(e => e.AccountId)
                       .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.BillNo, e.UserId });
             });
 
             // Transactions
@@ -185,28 +226,33 @@ namespace Gold_Billing_Web_App.Models
                 entity.Property(e => e.BillNo).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.Date).HasColumnType("date");
                 entity.Property(e => e.TransactionType).IsRequired().HasMaxLength(40);
-                entity.Property(e => e.AccountId).HasColumnType("int");
-                entity.Property(e => e.ItemId).IsRequired();
                 entity.Property(e => e.Pc).HasColumnType("int");
-                entity.Property(e => e.Weight).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Less).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.NetWt).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Tunch).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Wastage).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.TW).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Less).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.NetWt).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Tunch).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.Wastage).HasColumnType("decimal(18,3)");
+                entity.Property(e => e.TW).HasColumnType("decimal(18,3)");
                 entity.Property(e => e.Rate).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Fine).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Fine).HasColumnType("decimal(18,3)");
                 entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.LastUpdated).HasColumnType("datetime");
                 entity.Property(e => e.Narration).HasMaxLength(1000);
+                entity.Property(e => e.UserId).HasColumnType("int").IsRequired();
                 entity.HasOne(e => e.Account)
                       .WithMany()
                       .HasForeignKey(e => e.AccountId)
-                      .OnDelete(DeleteBehavior.Restrict);
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
                 entity.HasOne(e => e.Item)
                       .WithMany()
                       .HasForeignKey(e => e.ItemId)
                       .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.BillNo, e.UserId });
             });
 
             // Users
@@ -217,8 +263,8 @@ namespace Gold_Billing_Web_App.Models
                 entity.Property(e => e.Username).IsRequired().HasMaxLength(510);
                 entity.Property(e => e.Password)
                       .IsRequired()
-                      .HasMaxLength(60) // BCrypt hash length
-                      .HasColumnType("nvarchar(60)") // Explicitly define column type
+                      .HasMaxLength(60)
+                      .HasColumnType("nvarchar(60)")
                       .HasComment("Stores BCrypt hashed password (60 characters)");
                 entity.Property(e => e.FullName).HasMaxLength(510);
                 entity.Property(e => e.CompanyName).HasMaxLength(510);
@@ -231,7 +277,6 @@ namespace Gold_Billing_Web_App.Models
             });
         }
 
-        // Override SaveChanges to add validation for Password length
         public override int SaveChanges()
         {
             ValidatePasswordLength();

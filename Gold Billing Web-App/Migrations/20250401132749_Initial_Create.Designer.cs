@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Gold_Billing_Web_App.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250328170457_AddUserIdToRateCutTransactions")]
-    partial class AddUserIdToRateCutTransactions
+    [Migration("20250401132749_Initial_Create")]
+    partial class Initial_Create
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -42,6 +42,8 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("GroupAccount", (string)null);
                 });
@@ -75,21 +77,24 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("date");
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<decimal>("Fine")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("LastUpdated")
+                        .HasColumnType("datetime");
 
                     b.Property<string>("MobileNo")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("OpeningDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("PhoneNo")
                         .IsRequired()
@@ -97,6 +102,7 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("Pincode")
+                        .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
 
@@ -106,6 +112,8 @@ namespace Gold_Billing_Web_App.Migrations
                     b.HasKey("AccountId");
 
                     b.HasIndex("AccountGroupId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Account", (string)null);
                 });
@@ -153,6 +161,10 @@ namespace Gold_Billing_Web_App.Migrations
 
                     b.HasIndex("PaymentModeId");
 
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BillNo", "UserId");
+
                     b.ToTable("AmountTransactions", (string)null);
                 });
 
@@ -176,6 +188,8 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("ItemGroup", (string)null);
                 });
@@ -203,6 +217,8 @@ namespace Gold_Billing_Web_App.Migrations
 
                     b.HasIndex("ItemGroupId");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Item", (string)null);
                 });
 
@@ -225,10 +241,10 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("datetime");
 
                     b.Property<decimal?>("Fine")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<decimal?>("GrossWeight")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int?>("ItemId")
                         .HasColumnType("int");
@@ -238,7 +254,7 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<decimal?>("Tunch")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -253,6 +269,10 @@ namespace Gold_Billing_Web_App.Migrations
                     b.HasIndex("AccountId");
 
                     b.HasIndex("ItemId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BillNo", "UserId");
 
                     b.ToTable("MetalTransactions", (string)null);
                 });
@@ -277,7 +297,7 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("date");
 
                     b.Property<decimal?>("Fine")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int>("ItemId")
                         .HasColumnType("int");
@@ -286,14 +306,14 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("datetime");
 
                     b.Property<decimal?>("Less")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("Narration")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<decimal?>("NetWt")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int?>("Pc")
                         .HasColumnType("int");
@@ -302,20 +322,27 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("TW")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<decimal?>("Tunch")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("Wastage")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<decimal?>("Weight")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ItemId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BillNo", "UserId");
 
                     b.ToTable("OpeningStock", (string)null);
                 });
@@ -334,6 +361,9 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ModeName")
+                        .IsUnique();
 
                     b.ToTable("PaymentModes", (string)null);
                 });
@@ -368,7 +398,7 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Tunch")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -379,11 +409,15 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Weight")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BillNo", "UserId");
 
                     b.ToTable("RateCutTransactions", (string)null);
                 });
@@ -411,23 +445,23 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("date");
 
                     b.Property<decimal?>("Fine")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
-                    b.Property<int>("ItemId")
+                    b.Property<int?>("ItemId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime");
 
                     b.Property<decimal?>("Less")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("Narration")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<decimal?>("NetWt")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int?>("Pc")
                         .HasColumnType("int");
@@ -436,7 +470,7 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("TW")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("TransactionType")
                         .IsRequired()
@@ -444,22 +478,26 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasColumnType("nvarchar(40)");
 
                     b.Property<decimal?>("Tunch")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.Property<decimal?>("Wastage")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<decimal?>("Weight")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
 
                     b.HasIndex("ItemId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BillNo", "UserId");
 
                     b.ToTable("Transactions", (string)null);
                 });
@@ -520,6 +558,17 @@ namespace Gold_Billing_Web_App.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Gold_Billing_Web_App.Models.AccountGroupModel", b =>
+                {
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Gold_Billing_Web_App.Models.AccountModel", b =>
                 {
                     b.HasOne("Gold_Billing_Web_App.Models.AccountGroupModel", "GroupAccount")
@@ -528,7 +577,15 @@ namespace Gold_Billing_Web_App.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("GroupAccount");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gold_Billing_Web_App.Models.AmountTransactionModel", b =>
@@ -545,9 +602,28 @@ namespace Gold_Billing_Web_App.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Account");
 
                     b.Navigation("PaymentMode");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Gold_Billing_Web_App.Models.ItemGroupModel", b =>
+                {
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gold_Billing_Web_App.Models.ItemModel", b =>
@@ -558,7 +634,15 @@ namespace Gold_Billing_Web_App.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("ItemGroup");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gold_Billing_Web_App.Models.MetalTransactionModel", b =>
@@ -573,9 +657,17 @@ namespace Gold_Billing_Web_App.Migrations
                         .HasForeignKey("ItemId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Account");
 
                     b.Navigation("Item");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gold_Billing_Web_App.Models.OpeningStockModel", b =>
@@ -586,7 +678,15 @@ namespace Gold_Billing_Web_App.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Item");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gold_Billing_Web_App.Models.RateCutTransactionModel", b =>
@@ -597,7 +697,15 @@ namespace Gold_Billing_Web_App.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Account");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gold_Billing_Web_App.Models.TransactionModel", b =>
@@ -610,12 +718,19 @@ namespace Gold_Billing_Web_App.Migrations
                     b.HasOne("Gold_Billing_Web_App.Models.ItemModel", "Item")
                         .WithMany()
                         .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Gold_Billing_Web_App.Models.UserAccountModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Account");
 
                     b.Navigation("Item");
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

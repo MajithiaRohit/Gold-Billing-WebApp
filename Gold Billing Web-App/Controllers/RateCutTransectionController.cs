@@ -1,22 +1,22 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Gold_Billing_Web_App.Models;
-using Gold_Billing_Web_App.Session; // Assuming this namespace for CommonVariable
+using Gold_Billing_Web_App.Session;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging; // Added for logging
+using Microsoft.Extensions.Logging;
 
 namespace Gold_Billing_Web_App.Controllers
 {
-    public class RateCutTransectionController : Controller
+    public class RateCutTransactionController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<RateCutTransectionController> _logger; // Added for logging
+        private readonly ILogger<RateCutTransactionController> _logger;
 
-        public RateCutTransectionController(AppDbContext context, ILogger<RateCutTransectionController> logger)
+        public RateCutTransactionController(AppDbContext context, ILogger<RateCutTransactionController> logger)
         {
             _context = context;
             _logger = logger;
@@ -27,6 +27,7 @@ namespace Gold_Billing_Web_App.Controllers
             var userIdString = HttpContext.Session.GetString(CommonVariable.UserId) ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
             {
+                _logger.LogWarning("User is not authenticated or UserId is invalid.");
                 throw new UnauthorizedAccessException("User is not authenticated.");
             }
             return userId;
@@ -36,11 +37,11 @@ namespace Gold_Billing_Web_App.Controllers
         {
             var userId = GetCurrentUserId();
             return _context.Accounts
-                .Where(a => a.UserId == userId) // Filter by UserId
+                .Where(a => a.UserId == userId)
                 .Include(a => a.GroupAccount)
                 .Select(a => new AccountDropDownModel
                 {
-                    Id = a.AccountId!.Value,
+                    Id = a.AccountId,
                     AccountName = a.AccountName,
                     GroupName = a.GroupAccount != null ? a.GroupAccount.GroupName : ""
                 })
@@ -52,7 +53,7 @@ namespace Gold_Billing_Web_App.Controllers
             var userId = GetCurrentUserId();
             string prefix = type == "GoldPurchaseRate" ? "GPR" : "GSR";
             var lastBill = _context.RateCutTransactions
-                .Where(t => t.BillNo.StartsWith(prefix) && t.UserId == userId) // Filter by UserId
+                .Where(t => t.BillNo.StartsWith(prefix) && t.UserId == userId)
                 .OrderByDescending(t => t.BillNo)
                 .Select(t => t.BillNo)
                 .FirstOrDefault();
@@ -60,7 +61,11 @@ namespace Gold_Billing_Web_App.Controllers
             int lastNumber = 0;
             if (!string.IsNullOrEmpty(lastBill))
             {
-                lastNumber = int.Parse(lastBill.Substring(prefix.Length));
+                if (!int.TryParse(lastBill.Substring(prefix.Length), out lastNumber))
+                {
+                    _logger.LogWarning("Failed to parse bill number: {BillNo}", lastBill);
+                    lastNumber = 0;
+                }
             }
             return $"{prefix}{(lastNumber + 1):D4}";
         }
@@ -70,6 +75,7 @@ namespace Gold_Billing_Web_App.Controllers
         {
             if (string.IsNullOrEmpty(type) || !new[] { "GoldPurchaseRate", "GoldSaleRate" }.Contains(type))
             {
+                _logger.LogWarning("Invalid transaction type: {Type}", type);
                 return BadRequest("Invalid transaction type");
             }
 
@@ -90,8 +96,8 @@ namespace Gold_Billing_Web_App.Controllers
         {
             var userId = GetCurrentUserId();
             var account = _context.Accounts
-                .Where(a => a.AccountId == accountId && a.UserId == userId) // Filter by UserId
-                .Select(a => new { a.Fine, a.Amount, a.Date })
+                .Where(a => a.AccountId == accountId && a.UserId == userId)
+                .Select(a => new { a.Fine, a.Amount, a.LastUpdated })
                 .FirstOrDefault();
 
             if (account != null)
@@ -100,16 +106,17 @@ namespace Gold_Billing_Web_App.Controllers
                 {
                     fine = account.Fine,
                     amount = account.Amount,
-                    lastBalanceDate = account.Date.ToString("yyyy-MM-dd")
+                    lastBalanceDate = account.LastUpdated?.ToString("yyyy-MM-dd HH:mm:ss")
                 });
             }
-            return Json(new { fine = 0.0, amount = 0.0, lastBalanceDate = (string?)null });
+            return Json(new { fine = 0.0m, amount = 0.0m, lastBalanceDate = (string?)null });
         }
 
-        public IActionResult GenrateRateCutVoucher(string type = "GoldPurchaseRate", int? accountId = null, string? billNo = null)
+        public IActionResult GenerateRateCutVoucher(string type = "GoldPurchaseRate", int? accountId = null, string? billNo = null)
         {
             if (!new[] { "GoldPurchaseRate", "GoldSaleRate" }.Contains(type))
             {
+                _logger.LogWarning("Invalid transaction type: {Type}", type);
                 return NotFound();
             }
 
@@ -135,11 +142,12 @@ namespace Gold_Billing_Web_App.Controllers
 
                 if (transaction == null)
                 {
+                    _logger.LogWarning("Transaction not found for BillNo: {BillNo} and UserId: {UserId}", billNo, userId);
                     return NotFound();
                 }
 
                 model = transaction;
-                ViewBag.SelectedAccountId = model.AccountId; // Set only for existing transactions
+                ViewBag.SelectedAccountId = model.AccountId;
             }
             else
             {
@@ -153,7 +161,6 @@ namespace Gold_Billing_Web_App.Controllers
 
             return View(model);
         }
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -170,7 +177,7 @@ namespace Gold_Billing_Web_App.Controllers
                 var errors = ModelState.Select(kvp => new
                 {
                     Key = kvp.Key,
-                    Errors = kvp.Value!.Errors.Select(e => e.ErrorMessage).ToList()
+                    Errors = kvp.Value.Errors.Select(e => e.ErrorMessage).ToList()
                 }).Where(x => x.Errors.Any()).ToList();
                 _logger.LogWarning("ModelState invalid. Detailed errors: {@Errors}", errors);
                 return Json(new { success = false, error = string.Join("; ", errors.SelectMany(e => e.Errors)) });
@@ -179,22 +186,91 @@ namespace Gold_Billing_Web_App.Controllers
             try
             {
                 // Validate AccountId exists for the current user
-                var accountExists = await _context.Accounts
-                    .AnyAsync(a => a.AccountId == model.AccountId && a.UserId == userId);
-                if (!accountExists)
+                var account = await _context.Accounts
+                    .Include(a => a.GroupAccount)
+                    .FirstOrDefaultAsync(a => a.AccountId == model.AccountId && a.UserId == userId);
+                if (account == null)
                 {
                     _logger.LogWarning("Invalid AccountId {AccountId} for UserId {UserId}", model.AccountId, userId);
                     return Json(new { success = false, error = "Selected account does not exist or is not associated with your user." });
                 }
 
+                // Calculate Fine Gold and Amount
                 decimal fineGold = (model.Weight * model.Tunch) / 100;
                 model.Amount = fineGold * model.Rate;
 
                 var existingTransaction = await _context.RateCutTransactions
                     .FirstOrDefaultAsync(t => t.BillNo == model.BillNo && t.UserId == userId);
 
+                // Calculate adjustments for the new transaction
+                decimal newFineAdjustment = fineGold;
+                decimal newAmountAdjustment = model.Amount;
+
+                string groupName = account.GroupAccount?.GroupName ?? "";
+                if (groupName == "Supplier")
+                {
+                    if (model.Type == "GoldPurchaseRate")
+                    {
+                        newFineAdjustment = -fineGold; // Decrease Fine (paying metal)
+                        newAmountAdjustment = model.Amount; // Increase Amount (receiving money)
+                    }
+                    else if (model.Type == "GoldSaleRate")
+                    {
+                        newFineAdjustment = fineGold; // Increase Fine (receiving metal)
+                        newAmountAdjustment = -model.Amount; // Decrease Amount (paying money)
+                    }
+                }
+                else if (groupName == "Customer")
+                {
+                    if (model.Type == "GoldPurchaseRate")
+                    {
+                        newFineAdjustment = -fineGold; // Decrease Fine (paying metal)
+                        newAmountAdjustment = model.Amount; // Increase Amount (receiving money)
+                    }
+                    else if (model.Type == "GoldSaleRate")
+                    {
+                        newFineAdjustment = fineGold; // Increase Fine (receiving metal)
+                        newAmountAdjustment = -model.Amount; // Decrease Amount (paying money)
+                    }
+                }
+
+                // If this is an update, reverse the previous transaction's effect
+                decimal previousFineAdjustment = 0;
+                decimal previousAmountAdjustment = 0;
                 if (existingTransaction != null)
                 {
+                    decimal previousFineGold = (existingTransaction.Weight * existingTransaction.Tunch) / 100;
+                    previousFineAdjustment = previousFineGold;
+                    previousAmountAdjustment = existingTransaction.Amount;
+
+                    if (groupName == "Supplier")
+                    {
+                        if (existingTransaction.Type == "GoldPurchaseRate")
+                        {
+                            previousFineAdjustment = -previousFineGold; // Reverse: Increase Fine
+                            previousAmountAdjustment = existingTransaction.Amount; // Reverse: Decrease Amount
+                        }
+                        else if (existingTransaction.Type == "GoldSaleRate")
+                        {
+                            previousFineAdjustment = previousFineGold; // Reverse: Decrease Fine
+                            previousAmountAdjustment = -existingTransaction.Amount; // Reverse: Increase Amount
+                        }
+                    }
+                    else if (groupName == "Customer")
+                    {
+                        if (existingTransaction.Type == "GoldPurchaseRate")
+                        {
+                            previousFineAdjustment = -previousFineGold; // Reverse: Increase Fine
+                            previousAmountAdjustment = existingTransaction.Amount; // Reverse: Decrease Amount
+                        }
+                        else if (existingTransaction.Type == "GoldSaleRate")
+                        {
+                            previousFineAdjustment = previousFineGold; // Reverse: Decrease Fine
+                            previousAmountAdjustment = -existingTransaction.Amount; // Reverse: Increase Amount
+                        }
+                    }
+
+                    // Update the existing transaction
                     existingTransaction.Date = model.Date;
                     existingTransaction.AccountId = model.AccountId;
                     existingTransaction.Type = model.Type;
@@ -207,48 +283,16 @@ namespace Gold_Billing_Web_App.Controllers
                 }
                 else
                 {
+                    // Add a new transaction
                     _context.RateCutTransactions.Add(model);
                 }
 
-                var account = await _context.Accounts
-                    .Include(a => a.GroupAccount)
-                    .FirstOrDefaultAsync(a => a.AccountId == model.AccountId && a.UserId == userId);
+                // Adjust the account balance
+                account.Fine = account.Fine - previousFineAdjustment + newFineAdjustment;
+                account.Amount = account.Amount - previousAmountAdjustment + newAmountAdjustment;
 
-                if (account != null)
-                {
-                    decimal fineAdjustment = fineGold;
-                    decimal amountAdjustment = model.Amount;
-
-                    if (account.GroupAccount?.GroupName == "Supplier")
-                    {
-                        if (model.Type == "GoldPurchaseRate")
-                        {
-                            fineAdjustment = -fineGold; // Decrease Fine (paying metal)
-                            amountAdjustment = model.Amount; // Increase Amount (receiving money)
-                        }
-                        else if (model.Type == "GoldSaleRate")
-                        {
-                            fineAdjustment = fineGold; // Increase Fine (receiving metal)
-                            amountAdjustment = -model.Amount; // Decrease Amount (paying money)
-                        }
-                    }
-                    else if (account.GroupAccount?.GroupName == "Customer")
-                    {
-                        if (model.Type == "GoldPurchaseRate")
-                        {
-                            fineAdjustment = -fineGold; // Decrease Fine (paying metal)
-                            amountAdjustment = model.Amount; // Increase Amount (receiving money)
-                        }
-                        else if (model.Type == "GoldSaleRate")
-                        {
-                            fineAdjustment = fineGold; // Increase Fine (receiving metal)
-                            amountAdjustment = -model.Amount; // Decrease Amount (paying money)
-                        }
-                    }
-
-                    account.Fine += fineAdjustment;
-                    account.Amount += amountAdjustment;
-                }
+                // Update LastUpdated since Fine or Amount has changed
+                account.LastUpdated = DateTime.Now;
 
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Transaction saved successfully for BillNo: {BillNo}", model.BillNo);
@@ -262,6 +306,5 @@ namespace Gold_Billing_Web_App.Controllers
                 return Json(new { success = false, error = $"An error occurred while saving: {ex.Message}" });
             }
         }
-
     }
 }

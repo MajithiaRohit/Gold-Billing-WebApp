@@ -1,4 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Gold_Billing_Web_App.Models
 {
@@ -10,7 +12,7 @@ namespace Gold_Billing_Web_App.Models
         public string TransactionType { get; set; } = "";
 
         [Display(Name = "Bill Number")]
-        public string BillNo { get; set; } = ""; // Remove [Required]
+        public string BillNo { get; set; } = "";
 
         [Required(ErrorMessage = "Date is required.")]
         public DateTime Date { get; set; }
@@ -32,7 +34,13 @@ namespace Gold_Billing_Web_App.Models
         public DateTime LastUpdated { get; set; }
         public int UserId { get; set; }
 
+        [NotMapped]
+        public UserAccountModel User { get; set; }
+
+        [NotMapped]
         public AccountModel? Account { get; set; }
+
+        [NotMapped]
         public ItemModel? Item { get; set; }
     }
 }

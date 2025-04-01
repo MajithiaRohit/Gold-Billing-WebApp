@@ -31,6 +31,7 @@ namespace Gold_Billing_Web_App.Models
         public string? Narration { get; set; }
 
         public int UserId { get; set; }
+        public UserAccountModel User { get; set; } // Added
 
         public AccountModel? Account { get; set; } // Made nullable
         public PaymentModeDropDownModel? PaymentMode { get; set; } // Made nullable

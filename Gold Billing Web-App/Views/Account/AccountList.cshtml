@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Account List";
 }
+
 <div class="card shadow-lg border-0 rounded-3">
     <div class="card-body p-4">
         <h5 class="card-title text-center fs-3 fw-bold mb-4" style="color: #2d3436; letter-spacing: 1px; text-transform: uppercase;">Accounts</h5>
@@ -16,7 +17,8 @@
                 <thead style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; position: sticky; top: 0; z-index: 1;">
                     <tr class="text-center">
                         <th scope="col" style="white-space: nowrap;">Account Id</th>
-                        <th scope="col" style="white-space: nowrap;">Date</th>
+                        <th scope="col" style="white-space: nowrap;">Opening Date</th>
+                        <th scope="col" style="white-space: nowrap;">Last Updated</th>
                         <th scope="col" style="white-space: nowrap;">Account Name</th>
                         <th scope="col" style="white-space: nowrap;">Group Name</th>
                         <th scope="col" style="white-space: nowrap;">Address</th>
@@ -40,7 +42,8 @@
 
                         <tr class="zoom-row" style="transition: all 0.3s ease;">
                             <td style="white-space: nowrap;" class="fw-medium">@account.AccountId</td>
-                            <td style="white-space: nowrap;">@account.Date.ToString("yyyy-MM-dd")</td>
+                            <td style="white-space: nowrap;">@account.OpeningDate.ToString("yyyy-MM-dd")</td>
+                            <td style="white-space: nowrap;">@(account.LastUpdated.HasValue ? account.LastUpdated.Value.ToString("yyyy-MM-dd HH:mm:ss") : "N/A")</td>
                             <td style="white-space: nowrap;" class="fw-bold" style="color: #2980b9;">@account.AccountName</td>
                             <td style="white-space: nowrap;">@account.GroupAccount?.GroupName</td>
                             <td style="white-space: nowrap;">@account.Address</td>
