@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Gold_Billing_Web_App.Models
+namespace Gold_Billing_Web_App.Models.ViewModels
 {
     public class TransactionViewModel
     {

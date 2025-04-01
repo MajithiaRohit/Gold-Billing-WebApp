@@ -1,7 +1,6 @@
-﻿using Gold_Billing_Web_App.Models;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
-namespace Gold_Billing_Web_App.Models
+namespace Gold_Billing_Web_App.Models.ViewModels
 {
     public class OpeningStockViewModel
     {
@@ -13,7 +12,7 @@ namespace Gold_Billing_Web_App.Models
 
         public string? Narration { get; set; }
 
-        public string UserId { get; set; } = ""; // Remove [Required]
+        public int UserId { get; set; } // Remove [Required]
 
         [MinLength(1, ErrorMessage = "At least one item is required")]
         public List<OpeningStockModel> Items { get; set; } = new List<OpeningStockModel>();

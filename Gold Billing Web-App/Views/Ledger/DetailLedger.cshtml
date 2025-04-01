@@ -1,0 +1,151 @@
+﻿@model Gold_Billing_Web_App.Models.LedgerViewModel
+
+@{
+    ViewData["Title"] = "Detail Ledger";
+}
+
+<h2>Detail Ledger</h2>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label for="accountId">Account</label>
+        <select id="accountId" class="form-control" asp-items="@(new SelectList(Model.Accounts, "Id", "AccountName"))">
+            <option value="">Select Account</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label for="startDate">Start Date</label>
+        <input type="date" id="startDate" class="form-control" value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-md-3">
+        <label for="endDate">End Date</label>
+        <input type="date" id="endDate" class="form-control" value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-md-3">
+        <label> </label>
+        <button id="filterBtn" class="btn btn-primary form-control">Filter</button>
+    </div>
+</div>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Ref No.</th>
+            <th>Narration</th>
+            <th>Pc</th>
+            <th>Gr.Wt</th>
+            <th>Less</th>
+            <th>Net.Wt</th>
+            <th>Tunch</th>
+            <th>Wstg</th>
+            <th>Rate</th>
+            <th>Gold Fine</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+    <tbody id="transactionTable">
+        <!-- Transactions will be populated via JavaScript -->
+    </tbody>
+</table>
+
+<div class="row">
+    <div class="col-md-6">
+        <h4>Running Balance</h4>
+        <p>Gold: <span id="runningGoldFine">0</span></p>
+        <p>Amount: <span id="runningAmount">0</span></p>
+    </div>
+    <div class="col-md-6">
+        <h4>Closing Balance</h4>
+        <p>Gold: <span id="closingGoldFine">0</span></p>
+        <p>Amount: <span id="closingAmount">0</span></p>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+         // Update date range when account is selected
+            $("#accountId").change(function () {
+                const accountId = $(this).val();
+                if (accountId) {
+                    const createdDate = accountCreationDates[accountId];
+                    if (createdDate) {
+                        $("#startDate").val(createdDate);
+                    }
+                    $("#endDate").val("@DateTime.Now.ToString("yyyy-MM-dd")");
+                } else {
+                    $("#startDate").val("");
+                    $("#endDate").val("");
+                }
+            });
+
+            // Filter transactions on button click
+            $("#filterBtn").click(function () {
+                const accountId = $("#accountId").val();
+                const startDate = $("#startDate").val();
+                const endDate = $("#endDate").val();
+
+                if (!accountId) {
+                    Swal.fire("Error", "Please select an account.", "error");
+                    return;
+                }
+
+                if (!startDate || !endDate) {
+                    Swal.fire("Error", "Please select a date range.", "error");
+                    return;
+                }
+
+                $.ajax({
+                    url: "@Url.Action("GetTransactions", "Ledger")",
+                    type: "POST",
+                    data: {
+                        accountId: accountId,
+                        startDate: startDate,
+                        endDate: endDate,
+                        "__RequestVerificationToken": $("input[name='__RequestVerificationToken']").val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            // Clear existing table rows
+                            $("#transactionTable").empty();
+
+                            // Populate table with transactions
+                            response.transactions.forEach(function (txn) {
+                                const row = `<tr>
+                                    <td>${new Date(txn.date).toLocaleDateString()}</td>
+                                    <td>${txn.type || ''}</td>
+                                    <td>${txn.refNo || ''}</td>
+                                    <td>${txn.narration || ''}</td>
+                                    <td>${txn.pc || ''}</td>
+                                    <td>${txn.grWt || ''}</td>
+                                    <td>${txn.less || ''}</td>
+                                    <td>${txn.netWt || ''}</td>
+                                    <td>${txn.tunch || ''}</td>
+                                    <td>${txn.wstg || ''}</td>
+                                    <td>${txn.rate || ''}</td>
+                                    <td>${txn.goldFine || ''}</td>
+                                    <td>${txn.amount || ''}</td>
+                                </tr>`;
+                                $("#transactionTable").append(row);
+                            });
+
+                            // Update running and closing balances
+                            $("#runningGoldFine").text(response.runningGoldFine);
+                            $("#runningAmount").text(response.runningAmount);
+                            $("#closingGoldFine").text(response.runningGoldFine);
+                            $("#closingAmount").text(response.runningAmount);
+                        } else {
+                            Swal.fire("Error", response.error, "error");
+                        }
+                    },
+                    error: function () {
+                        Swal.fire("Error", "An error occurred while fetching transactions.", "error");
+                    }
+                });
+            });
+        });
+    </script>
+}

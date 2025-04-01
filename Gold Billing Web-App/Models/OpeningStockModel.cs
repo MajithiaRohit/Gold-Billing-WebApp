@@ -54,7 +54,7 @@ namespace Gold_Billing_Web_App.Models
 
         public DateTime? LastUpdated { get; set; }
 
-        public string UserId { get; set; } = ""; // Remove [Required]
+        public int UserId { get; set; } // Remove [Required]
 
         public ItemModel? Item { get; set; }
     }

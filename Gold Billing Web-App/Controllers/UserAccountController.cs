@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using Gold_Billing_WebApp.Models;
+using Gold_Billing_Web_App.Models.ViewModels;
 
 namespace Gold_Billing_Web_App.Controllers
 {

@@ -1,4 +1,4 @@
-namespace Gold_Billing_Web_App.Models
+namespace Gold_Billing_Web_App.Models.ViewModels
 {
     public class ErrorViewModel
     {

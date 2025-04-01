@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Data;
 using OfficeOpenXml;
+using Gold_Billing_Web_App.Models.ViewModels;
 
 namespace Gold_Billing_Web_App.Controllers
 {
@@ -16,14 +17,21 @@ namespace Gold_Billing_Web_App.Controllers
             _context = context;
         }
 
-        private async Task<string> GetCurrentUserId()
+        private async Task<int> GetCurrentUserId()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString))
             {
                 Console.WriteLine("Error: User not logged in or user ID not found.");
                 throw new InvalidOperationException("User not logged in.");
             }
+
+            if (!int.TryParse(userIdString, out int userId))
+            {
+                Console.WriteLine($"Error: UserId '{userIdString}' is not a valid integer.");
+                throw new InvalidOperationException($"UserId '{userIdString}' is not a valid integer.");
+            }
+
             return await Task.FromResult(userId);
         }
 
@@ -41,7 +49,7 @@ namespace Gold_Billing_Web_App.Controllers
             {
                 lastNumber = int.Parse(lastBill.Substring(prefix.Length));
             }
-            return $"{prefix}{(lastNumber + 1):D4}";
+            return $"{prefix}{lastNumber + 1:D4}"; // Fixed formatting
         }
 
         private async Task<bool> IsOpeningStockAdded()
@@ -89,7 +97,7 @@ namespace Gold_Billing_Web_App.Controllers
         public async Task<IActionResult> AddOpeningStock(OpeningStockViewModel model)
         {
             model.BillNo = string.IsNullOrEmpty(model.BillNo) ? await GenerateSequentialBillNo() : model.BillNo;
-            model.UserId = string.IsNullOrEmpty(model.UserId) ? await GetCurrentUserId() : model.UserId;
+            model.UserId = await GetCurrentUserId(); // UserId is now int
 
             if (!ModelState.IsValid)
             {
@@ -110,7 +118,7 @@ namespace Gold_Billing_Web_App.Controllers
                     item.Date = model.Date;
                     item.Narration = model.Narration;
                     item.LastUpdated = DateTime.Now;
-                    item.UserId = userId;
+                    item.UserId = userId; // Now both are int
                     _context.OpeningStocks.Add(item);
                     Console.WriteLine($"Added item to context: ItemId={item.ItemId}, Weight={item.Weight}, Fine={item.Fine}");
                 }
@@ -163,7 +171,7 @@ namespace Gold_Billing_Web_App.Controllers
             {
                 model.BillNo = await GenerateSequentialBillNo("NEW");
             }
-            model.UserId = string.IsNullOrEmpty(model.UserId) ? await GetCurrentUserId() : model.UserId;
+            model.UserId = await GetCurrentUserId(); // UserId is now int
 
             var existingBill = await _context.OpeningStocks.AnyAsync(os => os.BillNo == model.BillNo);
             if (existingBill)
@@ -191,7 +199,7 @@ namespace Gold_Billing_Web_App.Controllers
                     item.Date = model.Date;
                     item.Narration = model.Narration;
                     item.LastUpdated = DateTime.Now;
-                    item.UserId = string.IsNullOrEmpty(item.UserId) ? userId : item.UserId;
+                    item.UserId = userId; // Now both are int
                     _context.OpeningStocks.Add(item);
                     Console.WriteLine($"Added item to context: ItemId={item.ItemId}, Weight={item.Weight}, Fine={item.Fine}, UserId={item.UserId}");
                 }
@@ -286,13 +294,13 @@ namespace Gold_Billing_Web_App.Controllers
                     item.Date = model.Date;
                     item.Narration = model.Narration;
                     item.LastUpdated = DateTime.Now;
-                    item.UserId = userId;
+                    item.UserId = userId; // Now both are int
 
                     var existingItem = existingStocks.FirstOrDefault(os => os.Id == item.Id);
                     if (existingItem != null)
                     {
                         _context.Entry(existingItem).CurrentValues.SetValues(item);
-                        Console.WriteLine($"Added item to context for edit: ItemId={item.ItemId}, Weight={item.Weight}, Fine={item.Fine}");
+                        Console.WriteLine($"Updated item in context: ItemId={item.ItemId}, Weight={item.Weight}, Fine={item.Fine}");
                     }
                     else
                     {
@@ -463,7 +471,6 @@ namespace Gold_Billing_Web_App.Controllers
             }
             return View("PrintStock", table);
         }
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
