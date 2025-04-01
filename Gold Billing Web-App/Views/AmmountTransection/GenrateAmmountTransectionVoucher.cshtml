@@ -3,35 +3,41 @@
     ViewBag.Title = "Amount Transaction";
 }
 
-<div class="container-sm p-3" style="background-color: lightsteelblue; border-radius: 10px;">
-    <h3 class="text-center mb-3 mt-3">@ViewBag.Title</h3>
+<div class="card shadow-lg border-0 rounded-3 mt-5 mx-auto" style="background: linear-gradient(135deg, #dfe6e9, #b2bec3);">
+    <div class="card-body p-4">
+        <h3 class="text-center fw-bold mb-4" style="color: #2d3436; letter-spacing: 1px; text-transform: uppercase;">@ViewBag.Title</h3>
 
-    <div id="alertContainer" class="mb-3"></div>
+        <div id="alertContainer" class="mb-4"></div>
 
-    @if (!ViewData.ModelState.IsValid)
-    {
-        <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading">Validation Errors</h4>
-            <ul>
-                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    <li>@error.ErrorMessage</li>
-                }
-            </ul>
-        </div>
-    }
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger shadow-sm rounded-3" role="alert">
+                <h4 class="alert-heading fw-bold">Validation Errors</h4>
+                <ul class="mb-0">
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <li>@error.ErrorMessage</li>
+                    }
+                </ul>
+            </div>
+        }
 
-    <form asp-action="AddAmountTransaction" method="post" id="amountTransactionForm">
-        @Html.AntiForgeryToken()
-        <input type="hidden" asp-for="Id" />
-        <input type="hidden" asp-for="UserId" />
-        <hr class="mb-3 mt-3" />
+        <form asp-action="AddAmountTransaction" method="post" id="amountTransactionForm" class="row g-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="UserId" />
 
-        <div class="row mb-3">
+            <div class="col-12">
+                <hr class="mb-4" style="border-color: #dfe6e9;">
+            </div>
+
             <div class="col-md-4">
-                <label asp-for="AccountId" class="form-label">Account</label>
-                <select asp-for="AccountId" id="accountSelect" class="form-control" onchange="fetchPreviousBalance(); updateBalances();" required>
-                    <option value="">Select Account</option>
+                <label asp-for="AccountId" class="form-label fw-medium">Account</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+                    <select asp-for="AccountId" id="accountSelect" class="form-control shadow-sm" onchange="fetchPreviousBalance(); updateBalances();" required>
+                       
+                     <option value="">Select Account</option>
                     @foreach (var account in ViewBag.AccountDropDown)
                     {
                         if (Model.AccountId == account.Id)
@@ -43,90 +49,111 @@
                             <option value="@account.Id" data-group="@account.GroupName">@account.AccountName</option>
                         }
                     }
-                </select>
+                    </select>
+                </div>
                 <span asp-validation-for="AccountId" class="text-danger" id="account-error"></span>
             </div>
             <div class="col-md-4">
-                <label asp-for="Date" class="form-label">Date</label>
-                <input asp-for="Date" type="date" class="form-control" required />
+                <label asp-for="Date" class="form-label fw-medium">Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-calendar"></i></span>
+                    <input asp-for="Date" type="date" class="form-control shadow-sm" required />
+                </div>
                 <span asp-validation-for="Date" class="text-danger"></span>
             </div>
             <div class="col-md-4">
-                <label asp-for="BillNo" class="form-label">Bill Number</label>
-                <input asp-for="BillNo" class="form-control" id="billNoInput" readonly />
+                <label asp-for="BillNo" class="form-label fw-medium">Bill Number</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-receipt"></i></span>
+                    <input asp-for="BillNo" class="form-control shadow-sm" id="billNoInput" readonly />
+                </div>
                 <span asp-validation-for="BillNo" class="text-danger"></span>
             </div>
-        </div>
 
-        <div class="row mb-3">
             <div class="col-md-12">
-                <label asp-for="Narration" class="form-label">Narration</label>
-                <textarea asp-for="Narration" class="form-control" maxlength="500"></textarea>
+                <label asp-for="Narration" class="form-label fw-medium">Narration</label>
+                <textarea asp-for="Narration" class="form-control shadow-sm" maxlength="500" rows="3"></textarea>
                 <span asp-validation-for="Narration" class="text-danger"></span>
             </div>
-        </div>
 
-        <div class="row mb-3">
             <div class="col-md-6">
-                <label class="form-label">Transaction Type</label><br />
-                <label><input type="radio" name="Type" value="Payment" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Payment" ? "checked" : "")> Payment</label>
-                <label><input type="radio" name="Type" value="Receive" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Receive" ? "checked" : "")> Receive</label>
+                <label class="form-label fw-medium">Transaction Type</label><br />
+                <div class="btn-group" role="group">
+                    <label class="btn btn-outline-primary shadow-sm">
+                        <input type="radio" name="Type" value="Payment" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Payment" ? "checked" : "")> Payment
+                    </label>
+                    <label class="btn btn-outline-primary shadow-sm">
+                        <input type="radio" name="Type" value="Receive" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Receive" ? "checked" : "")> Receive
+                    </label>
+                </div>
             </div>
-        </div>
-        <div class="row mb-3">
+
             <div class="col-md-3">
-                <label asp-for="PaymentModeId" class="form-label">Payment Mode</label>
-                <select asp-for="PaymentModeId" class="form-control" required>
-                    <option value="">Select</option>
-                    @foreach (var mode in ViewBag.PaymentModeDropDown)
-                    {
-                        if (Model.PaymentModeId == mode.Id)
+                <label asp-for="PaymentModeId" class="form-label fw-medium">Payment Mode</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-wallet"></i></span>
+                    <select asp-for="PaymentModeId" class="form-control shadow-sm" required>
+                        <option value="">Select</option>
+                        @foreach (var mode in ViewBag.PaymentModeDropDown)
                         {
-                            <option value="@mode.Id" selected>@mode.ModeName</option>
+                            if (Model.PaymentModeId == mode.Id)
+                            {
+                                <option value="@mode.Id" selected>@mode.ModeName</option>
+                            }
+                            else
+                            {
+                                <option value="@mode.Id">@mode.ModeName</option>
+                            }
                         }
-                        else
-                        {
-                            <option value="@mode.Id">@mode.ModeName</option>
-                        }
-                    }
-                </select>
+                    </select>
+                </div>
                 <span asp-validation-for="PaymentModeId" class="text-danger"></span>
             </div>
             <div class="col-md-3">
-                <label asp-for="Amount" class="form-label">Amount</label>
-                <input asp-for="Amount" type="number" step="0.01" min="0.01" class="form-control" onchange="updateBalances();" required />
+                <label asp-for="Amount" class="form-label fw-medium">Amount</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-currency-rupee"></i></span>
+                    <input asp-for="Amount" type="number" step="0.01" min="0.01" class="form-control shadow-sm" onchange="updateBalances();" required />
+                </div>
                 <span asp-validation-for="Amount" class="text-danger"></span>
             </div>
-        </div>
 
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <tfoot>
-                    <tr class="bg-info text-white">
-                        <td class="text-right"><strong>Previous Balance:</strong></td>
-                        <td><input type="number" step="0.01" id="prevAmount" class="form-control" readonly /></td>
-                    </tr>
-                    <tr class="bg-warning text-dark">
-                        <td class="text-right"><strong>Current Transaction:</strong></td>
-                        <td><input type="number" step="0.01" id="currentAmount" class="form-control" readonly /></td>
-                    </tr>
-                    <tr class="bg-success text-white">
-                        <td class="text-right"><strong>Total Balance:</strong></td>
-                        <td><input type="number" step="0.01" id="totalBalanceAmount" class="form-control" readonly /></td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-
-        <div class="row mt-3">
-            <div class="col-md-12 text-center">
-                <button type="submit" class="btn btn-success">Save</button>
-                <a href="@Url.Action("Index", "Home")" class="btn btn-danger">Cancel</a>
+            <div class="col-12">
+                <div class="table-responsive rounded-3 shadow-sm">
+                    <table class="table table-bordered mb-0 bg-white">
+                        <tfoot>
+                            <tr class="bg-info text-white">
+                                <td class="text-right fw-bold">Previous Balance:</td>
+                                <td><input type="number" step="0.01" id="prevAmount" class="form-control" readonly /></td>
+                            </tr>
+                            <tr class="bg-warning text-dark">
+                                <td class="text-right fw-bold">Current Transaction:</td>
+                                <td><input type="number" step="0.01" id="currentAmount" class="form-control" readonly /></td>
+                            </tr>
+                            <tr class="bg-success text-white">
+                                <td class="text-right fw-bold">Total Balance:</td>
+                                <td><input type="number" step="0.01" id="totalBalanceAmount" class="form-control" readonly /></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
-        </div>
-    </form>
+
+            <div class="col-12 text-center mt-4">
+                <button type="submit" class="btn btn-gradient btn-success shadow-sm px-4">
+                    <i class="bi bi-save me-2"></i>Save
+                </button>
+                <a href="@Url.Action("Index", "Home")" class="btn btn-gradient btn-danger shadow-sm px-4">
+                    <i class="bi bi-x-circle me-2"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
 
+<!-- Dependencies -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
@@ -135,14 +162,14 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         fetchPreviousBalance();
-        fetchBillNo(document.querySelector('input[name="Type"]:checked').value);
+        fetchBillNo(document.querySelector('input[name="Type"]:checked')?.value || 'Payment');
         updateBalances();
     });
 
     function showAlert(message, type) {
         const alertContainer = document.getElementById('alertContainer');
         alertContainer.innerHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <div class="alert alert-${type} alert-dismissible fade show shadow-sm rounded-3" role="alert">
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
@@ -172,7 +199,6 @@
 
     function updateTypeAndBillNo() {
         const type = document.querySelector('input[name="Type"]:checked').value;
-        document.getElementById('transactionType').value = type;
         fetchBillNo(type);
         updateBalances();
     }
@@ -180,17 +206,12 @@
     function fetchBillNo(type) {
         fetch(`/AmmountTransection/GetNextBillNo?type=${type}`)
             .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
+                if (!response.ok) throw new Error('Network response was not ok');
                 return response.json();
             })
             .then(data => {
-                if (data.success) {
-                    document.getElementById('billNoInput').value = data.billNo;
-                } else {
-                    throw new Error(data.error);
-                }
+                if (data.success) document.getElementById('billNoInput').value = data.billNo;
+                else throw new Error(data.error);
             })
             .catch(error => {
                 console.error('Error fetching bill number:', error);
@@ -201,14 +222,8 @@
     function updateBalances() {
         let prevAmount = parseFloat(document.getElementById('prevAmount').value) || 0;
         let amount = parseFloat(document.getElementById('Amount').value) || 0;
-        let transactionType = document.querySelector('input[name="Type"]:checked').value;
-        let currentAmount = amount;
-
-        if (transactionType === 'Payment') {
-            currentAmount = -amount;
-        } else if (transactionType === 'Receive') {
-            currentAmount = amount;
-        }
+        let transactionType = document.querySelector('input[name="Type"]:checked')?.value || 'Payment';
+        let currentAmount = transactionType === 'Payment' ? -amount : amount;
 
         document.getElementById('currentAmount').value = currentAmount.toFixed(2);
         document.getElementById('totalBalanceAmount').value = (prevAmount + currentAmount).toFixed(2);
@@ -217,39 +232,24 @@
     document.getElementById('amountTransactionForm').addEventListener('submit', function (e) {
         e.preventDefault();
         let formData = new FormData(this);
-
-        // Ensure Type is set from radio buttons
         const selectedType = document.querySelector('input[name="Type"]:checked')?.value;
-        if (selectedType) {
-            formData.set('Type', selectedType);
-        }
-
-        console.log('Submitting form data:');
-        for (var pair of formData.entries()) {
-            console.log(`${pair[0]}: ${pair[1]}`);
-        }
+        if (selectedType) formData.set('Type', selectedType);
 
         fetch(this.action, {
             method: 'POST',
             body: formData
         })
         .then(response => {
-            console.log('Response status:', response.status);
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(`Server returned ${response.status}: ${text}`);
-                });
-            }
+            if (!response.ok) throw new Error(`Server returned ${response.status}`);
             return response.json();
         })
         .then(data => {
-            console.log('Response data:', data);
             if (data.success) {
                 Swal.fire({
                     title: 'Success!',
                     text: 'Transaction has been successfully saved!',
                     icon: 'success',
-                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#2ecc71',
                     timer: 2000,
                     timerProgressBar: true
                 }).then(() => {
@@ -265,3 +265,52 @@
         });
     });
 </script>
+
+<style>
+    .card {
+        overflow: hidden;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+    }
+
+    .input-group-text {
+        border-radius: 8px 0 0 8px;
+        color: #7f8c8d;
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-gradient.btn-danger {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+    }
+
+    .btn-gradient:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+
+    label {
+        color: #2c3e50;
+    }
+
+    .table th, .table td {
+        vertical-align: middle;
+    }
+
+    .table-responsive {
+        background: #fff;
+    }
+</style>

@@ -3,140 +3,177 @@
     ViewBag.Title = "Rate Cut Transaction";
 }
 
-<div class="container p-3" style="background-color: beige; border-radius: 10px;">
-    <h2 class="text-center mb-3">@ViewBag.Title</h2>
-    <hr />
+<div class="card shadow-lg border-0 rounded-3 mt-5 mx-auto" style="background: linear-gradient(135deg, lightblue, white);">
+    <div class="card-body p-4">
+        <h2 class="text-center fw-bold mb-4" style="color: #2d3436; letter-spacing: 1px; text-transform: uppercase;">@ViewBag.Title</h2>
+        <hr class="mb-4" style="border-color: darkblue;">
 
-    <!-- Alert Container -->
-    <div id="alertContainer" class="mb-3"></div>
+        <!-- Alert Container -->
+        <div id="alertContainer" class="mb-4"></div>
 
-    @if (!ViewData.ModelState.IsValid)
-    {
-        <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading">Validation Errors</h4>
-            <ul>
-                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    <li>@error.ErrorMessage</li>
-                }
-            </ul>
-        </div>
-    }
-
-    <form asp-action="AddRateCutTransaction" method="post" id="rateCutForm">
-        @Html.AntiForgeryToken()
-        <input type="hidden" asp-for="Id" />
-        <input type="hidden" asp-for="Type" id="transactionType" />
-
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Account Name</label>
-                <select asp-for="AccountId" id="accountSelect" class="form-control" onchange="fetchPreviousBalance(); updateBalances();" required>
-                    <option value="">Select Account</option>
-                    @foreach (var account in ViewBag.AccountDropDown)
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger shadow-sm rounded-3" role="alert">
+                <h4 class="alert-heading fw-bold">Validation Errors</h4>
+                <ul class="mb-0">
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
                     {
-                        if (Model.AccountId == account.Id)
-                        {
-                            <option value="@account.Id" data-group="@account.GroupName" selected>@account.AccountName</option>
-                        }
-                        else
-                        {
-                            <option value="@account.Id" data-group="@account.GroupName">@account.AccountName</option>
-                        }
+                        <li>@error.ErrorMessage</li>
                     }
-                </select>
+                </ul>
+            </div>
+        }
+
+        <form asp-action="AddRateCutTransaction" method="post" id="rateCutForm" class="row g-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="Type" id="transactionType" />
+
+            <div class="col-md-6">
+                <label class="form-label fw-medium">Account Name</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+                    <select asp-for="AccountId" id="accountSelect" class="form-control shadow-sm" onchange="fetchPreviousBalance(); updateBalances();" required>
+
+                        <option value="">Select Account</option>
+                        @foreach (var account in ViewBag.AccountDropDown)
+                        {
+                            if (Model.AccountId == account.Id)
+                            {
+                                <option value="@account.Id" data-group="@account.GroupName" selected>@account.AccountName</option>
+                            }
+                            else
+                            {
+                                <option value="@account.Id" data-group="@account.GroupName">@account.AccountName</option>
+                            }
+                        }
+                    </select>
+                </div>
                 <span asp-validation-for="AccountId" class="text-danger" id="account-error"></span>
             </div>
             <div class="col-md-3">
-                <label asp-for="Date" class="form-label">Date</label>
-                <input asp-for="Date" type="date" class="form-control" required />
+                <label asp-for="Date" class="form-label fw-medium">Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-calendar"></i></span>
+                    <input asp-for="Date" type="date" class="form-control shadow-sm" required />
+                </div>
                 <span asp-validation-for="Date" class="text-danger"></span>
             </div>
             <div class="col-md-3">
-                <label asp-for="BillNo" class="form-label">Bill No</label>
-                <input asp-for="BillNo" class="form-control" id="billNoInput" readonly />
+                <label asp-for="BillNo" class="form-label fw-medium">Bill No</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-receipt"></i></span>
+                    <input asp-for="BillNo" class="form-control shadow-sm" id="billNoInput" readonly />
+                </div>
                 <span asp-validation-for="BillNo" class="text-danger"></span>
             </div>
-        </div>
 
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label asp-for="Narration" class="form-label">Narration</label>
-                <textarea asp-for="Narration" class="form-control" maxlength="500"></textarea>
+            <div class="col-md-12">
+                <label asp-for="Narration" class="form-label fw-medium">Narration</label>
+                <textarea asp-for="Narration" class="form-control shadow-sm" maxlength="500" rows="3"></textarea>
                 <span asp-validation-for="Narration" class="text-danger"></span>
             </div>
-        </div>
 
-        <div class="form-group">
-            <label class="form-label">Transaction Type</label><br />
-            <label><input type="radio" name="Type" value="GoldPurchaseRate" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "GoldPurchaseRate" ? "checked" : "")> Gold Purchase Rate</label>
-            <label><input type="radio" name="Type" value="GoldSaleRate" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "GoldSaleRate" ? "checked" : "")> Gold Sale Rate</label>
-        </div>
+            <div class="col-12">
+                <label class="form-label fw-medium">Transaction Type</label><br />
+                <div class="btn-group" role="group">
+                    <label class="btn btn-outline-primary shadow-sm">
+                        <input type="radio" name="Type" value="GoldPurchaseRate" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "GoldPurchaseRate" ? "checked" : "")> Gold Purchase Rate
+                    </label>
+                    <label class="btn btn-outline-primary shadow-sm">
+                        <input type="radio" name="Type" value="GoldSaleRate" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "GoldSaleRate" ? "checked" : "")> Gold Sale Rate
+                    </label>
+                </div>
+            </div>
 
-        <div class="mt-4">
-            <table class="table table-bordered mt-3">
-                <thead>
-                    <tr>
-                        <th>Weight</th>
-                        <th>Tunch (%)</th>
-                        <th>Rate</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><input asp-for="Weight" type="number" step="0.001" min="0.001" class="form-control" onchange="updateBalances();" required /></td>
-                        <td><input asp-for="Tunch" type="number" step="0.01" min="0.01" max="100" class="form-control" onchange="updateBalances();" required /></td>
-                        <td><input asp-for="Rate" type="number" step="0.01" min="0.01" class="form-control" onchange="updateBalances();" required /></td>
-                        <td><input asp-for="Amount" type="number" step="0.01" class="form-control" readonly /></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+            <div class="col-12">
+                <div class="table-responsive rounded-3 shadow-sm">
+                    <table class="table table-bordered mt-3">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Weight</th>
+                                <th>Tunch (%)</th>
+                                <th>Rate</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <input asp-for="Weight" type="number" step="0.001" min="0.001" class="form-control shadow-sm" onchange="updateBalances();" required />
+                                    <span asp-validation-for="Weight" class="text-danger"></span>
+                                </td>
+                                <td>
+                                    <input asp-for="Tunch" type="number" step="0.01" min="0.01" max="100" class="form-control shadow-sm" onchange="updateBalances();" required />
+                                    <span asp-validation-for="Tunch" class="text-danger"></span>
+                                </td>
+                                <td>
+                                    <input asp-for="Rate" type="number" step="0.01" min="0.01" class="form-control shadow-sm" onchange="updateBalances();" required />
+                                    <span asp-validation-for="Rate" class="text-danger"></span>
+                                </td>
+                                <td>
+                                    <input asp-for="Amount" type="number" step="0.01" class="form-control shadow-sm" readonly />
+                                    <span asp-validation-for="Amount" class="text-danger"></span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-        <h3 class="mt-3">Balance Details</h3>
-        <hr />
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead class="bg-light">
-                    <tr>
-                        <th></th>
-                        <th>Fine Metal</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Total Previous Balance</td>
-                        <td><input type="number" step="0.001" id="prevFine" class="form-control" readonly /></td>
-                        <td><input type="number" step="0.01" id="prevAmount" class="form-control" readonly /></td>
-                    </tr>
-                    <tr>
-                        <td colspan="3">
-                            <span id="lastBalanceDate" style="font-size: 0.8em; color: red;"></span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Current Transaction</td>
-                        <td><input type="number" step="0.001" id="currentFine" class="form-control" readonly /></td>
-                        <td><input type="number" step="0.01" id="currentAmount" class="form-control" readonly /></td>
-                    </tr>
-                    <tr>
-                        <td>Total Balance</td>
-                        <td><input type="number" step="0.001" id="totalFine" class="form-control" readonly /></td>
-                        <td><input type="number" step="0.01" id="totalAmount" class="form-control" readonly /></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+            <div class="col-12">
+                <h3 class="mt-3 fw-bold" style="color: #2d3436;">Balance Details</h3>
+                <hr class="mb-4" style="border-color: #e6e4b7;">
+                <div class="table-responsive rounded-3 shadow-sm">
+                    <table class="table table-bordered">
+                        <thead class="bg-light">
+                            <tr>
+                                <th></th>
+                                <th>Fine Metal</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="fw-medium">Total Previous Balance</td>
+                                <td><input type="number" step="0.001" id="prevFine" class="form-control" readonly /></td>
+                                <td><input type="number" step="0.01" id="prevAmount" class="form-control" readonly /></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3">
+                                    <span id="lastBalanceDate" style="font-size: 0.8em; color: #e74c3c;"></span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fw-medium">Current Transaction</td>
+                                <td><input type="number" step="0.001" id="currentFine" class="form-control" readonly /></td>
+                                <td><input type="number" step="0.01" id="currentAmount" class="form-control" readonly /></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-medium">Total Balance</td>
+                                <td><input type="number" step="0.001" id="totalFine" class="form-control" readonly /></td>
+                                <td><input type="number" step="0.01" id="totalAmount" class="form-control" readonly /></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-        <div class="text-center mt-3">
-            <button type="submit" class="btn btn-primary">Save</button>
-            <a href="@Url.Action("Index", "Home")" class="btn btn-secondary">Cancel</a>
-        </div>
-    </form>
+            <div class="col-12 text-center mt-4">
+                <button type="submit" class="btn btn-gradient btn-success shadow-sm">
+                    <i class="bi bi-save me-2"></i>Save
+                </button>
+                <a href="@Url.Action("Index", "Home")" class="btn btn-gradient btn-danger shadow-sm">
+                    <i class="bi bi-x-circle me-2"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
 
+<!-- Dependencies -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
@@ -145,14 +182,14 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         fetchPreviousBalance();
-        fetchBillNo(document.querySelector('input[name="Type"]:checked').value);
+        fetchBillNo(document.querySelector('input[name="Type"]:checked')?.value || 'GoldPurchaseRate');
         updateBalances();
     });
 
     function showAlert(message, type) {
         const alertContainer = document.getElementById('alertContainer');
         alertContainer.innerHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <div class="alert alert-${type} alert-dismissible fade show shadow-sm rounded-3" role="alert">
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
@@ -217,23 +254,20 @@
         let rate = parseFloat(document.getElementById('Rate').value) || 0;
         let prevFine = parseFloat(document.getElementById('prevFine').value) || 0;
         let prevAmount = parseFloat(document.getElementById('prevAmount').value) || 0;
-        let transactionType = document.querySelector('input[name="Type"]:checked').value;
+        let transactionType = document.querySelector('input[name="Type"]:checked')?.value || 'GoldPurchaseRate';
 
-        // Calculate fine gold weight and amount
-        let fineGold = weight * (tunch / 100); // Fine gold weight
-        let amount = fineGold * rate;          // Amount = Fine Gold * Rate
+        let fineGold = weight * (tunch / 100);
+        let amount = fineGold * rate;
 
         document.getElementById('Amount').value = amount.toFixed(2);
 
         let fineAdjustment, amountAdjustment;
-
-        // Consistent logic for all accounts based on transaction type
         if (transactionType === "GoldPurchaseRate") {
-            fineAdjustment = -fineGold;    // Decrease Fine (paying metal)
-            amountAdjustment = amount;     // Increase Amount (receiving money)
+            fineAdjustment = -fineGold;
+            amountAdjustment = amount;
         } else if (transactionType === "GoldSaleRate") {
-            fineAdjustment = fineGold;     // Increase Fine (receiving metal)
-            amountAdjustment = -amount;    // Decrease Amount (paying money)
+            fineAdjustment = fineGold;
+            amountAdjustment = -amount;
         }
 
         document.getElementById('currentFine').value = fineAdjustment.toFixed(3);
@@ -296,12 +330,9 @@
         }
 
         let formData = new FormData(this);
-        fetch('@Url.Action("AddRateCutTransaction", "RateCutTransection")', {
+        fetch(this.action, {
             method: 'POST',
-            body: formData,
-            headers: {
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-            }
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
@@ -310,7 +341,7 @@
                     title: 'Success!',
                     text: 'Transaction has been successfully saved!',
                     icon: 'success',
-                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#2ecc71',
                     timer: 2000,
                     timerProgressBar: true
                 }).then(() => {
@@ -322,7 +353,57 @@
         })
         .catch(error => {
             console.error('Error during save:', error);
-            showAlert('An error occurred while saving the transaction.', 'danger');
+            showAlert('An error occurred while saving the transaction: ' + error.message, 'danger');
         });
     });
 </script>
+
+<style>
+    .card {
+        overflow: hidden;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+    }
+
+    .input-group-text {
+        border-radius: 8px 0 0 8px;
+        color: #7f8c8d;
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        border: none;
+        padding: 10px 20px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-gradient.btn-danger {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+    }
+
+    .btn-gradient:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+
+    label {
+        color: #2c3e50;
+    }
+
+    .table th, .table td {
+        vertical-align: middle;
+    }
+
+    .table-responsive {
+        background: #fff;
+    }
+</style>
