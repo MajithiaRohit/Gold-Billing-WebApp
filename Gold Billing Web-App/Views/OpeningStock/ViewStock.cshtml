@@ -48,7 +48,11 @@
 
                         if (!string.IsNullOrEmpty(billNo))
                         {
-                            if (billNo.StartsWith("P"))
+                            if (billNo.StartsWith("STOCK") || billNo.StartsWith("NEW"))
+                            {
+                                redirectUrl = Url.Action("EditOpeningStock", "OpeningStock", new { billNo = billNo })!;
+                            }
+                            else if (billNo.StartsWith("P"))
                             {
                                 redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Purchase", billNo = billNo })!;
                             }
@@ -64,10 +68,7 @@
                             {
                                 redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "SaleReturn", billNo = billNo })!;
                             }
-                            else if (billNo.StartsWith("BILL") || billNo.StartsWith("NEW"))
-                            {
-                                redirectUrl = Url.Action("EditOpeningStock", "OpeningStock", new { billNo = billNo })!;
-                            }
+                            
                         }
 
                         <tr class="zoom-row"
