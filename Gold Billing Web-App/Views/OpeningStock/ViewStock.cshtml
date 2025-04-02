@@ -45,38 +45,13 @@
                     {
                         @foreach (DataRow row in Model.Rows)
                         {
-                            string billNo = row["BillNo"]?.ToString() ?? string.Empty;
-                            string redirectUrl = string.Empty;
-
-                            if (!string.IsNullOrEmpty(billNo))
-                            {
-                                if (billNo.StartsWith("STOCK") || billNo.StartsWith("NEW"))
-                                {
-                                    redirectUrl = Url.Action("EditOpeningStock", "OpeningStock", new { billNo = billNo })!;
-                                }
-                                else if (billNo.StartsWith("P"))
-                                {
-                                    redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Purchase", billNo = billNo })!;
-                                }
-                                else if (billNo.StartsWith("S"))
-                                {
-                                    redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Sale", billNo = billNo })!;
-                                }
-                                else if (billNo.StartsWith("PR"))
-                                {
-                                    redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "PurchaseReturn", billNo = billNo })!;
-                                }
-                                else if (billNo.StartsWith("SR"))
-                                {
-                                    redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "SaleReturn", billNo = billNo })!;
-                                }
-                            }
+                            string redirectUrl = Url.Action("StockDetails", "OpeningStock", new { itemId = row["ItemId"] });
 
                             <tr class="zoom-row"
                                 style="cursor: pointer; transition: all 0.3s ease;"
                                 onclick="window.location.href='@redirectUrl'"
-                                aria-label="Click to view or edit stock entry">
-                                <td class="fw-medium">@billNo</td>
+                                aria-label="Click to view stock details">
+                                <td class="fw-medium">@row["BillNo"]</td>
                                 <td>@row["ItemName"]</td>
                                 <td class="text-center">@(row["Pc"] != DBNull.Value ? row["Pc"] : "0")</td>
                                 <td class="text-center">@(row["Weight"] != DBNull.Value ? row["Weight"] : "0.00")</td>

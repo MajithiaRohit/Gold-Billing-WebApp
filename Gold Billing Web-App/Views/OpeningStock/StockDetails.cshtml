@@ -1,0 +1,101 @@
+﻿@model Gold_Billing_Web_App.Models.ViewModels.StockDetailsViewModel
+
+<div class="card shadow-lg border-0">
+    <div class="card-body p-4">
+        <h3 class="mt-4 mb-4 text-center text-uppercase fw-bold" style="color: #2c3e50; letter-spacing: 1px;">Stock Details for @Model.ItemName</h3>
+
+        <div class="table-responsive rounded-3 shadow-sm" style="max-height: 500px; overflow-y: auto;">
+            <table class="table table-striped table-hover table-bordered mb-0">
+                <thead style="background: linear-gradient(135deg, black, #2c3e50); color: white; position: sticky; top: 0; z-index: 1;">
+                    <tr class="text-center">
+                        <th>Bill No</th>
+                        <th>Stock Type</th>
+                        <th>Pc</th>
+                        <th>Weight</th>
+                        <th>Less</th>
+                        <th>Net Wt.</th>
+                        <th>Tunch</th>
+                        <th>Wastage</th>
+                        <th>Fine</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.StockItems)
+                    {
+                        string redirectUrl = Url.Action("EditStock", "OpeningStock", new { billNo = item.BillNo });
+                        <tr class="zoom-row"
+                            style="cursor: pointer; transition: all 0.3s ease;"
+                            onclick="window.location.href='@redirectUrl'"
+                            aria-label="Click to edit this stock entry">
+                            <td class="fw-medium">@item.BillNo</td>
+                            <td>@item.StockType</td>
+                            <td class="text-center">@(item.Pc.HasValue ? item.Pc : "0")</td>
+                            <td class="text-center">@(item.Weight.HasValue ? item.Weight.Value.ToString("F2") : "0.00")</td>
+                            <td class="text-center">@(item.Less.HasValue ? item.Less.Value.ToString("F2") : "0.00")</td>
+                            <td class="text-center fw-bold" style="color: #2980b9;">@(item.NetWt.HasValue ? item.NetWt.Value.ToString("F2") : "0.00")</td>
+                            <td class="text-center">@(item.Tunch.HasValue ? item.Tunch.Value.ToString("F2") : "0.00")</td>
+                            <td class="text-center">@(item.Wastage.HasValue ? item.Wastage.Value.ToString("F2") : "0.00")</td>
+                            <td class="text-center fw-bold" style="color: #27ae60;">@(item.Fine.HasValue ? item.Fine.Value.ToString("F2") : "0.00")</td>
+                            <td class="text-center fw-bold" style="color: #e74c3c;">@(item.Amount.HasValue ? item.Amount.Value.ToString("F2") : "0.00")</td>
+                            <td class="text-center">@item.Date.ToString("yyyy-MM-dd")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot style="background: linear-gradient(135deg, #636e72, #2d3436); color: white;">
+                    <tr class="text-center">
+                        <td colspan="2" class="text-right fw-bold">Total:</td>
+                        <td>@Model.TotalPc</td>
+                        <td>@Model.TotalWeight.ToString("F2")</td>
+                        <td></td>
+                        <td>@Model.TotalNetWt.ToString("F2")</td>
+                        <td></td>
+                        <td></td>
+                        <td>@Model.TotalFine.ToString("F2")</td>
+                        <td>@Model.TotalAmount.ToString("F2")</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="mt-4 text-center">
+            <a href="@Url.Action("ViewStock", "OpeningStock")" class="btn btn-gradient btn-primary shadow-sm">Back to Stock List</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border-radius: 15px;
+        background: #f8f9fa;
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        border: none;
+        padding: 10px 20px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+    .zoom-row:hover {
+        transform: scale(1.02);
+        background-color: #eef2f7;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .table th, .table td {
+        vertical-align: middle;
+        padding: 12px;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: #f9fbfd;
+    }
+</style>

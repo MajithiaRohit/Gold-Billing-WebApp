@@ -7,7 +7,10 @@ namespace Gold_Billing_Web_App.Models
     {
         public int Id { get; set; }
 
-        public string BillNo { get; set; } = ""; // Remove [Required]
+        [Required(ErrorMessage = "Stock Type is required")]
+        public string StockType { get; set; } // Add [Required] for consistency
+
+        public string BillNo { get; set; } = "";
 
         [Required(ErrorMessage = "Date is required")]
         [DataType(DataType.Date)]
@@ -52,11 +55,11 @@ namespace Gold_Billing_Web_App.Models
         [Range(0, double.MaxValue, ErrorMessage = "Amount cannot be negative")]
         public decimal? Amount { get; set; }
 
-        public DateTime? LastUpdated { get; set; }
+        public DateTime? LastUpdated { get; set; } // Consider setting this in controller
 
-        public int UserId { get; set; } // Remove [Required]
+        public int UserId { get; set; }
 
         public ItemModel? Item { get; set; }
-        public UserAccountModel User { get; set; } // Added
+        public UserAccountModel User { get; set; }
     }
 }
