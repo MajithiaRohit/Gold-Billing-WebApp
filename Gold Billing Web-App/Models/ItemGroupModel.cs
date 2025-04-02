@@ -1,4 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Gold_Billing_Web_App.Models
 {
@@ -14,6 +16,8 @@ namespace Gold_Billing_Web_App.Models
         public DateTime Date { get; set; }
 
         public int UserId { get; set; }
-        public UserAccountModel User { get; set; } // Added
+
+        [NotMapped]
+        public UserAccountModel User { get; set; }
     }
 }

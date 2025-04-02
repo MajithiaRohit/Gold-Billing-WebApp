@@ -1,4 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Gold_Billing_Web_App.Models
 {
@@ -15,9 +17,12 @@ namespace Gold_Billing_Web_App.Models
         [Range(1, int.MaxValue, ErrorMessage = "Please select a valid Item Group")]
         public int ItemGroupId { get; set; }
 
-        public ItemGroupModel? ItemGroup { get; set; } // Navigation property
+        [NotMapped]
+        public ItemGroupModel? ItemGroup { get; set; }
 
-        public int UserId { get; set; } // Add UserId to associate with a user
-        public UserAccountModel User { get; set; } // Added
+        public int UserId { get; set; }
+
+        [NotMapped]
+        public UserAccountModel User { get; set; }
     }
 }
