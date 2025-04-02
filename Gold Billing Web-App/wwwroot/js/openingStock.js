@@ -266,7 +266,7 @@ function addNewRow() {
             <input type="hidden" name="Items[${rowCount}].Amount" class="hidden-amount-input" value="0.00" />
             <span class="text-danger" data-valmsg-for="Items[${rowCount}].Amount" data-valmsg-replace="true"></span>
         </td>
-        <td style="padding: 10px;">
+        <td style="padding: 10px;" class="text-center">
             <button type="button" class="btn btn-danger btn-sm remove-row-btn" style="border-radius: 50%; padding: 8px 12px; background: linear-gradient(to right, #dc3545, #ff6b6b); border: none; transition: all 0.3s ease; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);"><i class="bi bi-trash"></i></button>
         </td>
     `;
@@ -277,8 +277,10 @@ function addNewRow() {
 
 function removeRow(button) {
     const row = button.closest('tr');
-    if (row) row.remove();
-    calculateTotals();
+    if (row) {
+        row.remove();
+        calculateTotals();
+    }
 }
 
 function setupFormSubmission(addOpeningStockUrl, deleteOpeningStockUrl) {
@@ -334,7 +336,6 @@ function setupFormSubmission(addOpeningStockUrl, deleteOpeningStockUrl) {
         });
     }
 
-    // Fix: Define deleteBtn within scope
     const deleteBtn = document.getElementById('deleteBillBtn');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', function () {
@@ -407,11 +408,14 @@ function setupFormSubmission(addOpeningStockUrl, deleteOpeningStockUrl) {
         });
     }
 
-    document.querySelectorAll('.remove-row-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            removeRow(this);
+    const table = document.getElementById('openingStockTable');
+    if (table) {
+        table.addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-row-btn') || e.target.closest('.remove-row-btn')) {
+                removeRow(e.target.closest('.remove-row-btn'));
+            }
         });
-    });
+    }
 
     const addRowBtn = document.querySelector('.add-row-btn');
     if (addRowBtn) addRowBtn.addEventListener('click', addNewRow);

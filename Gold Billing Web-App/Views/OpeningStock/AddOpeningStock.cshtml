@@ -5,7 +5,7 @@
         <h3 class="mt-4 mb-4 text-center text-uppercase fw-bold" style="color: #2c3e50; letter-spacing: 1px;">@(ViewBag.IsExisting ? "Edit Opening Stock" : "Add Opening Stock")</h3>
 
         <form id="openingStockForm" asp-action="AddOpeningStock" method="post" enctype="multipart/form-data">
-            @Html.AntiForgeryToken() <!-- Simplified, already correct -->
+            @Html.AntiForgeryToken()
             <input type="hidden" asp-for="UserId" />
 
             <div class="row mb-3">
@@ -20,7 +20,7 @@
                 </div>
                 <div class="col-md-4">
                     <label asp-for="Narration" class="form-label fw-bold">Narration</label>
-                    <textarea asp-for="Narration" id="Narration" class="form-control"></textarea>
+                    <input asp-for="Narration" class="form-control" />
                 </div>
             </div>
 
@@ -68,7 +68,12 @@
                                 <td><input asp-for="Items[i].Rate" class="form-control rate-input text-center" /></td>
                                 <td><input asp-for="Items[i].Fine" class="form-control fine-input text-center" readonly /></td>
                                 <td><input asp-for="Items[i].Amount" class="form-control amount-input text-center" readonly /></td>
-                                <td class="text-center"><button type="button" class="btn btn-danger remove-row-btn">Remove</button></td>
+                                <td class="text-center">
+                                    @if (i > 0) // Only show "Remove" button for rows after the first
+                                    {
+                                        <button type="button" class="btn btn-danger btn-sm remove-row-btn" style="border-radius: 50%; padding: 8px 12px; background: linear-gradient(to right, #dc3545, #ff6b6b); border: none; transition: all 0.3s ease; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);"><i class="bi bi-trash"></i></button>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -97,15 +102,6 @@
     const deleteOpeningStockUrl = '@Url.Action("DeleteOpeningStock", "OpeningStock")';
     setupFormSubmission(addOpeningStockUrl, deleteOpeningStockUrl);
     setupEventListeners();
-</script>
-<script src="https://cdn.tiny.cloud/1/[your-api-key]/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
-<script>
-    tinymce.init({
-        selector: '#Narration',
-        height: 200,
-        plugins: 'link lists',
-        toolbar: 'bold italic | bullist numlist'
-    });
 </script>
 
 <style>
