@@ -41,65 +41,73 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (DataRow row in Model.Rows)
+                    @if (Model != null && Model.Rows.Count > 0)
                     {
-                        string billNo = row["BillNo"]?.ToString() ?? string.Empty;
-                        string redirectUrl = string.Empty;
-
-                        if (!string.IsNullOrEmpty(billNo))
+                        @foreach (DataRow row in Model.Rows)
                         {
-                            if (billNo.StartsWith("STOCK") || billNo.StartsWith("NEW"))
-                            {
-                                redirectUrl = Url.Action("EditOpeningStock", "OpeningStock", new { billNo = billNo })!;
-                            }
-                            else if (billNo.StartsWith("P"))
-                            {
-                                redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Purchase", billNo = billNo })!;
-                            }
-                            else if (billNo.StartsWith("S"))
-                            {
-                                redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Sale", billNo = billNo })!;
-                            }
-                            else if (billNo.StartsWith("PR"))
-                            {
-                                redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "PurchaseReturn", billNo = billNo })!;
-                            }
-                            else if (billNo.StartsWith("SR"))
-                            {
-                                redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "SaleReturn", billNo = billNo })!;
-                            }
-                            
-                        }
+                            string billNo = row["BillNo"]?.ToString() ?? string.Empty;
+                            string redirectUrl = string.Empty;
 
-                        <tr class="zoom-row"
-                            style="cursor: pointer; transition: all 0.3s ease;"
-                            onclick="window.location.href='@redirectUrl'"
-                            aria-label="Click to view or edit stock entry">
-                            <td class="fw-medium">@billNo</td>
-                            <td>@row["ItemName"]</td>
-                            <td class="text-center">@(row["Pc"] != DBNull.Value ? row["Pc"] : "0")</td>
-                            <td class="text-center">@(row["Weight"] != DBNull.Value ? row["Weight"] : "0.00")</td>
-                            <td class="text-center">@(row["Less"] != DBNull.Value ? row["Less"] : "0.00")</td>
-                            <td class="text-center fw-bold" style="color: #2980b9;">@row["NetWt"]</td>
-                            <td class="text-center">@(row["Tunch"] != DBNull.Value ? Convert.ToDecimal(row["Tunch"]).ToString("F2") : "0.00")</td>
-                            <td class="text-center">@(row["Wastage"] != DBNull.Value ? Convert.ToDecimal(row["Wastage"]).ToString("F2") : "0.00")</td>
-                            <td class="text-center">@((row["Tunch"] != DBNull.Value && row["Wastage"] != DBNull.Value) ? (Convert.ToDecimal(row["Tunch"]) + Convert.ToDecimal(row["Wastage"])).ToString("F2") : "0.00")</td>
-                            <td class="text-center fw-bold" style="color: #27ae60;">@row["Fine"]</td>
-                            <td class="text-center fw-bold" style="color: #e74c3c;">@row["Amount"]</td>
-                            <td class="text-center">@Convert.ToDateTime(row["LastUpdated"]).ToString("yyyy-MM-dd")</td>
+                            if (!string.IsNullOrEmpty(billNo))
+                            {
+                                if (billNo.StartsWith("STOCK") || billNo.StartsWith("NEW"))
+                                {
+                                    redirectUrl = Url.Action("EditOpeningStock", "OpeningStock", new { billNo = billNo })!;
+                                }
+                                else if (billNo.StartsWith("P"))
+                                {
+                                    redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Purchase", billNo = billNo })!;
+                                }
+                                else if (billNo.StartsWith("S"))
+                                {
+                                    redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "Sale", billNo = billNo })!;
+                                }
+                                else if (billNo.StartsWith("PR"))
+                                {
+                                    redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "PurchaseReturn", billNo = billNo })!;
+                                }
+                                else if (billNo.StartsWith("SR"))
+                                {
+                                    redirectUrl = Url.Action("AddTransaction", "Transaction", new { type = "SaleReturn", billNo = billNo })!;
+                                }
+                            }
+
+                            <tr class="zoom-row"
+                                style="cursor: pointer; transition: all 0.3s ease;"
+                                onclick="window.location.href='@redirectUrl'"
+                                aria-label="Click to view or edit stock entry">
+                                <td class="fw-medium">@billNo</td>
+                                <td>@row["ItemName"]</td>
+                                <td class="text-center">@(row["Pc"] != DBNull.Value ? row["Pc"] : "0")</td>
+                                <td class="text-center">@(row["Weight"] != DBNull.Value ? row["Weight"] : "0.00")</td>
+                                <td class="text-center">@(row["Less"] != DBNull.Value ? row["Less"] : "0.00")</td>
+                                <td class="text-center fw-bold" style="color: #2980b9;">@row["NetWt"]</td>
+                                <td class="text-center">@(row["Tunch"] != DBNull.Value ? Convert.ToDecimal(row["Tunch"]).ToString("F2") : "0.00")</td>
+                                <td class="text-center">@(row["Wastage"] != DBNull.Value ? Convert.ToDecimal(row["Wastage"]).ToString("F2") : "0.00")</td>
+                                <td class="text-center">@((row["Tunch"] != DBNull.Value && row["Wastage"] != DBNull.Value) ? (Convert.ToDecimal(row["Tunch"]) + Convert.ToDecimal(row["Wastage"])).ToString("F2") : "0.00")</td>
+                                <td class="text-center fw-bold" style="color: #27ae60;">@row["Fine"]</td>
+                                <td class="text-center fw-bold" style="color: #e74c3c;">@row["Amount"]</td>
+                                <td class="text-center">@Convert.ToDateTime(row["LastUpdated"]).ToString("yyyy-MM-dd")</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="12" class="text-center">No stock entries found.</td>
                         </tr>
                     }
                 </tbody>
                 <tfoot style="background: linear-gradient(135deg, #636e72, #2d3436); color: white;">
                     @{
-                        int totalPc = Model.AsEnumerable().Sum(row => row.Field<int?>("Pc") ?? 0);
-                        decimal totalGrossWt = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Weight") ?? 0);
-                        decimal totalLess = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Less") ?? 0);
-                        decimal totalNetWt = Model.AsEnumerable().Sum(row => row.Field<decimal?>("NetWt") ?? 0);
-                        decimal totalTunch = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Tunch") ?? 0);
-                        decimal totalWastage = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Wastage") ?? 0);
-                        decimal totalFine = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Fine") ?? 0);
-                        decimal totalAmount = Model.AsEnumerable().Sum(row => row.Field<decimal?>("Amount") ?? 0);
+                        int totalPc = Model?.AsEnumerable().Sum(row => row.Field<int?>("Pc") ?? 0) ?? 0;
+                        decimal totalGrossWt = Model?.AsEnumerable().Sum(row => row.Field<decimal?>("Weight") ?? 0) ?? 0;
+                        decimal totalLess = Model?.AsEnumerable().Sum(row => row.Field<decimal?>("Less") ?? 0) ?? 0;
+                        decimal totalNetWt = Model?.AsEnumerable().Sum(row => row.Field<decimal?>("NetWt") ?? 0) ?? 0;
+                        decimal totalTunch = Model?.AsEnumerable().Sum(row => row.Field<decimal?>("Tunch") ?? 0) ?? 0;
+                        decimal totalWastage = Model?.AsEnumerable().Sum(row => row.Field<decimal?>("Wastage") ?? 0) ?? 0;
+                        decimal totalFine = Model?.AsEnumerable().Sum(row => row.Field<decimal?>("Fine") ?? 0) ?? 0;
+                        decimal totalAmount = Model?.AsEnumerable().Sum(row => row.Field<decimal?>("Amount") ?? 0) ?? 0;
                     }
                     <tr class="text-center">
                         <td></td>

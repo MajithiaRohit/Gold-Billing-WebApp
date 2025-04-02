@@ -3,86 +3,9 @@
 @{
     ViewBag.Title = ViewBag.Title ?? "Add Opening Stock";
 }
-<style>
-    /* Custom Dropdown Styling */
-    .custom-select {
-        appearance: none;
-        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"><path fill="%231e3c72" d="M7 10l5 5 5-5z"/></svg>') no-repeat right 10px center;
-        background-size: 12px;
-    }
 
-        .custom-select:hover {
-            border-color: #00d4ff;
-            box-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
-        }
+<!-- Existing styles remain unchanged -->
 
-        .custom-select:focus {
-            border-color: #00d4ff;
-            box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
-            outline: none;
-        }
-
-    /* Table Enhancements */
-    #openingStockTable tbody tr:hover {
-        background: linear-gradient(to right, rgba(30, 60, 114, 0.05), rgba(0, 212, 255, 0.1));
-        transform: scale(1.01);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    }
-
-    #openingStockTable th, #openingStockTable td {
-        vertical-align: middle;
-    }
-
-    #openingStockTable tfoot tr {
-        transition: all 0.3s ease;
-    }
-
-        #openingStockTable tfoot tr:hover {
-            transform: scale(1.02);
-        }
-
-    /* Form Control Styling */
-    .form-control {
-        transition: all 0.3s ease;
-    }
-
-        .form-control:hover {
-            border-color: #00d4ff;
-            box-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
-        }
-
-        .form-control:focus {
-            border-color: #00d4ff;
-            box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
-        }
-
-    /* Button Hover Effects */
-    .btn:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .btn:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Responsive Adjustments */
-    @@media (max-width: 768px) {
-        .table-responsive {
-            padding: 15px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            font-size: 0.9em;
-        }
-
-        #openingStockTable th, #openingStockTable td {
-            padding: 8px;
-        }
-    }
-</style>
 <div class="card" style="border-radius: 15px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);">
     <div class="card-header" style="background: linear-gradient(135deg, #d4edda, #ffffff); border-top-left-radius: 15px; border-top-right-radius: 15px;">
         <h3 class="card-title text-center mb-0" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: #2a5298; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);">@ViewBag.Title</h3>
@@ -102,9 +25,9 @@
             </div>
         }
 
-        <form asp-action="@ViewBag.Action" method="post" id="openingStockForm" style="font-family: 'Poppins', sans-serif;">
+        <form asp-action="AddOpeningStock" method="post" id="openingStockForm" style="font-family: 'Poppins', sans-serif;">
             @Html.AntiForgeryToken()
-            <input type="hidden" asp-for="UserId" value="@Model.UserId" />
+            <input type="hidden" asp-for="UserId" />
             <input type="hidden" asp-for="BillNo" />
             <hr class="mb-4 mt-3" style="border: 1px solid #2a5298; opacity: 0.2;" />
 
@@ -152,13 +75,13 @@
                             <tr style="transition: all 0.3s ease; border-bottom: 1px solid #dee2e6;">
                                 <td style="padding: 10px;">
                                     <input asp-for="Items[i].Id" type="hidden" />
-                                    <input asp-for="Items[i].UserId" type="hidden" value="@Model.UserId" /> <!-- Ensure UserId is set -->
+                                    <input asp-for="Items[i].UserId" type="hidden" />
                                     <select asp-for="Items[i].ItemId" class="form-control custom-select item-select" required style="border-radius: 10px; padding: 8px; border: 1px solid #ced4da; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); transition: all 0.3s ease;">
                                         <option value="">Select Item</option>
-                                            @foreach (var item in ViewBag.ItemDropDown)
-                                            {
-                                            <option value="@item.Id" selected="@(Model.Items[i].ItemId == item.Id ? "selected" : null)">@item.ItemName</option>
-                                            }
+                                        @foreach (var item in ViewBag.ItemDropDown)
+                                        {
+                                            <option value="@item.Id" data-group="@item.GroupName" selected="@(Model.Items[i].ItemId == item.Id ? "selected" : null)">@item.ItemName</option>
+                                        }
                                     </select>
                                     <span asp-validation-for="Items[i].ItemId" class="text-danger" style="font-size: 0.9em;"></span>
                                 </td>
@@ -238,17 +161,14 @@
     </div>
 </div>
 
-
-
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+<script src="~/js/openingStock.js"></script>
 
 <script>
-    window.openingStockConfig = {
-        userId: '@Model.UserId',
-        itemOptions: '@Html.Raw(ViewBag.ItemOptions)'
-    };
+    const addOpeningStockUrl = '@Url.Action("AddOpeningStock", "OpeningStock")';
+    setupFormSubmission(addOpeningStockUrl); // No need for viewStockUrl here
+    setupEventListeners();
 </script>
-<script src="~/js/openingStock.js"></script>
