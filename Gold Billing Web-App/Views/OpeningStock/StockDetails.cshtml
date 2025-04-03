@@ -9,7 +9,8 @@
                 <thead style="background: linear-gradient(135deg, black, #2c3e50); color: white; position: sticky; top: 0; z-index: 1;">
                     <tr class="text-center">
                         <th>Bill No</th>
-                        <th>Stock Type</th>
+                        <th>Type</th>
+                        <th>Item Name</th>
                         <th>Pc</th>
                         <th>Weight</th>
                         <th>Less</th>
@@ -22,30 +23,40 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var item in Model.StockItems)
+                    @if (Model.Entries.Any())
                     {
-                        string redirectUrl = Url.Action("EditStock", "OpeningStock", new { billNo = item.BillNo });
-                        <tr class="zoom-row"
-                            style="cursor: pointer; transition: all 0.3s ease;"
-                            onclick="window.location.href='@redirectUrl'"
-                            aria-label="Click to edit this stock entry">
-                            <td class="fw-medium">@item.BillNo</td>
-                            <td>@item.StockType</td>
-                            <td class="text-center">@(item.Pc.HasValue ? item.Pc : "0")</td>
-                            <td class="text-center">@(item.Weight.HasValue ? item.Weight.Value.ToString("F2") : "0.00")</td>
-                            <td class="text-center">@(item.Less.HasValue ? item.Less.Value.ToString("F2") : "0.00")</td>
-                            <td class="text-center fw-bold" style="color: #2980b9;">@(item.NetWt.HasValue ? item.NetWt.Value.ToString("F2") : "0.00")</td>
-                            <td class="text-center">@(item.Tunch.HasValue ? item.Tunch.Value.ToString("F2") : "0.00")</td>
-                            <td class="text-center">@(item.Wastage.HasValue ? item.Wastage.Value.ToString("F2") : "0.00")</td>
-                            <td class="text-center fw-bold" style="color: #27ae60;">@(item.Fine.HasValue ? item.Fine.Value.ToString("F2") : "0.00")</td>
-                            <td class="text-center fw-bold" style="color: #e74c3c;">@(item.Amount.HasValue ? item.Amount.Value.ToString("F2") : "0.00")</td>
-                            <td class="text-center">@item.Date.ToString("yyyy-MM-dd")</td>
-                        </tr>
+                        foreach (var entry in Model.Entries)
+                        {
+                            string redirectUrl = entry.Type == "Opening" || entry.Type == "New"
+                            ? Url.Action("EditStock", "OpeningStock", new { billNo = entry.BillNo })
+                            : Url.Action("AddTransaction", "Transaction", new { type = entry.Type, billNo = entry.BillNo });
+                            <tr class="zoom-row"
+                                style="cursor: pointer; transition: all 0.3s ease;"
+                                onclick="window.location.href='@redirectUrl'"
+                                aria-label="Click to edit this entry">
+                                <td class="fw-medium">@entry.BillNo</td>
+                                <td>@entry.Type</td>
+                                <td>@entry.ItemName</td>
+                                <td class="text-center">@(entry.Pc.HasValue ? $"{entry.Sign}{entry.Pc}" : "0")</td>
+                                <td class="text-center">@(entry.Weight.HasValue ? $"{entry.Sign}{entry.Weight.Value.ToString("F2")}" : "0.00")</td>
+                                <td class="text-center">@(entry.Less.HasValue ? entry.Less.Value.ToString("F2") : "0.00")</td>
+                                <td class="text-center fw-bold" style="color: #2980b9;">@(entry.NetWt.HasValue ? $"{entry.Sign}{entry.NetWt.Value.ToString("F2")}" : "0.00")</td>
+                                <td class="text-center">@(entry.Tunch.HasValue ? entry.Tunch.Value.ToString("F2") : "0.00")</td>
+                                <td class="text-center">@(entry.Wastage.HasValue ? entry.Wastage.Value.ToString("F2") : "0.00")</td>
+                                <td class="text-center fw-bold" style="color: #27ae60;">@(entry.Fine.HasValue ? $"{entry.Sign}{entry.Fine.Value.ToString("F2")}" : "0.00")</td>
+                                <td class="text-center fw-bold" style="color: #e74c3c;">@(entry.Amount.HasValue ? $"{entry.Sign}{entry.Amount.Value.ToString("F2")}" : "0.00")</td>
+                                <td class="text-center">@entry.Date.ToString("yyyy-MM-dd")</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="12" class="text-center">No stock entries or transactions found.</td></tr>
                     }
                 </tbody>
                 <tfoot style="background: linear-gradient(135deg, #636e72, #2d3436); color: white;">
                     <tr class="text-center">
-                        <td colspan="2" class="text-right fw-bold">Total:</td>
+                        <td colspan="3" class="text-right fw-bold">Total:</td>
                         <td>@Model.TotalPc</td>
                         <td>@Model.TotalWeight.ToString("F2")</td>
                         <td></td>

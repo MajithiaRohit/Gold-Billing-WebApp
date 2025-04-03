@@ -281,37 +281,36 @@ namespace Gold_Billing_Web_App.Controllers
             }
         }
 
-        public IActionResult ViewStock(int page = 1)
+        public IActionResult ViewStock()
         {
             var userId = GetCurrentUserId();
-            const int pageSize = 10;
 
-            var stockQuery = from os in _context.OpeningStocks
-                             join i in _context.Items on os.ItemId equals i.Id
-                             where os.UserId == userId
-                             group os by new { os.ItemId, i.Name } into g
+            var stockQuery = from i in _context.Items
+                             where i.UserId == userId
+                             join os in _context.OpeningStocks on i.Id equals os.ItemId into osGroup
+                             from os in osGroup.DefaultIfEmpty()
+                             join t in _context.Transactions on i.Id equals t.ItemId into tGroup
+                             from t in tGroup.DefaultIfEmpty()
+                             group new { os, t } by new { i.Id, i.Name } into g
                              select new
                              {
-                                 ItemId = g.Key.ItemId,
+                                 ItemId = g.Key.Id,
                                  ItemName = g.Key.Name,
-                                 Pc = g.Sum(x => x.Pc ?? 0),
-                                 Weight = g.Sum(x => x.Weight ?? 0),
-                                 Less = g.OrderByDescending(x => x.Date).First().Less,
-                                 NetWt = g.Sum(x => x.NetWt ?? 0),
-                                 Tunch = g.OrderByDescending(x => x.Date).First().Tunch,
-                                 Wastage = g.OrderByDescending(x => x.Date).First().Wastage,
-                                 Fine = g.Sum(x => x.Fine ?? 0),
-                                 Amount = g.Sum(x => x.Amount ?? 0),
-                                 LastUpdated = g.Max(x => x.Date)
+                                 Pc = g.Sum(x => x.os != null ? (x.os.Pc ?? 0) : 0) + g.Sum(x => x.t != null ? (x.t.TransactionType == "Sale" || x.t.TransactionType == "PurchaseReturn" ? -(x.t.Pc ?? 0) : (x.t.Pc ?? 0)) : 0),
+                                 Weight = g.Sum(x => x.os != null ? (x.os.Weight ?? 0) : 0) + g.Sum(x => x.t != null ? (x.t.TransactionType == "Sale" || x.t.TransactionType == "PurchaseReturn" ? -(x.t.Weight ?? 0) : (x.t.Weight ?? 0)) : 0),
+                                 Less = g.Where(x => x.os != null).OrderByDescending(x => x.os.Date).Select(x => x.os.Less).FirstOrDefault() ?? g.Where(x => x.t != null).OrderByDescending(x => x.t.Date).Select(x => x.t.Less).FirstOrDefault(),
+                                 NetWt = g.Sum(x => x.os != null ? (x.os.NetWt ?? 0) : 0) + g.Sum(x => x.t != null ? (x.t.TransactionType == "Sale" || x.t.TransactionType == "PurchaseReturn" ? -(x.t.NetWt ?? 0) : (x.t.NetWt ?? 0)) : 0),
+                                 Tunch = g.Where(x => x.os != null).OrderByDescending(x => x.os.Date).Select(x => x.os.Tunch).FirstOrDefault() ?? g.Where(x => x.t != null).OrderByDescending(x => x.t.Date).Select(x => x.t.Tunch).FirstOrDefault(),
+                                 Wastage = g.Where(x => x.os != null).OrderByDescending(x => x.os.Date).Select(x => x.os.Wastage).FirstOrDefault() ?? g.Where(x => x.t != null).OrderByDescending(x => x.t.Date).Select(x => x.t.Wastage).FirstOrDefault(),
+                                 Fine = g.Sum(x => x.os != null ? (x.os.Fine ?? 0) : 0) + g.Sum(x => x.t != null ? (x.t.TransactionType == "Sale" || x.t.TransactionType == "PurchaseReturn" ? -(x.t.Fine ?? 0) : (x.t.Fine ?? 0)) : 0),
+                                 Amount = g.Sum(x => x.os != null ? (x.os.Amount ?? 0) : 0) + g.Sum(x => x.t != null ? (x.t.TransactionType == "Sale" || x.t.TransactionType == "PurchaseReturn" ? -(x.t.Amount ?? 0) : (x.t.Amount ?? 0)) : 0),
+                                 LastUpdated = g.Where(x => x.os != null).Select(x => (DateTime?)x.os.Date)
+                                                .Concat(g.Where(x => x.t != null).Select(x => (DateTime?)x.t.Date))
+                                                .DefaultIfEmpty()
+                                                .Max()
                              };
 
-            var totalRecords = stockQuery.Count();
-            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
-            var stocks = stockQuery
-                .OrderBy(s => s.ItemName)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+            var stocks = stockQuery.OrderBy(s => s.ItemName).ToList();
 
             DataTable dt = new DataTable();
             dt.Columns.Add("ItemId", typeof(int));
@@ -341,12 +340,9 @@ namespace Gold_Billing_Web_App.Controllers
                     stock.Wastage,
                     stock.Fine,
                     stock.Amount,
-                    stock.LastUpdated
+                    stock.LastUpdated.HasValue ? stock.LastUpdated.Value : DBNull.Value
                 );
             }
-
-            ViewBag.CurrentPage = page;
-            ViewBag.TotalPages = totalPages;
 
             return View(dt);
         }
@@ -355,27 +351,92 @@ namespace Gold_Billing_Web_App.Controllers
         public IActionResult StockDetails(int itemId)
         {
             var userId = GetCurrentUserId();
+
+            // Fetch Opening Stock
             var stockItems = _context.OpeningStocks
                 .Where(os => os.UserId == userId && os.ItemId == itemId)
                 .Include(os => os.Item)
                 .OrderBy(os => os.Date)
+                .Select(os => new StockEntry
+                {
+                    BillNo = os.BillNo,
+                    Type = os.StockType,
+                    Sign = "+", // Opening stock always adds
+                    ItemName = os.Item.Name,
+                    Pc = os.Pc,
+                    Weight = os.Weight,
+                    Less = os.Less,
+                    NetWt = os.NetWt,
+                    Tunch = os.Tunch,
+                    Wastage = os.Wastage,
+                    Fine = os.Fine,
+                    Amount = os.Amount,
+                    Date = os.Date
+                })
                 .ToList();
 
-            if (!stockItems.Any()) return NotFound();
+            // Fetch Transactions
+            var transactions = _context.Transactions
+                .Where(t => t.UserId == userId && t.ItemId == itemId)
+                .Include(t => t.Item)
+                .OrderBy(t => t.Date)
+                .Select(t => new StockEntry
+                {
+                    BillNo = t.BillNo,
+                    Type = t.TransactionType,
+                    Sign = t.TransactionType == "Purchase" || t.TransactionType == "SaleReturn" ? "+" : "-", // + for add, - for subtract
+                    ItemName = t.Item.Name,
+                    Pc = t.Pc,
+                    Weight = t.Weight,
+                    Less = t.Less,
+                    NetWt = t.NetWt,
+                    Tunch = t.Tunch,
+                    Wastage = t.Wastage,
+                    Fine = t.Fine,
+                    Amount = t.Amount,
+                    Date = t.Date
+                })
+                .ToList();
 
-            var model = new StockDetailsViewModel
+            // Combine and sort by date
+            var allEntries = stockItems.Concat(transactions)
+                .OrderBy(e => e.Date)
+                .ToList();
+
+            // If no entries exist, fetch ItemName from Items table and return empty list
+            if (!allEntries.Any())
+            {
+                var item = _context.Items.FirstOrDefault(i => i.Id == itemId && i.UserId == userId);
+                if (item == null) return NotFound(); // Item doesn't exist
+
+                var model = new StockDetailsViewModel
+                {
+                    ItemId = itemId,
+                    ItemName = item.Name,
+                    Entries = new List<StockEntry>(), // Empty list
+                    TotalPc = 0,
+                    TotalWeight = 0,
+                    TotalNetWt = 0,
+                    TotalFine = 0,
+                    TotalAmount = 0
+                };
+                return View(model);
+            }
+
+            // If entries exist, proceed as normal
+            var stockModel = new StockDetailsViewModel
             {
                 ItemId = itemId,
-                ItemName = stockItems.First().Item.Name,
-                StockItems = stockItems,
-                TotalPc = stockItems.Sum(x => x.Pc ?? 0),
-                TotalWeight = stockItems.Sum(x => x.Weight ?? 0),
-                TotalNetWt = stockItems.Sum(x => x.NetWt ?? 0),
-                TotalFine = stockItems.Sum(x => x.Fine ?? 0),
-                TotalAmount = stockItems.Sum(x => x.Amount ?? 0)
+                ItemName = allEntries.First().ItemName,
+                Entries = allEntries,
+                TotalPc = allEntries.Sum(e => e.Type == "Sale" || e.Type == "PurchaseReturn" ? -(e.Pc ?? 0) : (e.Pc ?? 0)),
+                TotalWeight = allEntries.Sum(e => e.Type == "Sale" || e.Type == "PurchaseReturn" ? -(e.Weight ?? 0) : (e.Weight ?? 0)),
+                TotalNetWt = allEntries.Sum(e => e.Type == "Sale" || e.Type == "PurchaseReturn" ? -(e.NetWt ?? 0) : (e.NetWt ?? 0)),
+                TotalFine = allEntries.Sum(e => e.Type == "Sale" || e.Type == "PurchaseReturn" ? -(e.Fine ?? 0) : (e.Fine ?? 0)),
+                TotalAmount = allEntries.Sum(e => e.Type == "Sale" || e.Type == "PurchaseReturn" ? -(e.Amount ?? 0) : (e.Amount ?? 0))
             };
 
-            return View(model);
+            return View(stockModel);
         }
 
         [HttpGet]

@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace Gold_Billing_Web_App.Models
 {
@@ -35,7 +34,7 @@ namespace Gold_Billing_Web_App.Models
         public int UserId { get; set; }
 
         [NotMapped]
-        public UserAccountModel User { get; set; }
+        public UserAccountModel? User { get; set; } // Changed to nullable to avoid validation error
 
         [NotMapped]
         public AccountModel? Account { get; set; }

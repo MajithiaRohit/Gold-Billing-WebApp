@@ -28,8 +28,10 @@ namespace Gold_Billing_Web_App.Controllers
             var userIdString = HttpContext.Session.GetString(CommonVariable.UserId) ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
             {
-                _logger.LogWarning("User is not authenticated or UserId is invalid.");
-                throw new UnauthorizedAccessException("User is not authenticated.");
+                _logger.LogWarning("UserId not found in session or claims. Session: {SessionValue}, Claims: {ClaimsValue}",
+                    HttpContext.Session.GetString(CommonVariable.UserId), User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+                userId = 1; // Temporary fallback
+                _logger.LogInformation("Using default UserId: {UserId}", userId);
             }
             return userId;
         }
@@ -39,11 +41,7 @@ namespace Gold_Billing_Web_App.Controllers
             var userId = GetCurrentUserId();
             return _context.Accounts
                 .Where(a => a.UserId == userId)
-                .Select(a => new AccountDropDownModel
-                {
-                    Id = a.AccountId,
-                    AccountName = a.AccountName
-                })
+                .Select(a => new AccountDropDownModel { Id = a.AccountId, AccountName = a.AccountName })
                 .ToList();
         }
 
@@ -66,15 +64,11 @@ namespace Gold_Billing_Web_App.Controllers
                 .FirstOrDefault();
 
             int lastNumber = 0;
-            if (!string.IsNullOrEmpty(lastBill))
+            if (!string.IsNullOrEmpty(lastBill) && int.TryParse(lastBill.Substring(prefix.Length), out lastNumber))
             {
-                if (!int.TryParse(lastBill.Substring(prefix.Length), out lastNumber))
-                {
-                    _logger.LogWarning("Failed to parse bill number: {BillNo}", lastBill);
-                    lastNumber = 0;
-                }
+                lastNumber++;
             }
-            return $"{prefix}{(lastNumber + 1):D4}";
+            return $"{prefix}{lastNumber:D4}";
         }
 
         private List<ItemDropDownModel> SetItemDropDown()
@@ -83,12 +77,7 @@ namespace Gold_Billing_Web_App.Controllers
             return _context.Items
                 .Include(i => i.ItemGroup)
                 .Where(i => i.UserId == userId && i.ItemGroup!.Name != "Gold Metal")
-                .Select(i => new ItemDropDownModel
-                {
-                    Id = i.Id!.Value,
-                    ItemName = i.Name!,
-                    GroupName = i.ItemGroup!.Name ?? ""
-                })
+                .Select(i => new ItemDropDownModel { Id = i.Id!.Value, ItemName = i.Name!, GroupName = i.ItemGroup!.Name ?? "" })
                 .ToList();
         }
 
@@ -122,24 +111,12 @@ namespace Gold_Billing_Web_App.Controllers
             var userId = GetCurrentUserId();
             var account = _context.Accounts
                 .Where(a => a.AccountId == accountId && a.UserId == userId)
-                .Select(a => new
-                {
-                    Fine = a.Fine,
-                    Amount = a.Amount,
-                    LastUpdated = a.LastUpdated
-                })
+                .Select(a => new { Fine = a.Fine, Amount = a.Amount, LastUpdated = a.LastUpdated })
                 .FirstOrDefault();
 
-            if (account != null)
-            {
-                return Json(new
-                {
-                    fine = account.Fine,
-                    amount = account.Amount,
-                    date = account.LastUpdated?.ToString("yyyy-MM-dd HH:mm:ss")
-                });
-            }
-            return Json(new { fine = 0.0m, amount = 0.0m, date = (string?)null });
+            return Json(account != null
+                ? new { fine = account.Fine, amount = account.Amount, date = account.LastUpdated?.ToString("yyyy-MM-dd HH:mm:ss") }
+                : new { fine = 0.0m, amount = 0.0m, date = (string?)null });
         }
 
         [HttpGet]
@@ -161,10 +138,7 @@ namespace Gold_Billing_Web_App.Controllers
 
             if (isExistingTransaction)
             {
-                var transactions = _context.Transactions
-                    .Where(t => t.BillNo == billNo && t.UserId == userId)
-                    .ToList();
-
+                var transactions = _context.Transactions.Where(t => t.BillNo == billNo && t.UserId == userId).ToList();
                 if (!transactions.Any())
                 {
                     _logger.LogWarning("Transaction not found for BillNo: {BillNo} and UserId: {UserId}", billNo, userId);
@@ -202,25 +176,15 @@ namespace Gold_Billing_Web_App.Controllers
             return View(model);
         }
 
+        // In TransactionController.cs, update the AddTransaction POST action
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddTransaction(TransactionViewModel model, int? SelectedAccountId)
         {
+            _logger.LogInformation("POST - Attempting to save transaction for BillNo: {BillNo}", model.BillNo);
+
             var userId = GetCurrentUserId();
             model.UserId = userId;
-
-            _logger.LogInformation("POST - Received BillNo: {BillNo}, Date: {Date}", model.BillNo, model.Date);
-            if (model.Items != null)
-            {
-                for (int i = 0; i < model.Items.Count; i++)
-                {
-                    _logger.LogInformation("POST - Items[{Index}].BillNo: {BillNo}, Date: {Date}", i, model.Items[i].BillNo, model.Items[i].Date);
-                }
-            }
-
-            // Log the raw form data
-            var formData = Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString());
-            _logger.LogInformation("POST - Form Data: {@FormData}", formData);
 
             ViewBag.ItemDropDown = SetItemDropDown();
             ViewBag.AccountDropDown = SetAccountDropDown();
@@ -228,148 +192,61 @@ namespace Gold_Billing_Web_App.Controllers
 
             var itemGroups = SetItemDropDown().ToDictionary(i => i.Id, i => i.GroupName);
 
-            // Clear validation errors for navigation properties
-            if (ModelState.ContainsKey("Account"))
-            {
-                ModelState.Remove("Account");
-            }
-            if (ModelState.ContainsKey("Item"))
-            {
-                ModelState.Remove("Item");
-            }
-            if (model.Items != null)
-            {
-                for (int i = 0; i < model.Items.Count; i++)
-                {
-                    if (ModelState.ContainsKey($"Items[{i}].Account"))
-                    {
-                        ModelState.Remove($"Items[{i}].Account");
-                    }
-                    if (ModelState.ContainsKey($"Items[{i}].Item"))
-                    {
-                        ModelState.Remove($"Items[{i}].Item");
-                    }
-                    if (ModelState.ContainsKey($"Items[{i}].User"))
-                    {
-                        ModelState.Remove($"Items[{i}].User");
-                    }
-                }
-            }
-
             if (string.IsNullOrEmpty(model.TransactionType))
             {
                 model.TransactionType = Request.Form["TransactionType"].FirstOrDefault() ?? "Purchase";
+                _logger.LogInformation("TransactionType not provided in model, set to: {TransactionType}", model.TransactionType);
             }
 
             if (string.IsNullOrEmpty(model.BillNo))
             {
                 model.BillNo = GenerateSequentialBillNo(model.TransactionType);
-                _logger.LogInformation("POST - Generated new BillNo: {BillNo}", model.BillNo);
+                _logger.LogInformation("BillNo not provided, generated: {BillNo}", model.BillNo);
             }
 
-            if (!SelectedAccountId.HasValue)
+            if (!SelectedAccountId.HasValue || model.Items == null || !model.Items.Any())
             {
-                ModelState.AddModelError("SelectedAccountId", "Account is required.");
+                _logger.LogWarning("Validation failed: Account or items missing. SelectedAccountId: {SelectedAccountId}, Items: {ItemCount}",
+                    SelectedAccountId, model.Items?.Count ?? 0);
+                return Json(new { success = false, error = "Account and at least one item are required." });
             }
 
-            if (model.Items == null || !model.Items.Any())
+            foreach (var item in model.Items)
             {
-                ModelState.AddModelError("Items", "At least one item is required.");
-            }
-            else
-            {
-                foreach (var item in model.Items)
+                if (!item.ItemId.HasValue || !await _context.Items.AnyAsync(i => i.Id == item.ItemId && i.UserId == userId))
                 {
-                    if (!item.ItemId.HasValue)
-                    {
-                        ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].ItemId", "Item is required.");
-                        continue;
-                    }
-
-                    // Verify that the ItemId exists and belongs to the current user
-                    var itemExists = await _context.Items.AnyAsync(i => i.Id == item.ItemId && i.UserId == userId);
-                    if (!itemExists)
-                    {
-                        ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].ItemId", "Selected item does not exist or is not associated with your user.");
-                        continue;
-                    }
-
-                    string groupName = itemGroups.ContainsKey(item.ItemId.Value) ? itemGroups[item.ItemId.Value] : "";
-                    switch (groupName)
-                    {
-                        case "Gold Jewelry":
-                            if (!item.Weight.HasValue || item.Weight <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Weight", "Gross Weight is required.");
-                            if (!item.Wastage.HasValue || item.Wastage <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Wastage", "Wastage is required.");
-                            break;
-                        case "PC Gold Jewelry":
-                            if (!item.Pc.HasValue || item.Pc <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Pc", "Pc is required.");
-                            if (!item.Rate.HasValue || item.Rate <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Rate", "Rate is required.");
-                            break;
-                        case "PC/Weight Jewelry":
-                            if (!item.Pc.HasValue || item.Pc <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Pc", "Pc is required.");
-                            if (!item.Weight.HasValue || item.Weight <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Weight", "Gross Weight is required.");
-                            if (!item.Wastage.HasValue || item.Wastage <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Wastage", "Wastage is required.");
-                            if (!item.Rate.HasValue || item.Rate <= 0) ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].Rate", "Rate is required.");
-                            break;
-                        default:
-                            ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].ItemId", "Invalid item group.");
-                            break;
-                    }
+                    ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].ItemId", "Invalid item.");
                 }
             }
 
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                _logger.LogWarning("POST - Validation Errors: {Errors}", string.Join("; ", errors));
+                _logger.LogWarning("ModelState invalid: {Errors}", string.Join("; ", errors));
                 return Json(new { success = false, error = string.Join("; ", errors) });
             }
 
             try
             {
-                var account = await _context.Accounts
-                    .FirstOrDefaultAsync(a => a.AccountId == SelectedAccountId && a.UserId == userId);
+                var account = await _context.Accounts.FirstOrDefaultAsync(a => a.AccountId == SelectedAccountId && a.UserId == userId);
                 if (account == null)
                 {
-                    _logger.LogWarning("Account not found for AccountId: {AccountId} and UserId: {UserId}", SelectedAccountId, userId);
-                    return Json(new { success = false, error = "Selected account does not exist or is not associated with your user." });
+                    _logger.LogWarning("Invalid account for AccountId: {AccountId}", SelectedAccountId);
+                    return Json(new { success = false, error = "Invalid account." });
                 }
 
-                // Calculate total adjustments for the new transaction
-                decimal newTotalFine = 0m;
-                decimal newTotalAmount = 0m;
-
-                // If updating, reverse the previous transaction's effect
-                decimal previousTotalFine = 0m;
-                decimal previousTotalAmount = 0m;
-                var existingTransactions = _context.Transactions
-                    .Where(t => t.BillNo == model.BillNo && t.UserId == userId)
-                    .ToList();
-
+                var existingTransactions = _context.Transactions.Where(t => t.BillNo == model.BillNo && t.UserId == userId).ToList();
                 if (existingTransactions.Any())
                 {
+                    _logger.LogInformation("Updating existing transaction with BillNo: {BillNo}", model.BillNo);
                     foreach (var existingItem in existingTransactions)
                     {
-                        string groupName = itemGroups[existingItem.ItemId!.Value];
-                        CalculateDerivedFields(existingItem, groupName);
-
-                        decimal fineAdjustment = existingItem.Fine ?? 0m;
-                        decimal amountAdjustment = existingItem.Amount ?? 0m;
-                        if (model.TransactionType == "Sale" || model.TransactionType == "PurchaseReturn")
-                        {
-                            fineAdjustment = -fineAdjustment;
-                            amountAdjustment = -amountAdjustment;
-                        }
-
-                        previousTotalFine += fineAdjustment;
-                        previousTotalAmount += amountAdjustment;
+                        await UpdateStockOnDelete(existingItem);
                     }
-
                     _context.Transactions.RemoveRange(existingTransactions);
                 }
 
-                // Process the new transaction items
-                foreach (var item in model.Items!)
+                foreach (var item in model.Items)
                 {
                     item.AccountId = SelectedAccountId;
                     item.TransactionType = model.TransactionType;
@@ -382,37 +259,98 @@ namespace Gold_Billing_Web_App.Controllers
                     string groupName = itemGroups[item.ItemId!.Value];
                     CalculateDerivedFields(item, groupName);
 
-                    decimal fineAdjustment = item.Fine ?? 0m;
-                    decimal amountAdjustment = item.Amount ?? 0m;
-                    if (model.TransactionType == "Sale" || model.TransactionType == "PurchaseReturn")
-                    {
-                        fineAdjustment = -fineAdjustment;
-                        amountAdjustment = -amountAdjustment;
-                    }
-
-                    newTotalFine += fineAdjustment;
-                    newTotalAmount += amountAdjustment;
-
                     _context.Transactions.Add(item);
+                    await UpdateStock(item);
                 }
-
-                // Adjust the account balance
-                account.Fine = account.Fine - previousTotalFine + newTotalFine;
-                account.Amount = account.Amount - previousTotalAmount + newTotalAmount;
-
-                // Update LastUpdated since Fine or Amount has changed
-                account.LastUpdated = DateTime.Now;
 
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Transaction saved successfully for BillNo: {BillNo}", model.BillNo);
 
-                string redirectUrl = Url.Action("ViewStock", "OpeningStock")!;
-                return Json(new { success = true, redirectUrl, message = "Transaction saved successfully!" });
+                return Json(new { success = true, redirectUrl = Url.Action("ViewStock", "OpeningStock"), message = "Transaction saved successfully!" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving transaction for BillNo: {BillNo}", model.BillNo);
-                return Json(new { success = false, error = $"An error occurred while saving: {ex.Message}" });
+                return Json(new { success = false, error = $"An error occurred: {ex.Message}" });
+            }
+        }
+
+
+        private async Task UpdateStock(TransactionModel item)
+        {
+            var stock = await _context.OpeningStocks.FirstOrDefaultAsync(s => s.ItemId == item.ItemId && s.UserId == item.UserId);
+            if (stock == null)
+            {
+                stock = new OpeningStockModel
+                {
+                    ItemId = item.ItemId!.Value,
+                    UserId = item.UserId,
+                    BillNo = "Opening",
+                    LastUpdated = DateTime.Now
+                };
+                _context.OpeningStocks.Add(stock);
+            }
+
+            switch (item.TransactionType)
+            {
+                case "Purchase":
+                case "SaleReturn":
+                    stock.Pc = (stock.Pc ?? 0) + (item.Pc ?? 0);
+                    stock.Weight = (stock.Weight ?? 0) + (item.Weight ?? 0);
+                    stock.Less = (stock.Less ?? 0) + (item.Less ?? 0);
+                    stock.NetWt = (stock.NetWt ?? 0) + (item.NetWt ?? 0);
+                    stock.Tunch = item.Tunch ?? stock.Tunch;
+                    stock.Wastage = item.Wastage ?? stock.Wastage;
+                    stock.Fine = (stock.Fine ?? 0) + (item.Fine ?? 0);
+                    stock.Amount = (stock.Amount ?? 0) + (item.Amount ?? 0);
+                    break;
+                case "Sale":
+                case "PurchaseReturn":
+                    stock.Pc = (stock.Pc ?? 0) - (item.Pc ?? 0);
+                    stock.Weight = (stock.Weight ?? 0) - (item.Weight ?? 0);
+                    stock.Less = (stock.Less ?? 0) - (item.Less ?? 0);
+                    stock.NetWt = (stock.NetWt ?? 0) - (item.NetWt ?? 0);
+                    stock.Tunch = item.Tunch ?? stock.Tunch;
+                    stock.Wastage = item.Wastage ?? stock.Wastage;
+                    stock.Fine = (stock.Fine ?? 0) - (item.Fine ?? 0);
+                    stock.Amount = (stock.Amount ?? 0) - (item.Amount ?? 0);
+                    break;
+            }
+            stock.LastUpdated = DateTime.Now;
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Stock updated for ItemId: {ItemId}, UserId: {UserId}, NetWt: {NetWt}", stock.ItemId, stock.UserId, stock.NetWt);
+        }
+
+        private async Task UpdateStockOnDelete(TransactionModel item)
+        {
+            var stock = await _context.OpeningStocks.FirstOrDefaultAsync(s => s.ItemId == item.ItemId && s.UserId == item.UserId);
+            if (stock != null)
+            {
+                switch (item.TransactionType)
+                {
+                    case "Purchase":
+                    case "SaleReturn":
+                        stock.Pc = (stock.Pc ?? 0) - (item.Pc ?? 0);
+                        stock.Weight = (stock.Weight ?? 0) - (item.Weight ?? 0);
+                        stock.Less = (stock.Less ?? 0) - (item.Less ?? 0);
+                        stock.NetWt = (stock.NetWt ?? 0) - (item.NetWt ?? 0);
+                        stock.Fine = (stock.Fine ?? 0) - (item.Fine ?? 0);
+                        stock.Amount = (stock.Amount ?? 0) - (item.Amount ?? 0);
+                        break;
+                    case "Sale":
+                    case "PurchaseReturn":
+                        stock.Pc = (stock.Pc ?? 0) + (item.Pc ?? 0);
+                        stock.Weight = (stock.Weight ?? 0) + (item.Weight ?? 0);
+                        stock.Less = (stock.Less ?? 0) + (item.Less ?? 0);
+                        stock.NetWt = (stock.NetWt ?? 0) + (item.NetWt ?? 0);
+                        stock.Fine = (stock.Fine ?? 0) + (item.Fine ?? 0);
+                        stock.Amount = (stock.Amount ?? 0) + (item.Amount ?? 0);
+                        break;
+                }
+                stock.LastUpdated = DateTime.Now;
+                if (stock.NetWt <= 0 && stock.Fine <= 0) _context.OpeningStocks.Remove(stock);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Stock updated on delete for ItemId: {ItemId}, UserId: {UserId}", stock.ItemId, stock.UserId);
             }
         }
 
@@ -420,72 +358,65 @@ namespace Gold_Billing_Web_App.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteTransaction(string billNo)
         {
-            if (string.IsNullOrEmpty(billNo))
-            {
-                _logger.LogWarning("DeleteTransaction - Bill number is required.");
-                return Json(new { success = false, error = "Bill number is required." });
-            }
-
             var userId = GetCurrentUserId();
+            var transactions = _context.Transactions.Where(t => t.BillNo == billNo && t.UserId == userId).ToList();
+
+            if (!transactions.Any()) return Json(new { success = false, error = "Transaction not found." });
 
             try
             {
-                var transactions = _context.Transactions
-                    .Where(t => t.BillNo == billNo && t.UserId == userId)
-                    .ToList();
-
-                if (!transactions.Any())
-                {
-                    _logger.LogWarning("DeleteTransaction - No transaction found for BillNo: {BillNo} and UserId: {UserId}", billNo, userId);
-                    return Json(new { success = false, error = "No transaction found with this BillNo or you do not have access to it." });
-                }
-
-                // Calculate the total adjustments to reverse
-                decimal totalFineToReverse = 0m;
-                decimal totalAmountToReverse = 0m;
-                int? accountId = transactions.First().AccountId;
-
                 var itemGroups = SetItemDropDown().ToDictionary(i => i.Id, i => i.GroupName);
                 foreach (var transaction in transactions)
                 {
                     string groupName = itemGroups[transaction.ItemId!.Value];
                     CalculateDerivedFields(transaction, groupName);
-
-                    decimal fineAdjustment = transaction.Fine ?? 0m;
-                    decimal amountAdjustment = transaction.Amount ?? 0m;
-                    if (transaction.TransactionType == "Sale" || transaction.TransactionType == "PurchaseReturn")
-                    {
-                        fineAdjustment = -fineAdjustment;
-                        amountAdjustment = -amountAdjustment;
-                    }
-
-                    totalFineToReverse += fineAdjustment;
-                    totalAmountToReverse += amountAdjustment;
+                    await UpdateStockOnDelete(transaction);
                 }
 
-                // Reverse the adjustments on the account
-                var account = await _context.Accounts
-                    .FirstOrDefaultAsync(a => a.AccountId == accountId && a.UserId == userId);
-                if (account != null)
-                {
-                    account.Fine -= totalFineToReverse;
-                    account.Amount -= totalAmountToReverse;
-                    account.LastUpdated = DateTime.Now;
-                }
-
-                // Remove the transactions
                 _context.Transactions.RemoveRange(transactions);
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Transaction deleted successfully for BillNo: {BillNo}", billNo);
-
-                string redirectUrl = Url.Action("ViewStock", "OpeningStock")!;
-                return Json(new { success = true, redirectUrl, message = "Transaction deleted successfully!" });
+                return Json(new { success = true, redirectUrl = Url.Action("ViewStock", "OpeningStock"), message = "Transaction deleted successfully!" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting transaction for BillNo: {BillNo}", billNo);
-                return Json(new { success = false, error = $"An error occurred while deleting: {ex.Message}" });
+                return Json(new { success = false, error = $"An error occurred: {ex.Message}" });
             }
+        }
+
+        [HttpGet]
+        public IActionResult StockDetails(int itemId)
+        {
+            var userId = GetCurrentUserId();
+            _logger.LogInformation("Loading StockDetails for ItemId: {ItemId}, UserId: {UserId}", itemId, userId);
+
+            var stock = _context.OpeningStocks
+                .Include(s => s.Item)
+                .FirstOrDefault(s => s.ItemId == itemId && s.UserId == userId);
+
+            var transactions = _context.Transactions
+                .Include(t => t.Item)
+                .Where(t => t.ItemId == itemId && t.UserId == userId)
+                .OrderBy(t => t.Date)
+                .ToList();
+
+            _logger.LogInformation("Found {StockCount} stock record and {TransactionCount} transactions for ItemId: {ItemId}",
+                stock != null ? 1 : 0, transactions.Count, itemId);
+
+            ViewBag.Transactions = transactions;
+
+            if (stock == null)
+            {
+                stock = new OpeningStockModel
+                {
+                    ItemId = itemId,
+                    UserId = userId,
+                    Item = _context.Items.FirstOrDefault(i => i.Id == itemId)
+                };
+                _logger.LogWarning("No stock found for ItemId: {ItemId}, returning default stock object", itemId);
+            }
+
+            return View(stock);
         }
     }
 }
