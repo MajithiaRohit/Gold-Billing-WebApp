@@ -36,19 +36,19 @@
                 <div class="input-group">
                     <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
                     <select asp-for="AccountId" id="accountSelect" class="form-control shadow-sm" onchange="fetchPreviousBalance(); updateBalances();" required>
-                       
-                     <option value="">Select Account</option>
-                    @foreach (var account in ViewBag.AccountDropDown)
-                    {
-                        if (Model.AccountId == account.Id)
+
+                        <option value="">Select Account</option>
+                        @foreach (var account in ViewBag.AccountDropDown)
                         {
-                            <option value="@account.Id" data-group="@account.GroupName" selected>@account.AccountName</option>
+                            if (Model.AccountId == account.Id)
+                            {
+                                <option value="@account.Id" data-group="@account.GroupName" selected>@account.AccountName</option>
+                            }
+                            else
+                            {
+                                <option value="@account.Id" data-group="@account.GroupName">@account.AccountName</option>
+                            }
                         }
-                        else
-                        {
-                            <option value="@account.Id" data-group="@account.GroupName">@account.AccountName</option>
-                        }
-                    }
                     </select>
                 </div>
                 <span asp-validation-for="AccountId" class="text-danger" id="account-error"></span>
@@ -80,10 +80,10 @@
                 <label class="form-label fw-medium">Transaction Type</label><br />
                 <div class="btn-group" role="group">
                     <label class="btn btn-outline-primary shadow-sm">
-                        <input type="radio" name="Type" value="Payment" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Payment" ? "checked" : "")> Payment
+                        <input type="radio" name="Type" value="Payment" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Payment" ? "checked" : "")>
                     </label>
                     <label class="btn btn-outline-primary shadow-sm">
-                        <input type="radio" name="Type" value="Receive" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Receive" ? "checked" : "")> Receive
+                        <input type="radio" name="Type" value="Receive" onchange="updateTypeAndBillNo(); updateBalances();" @(Model.Type == "Receive" ? "checked" : "")>
                     </label>
                 </div>
             </div>
@@ -176,7 +176,7 @@
         `;
     }
 
-    function fetchPreviousBalance() {
+         function fetchPreviousBalance() {
         let accountId = document.getElementById('accountSelect').value;
         if (!accountId) {
             document.getElementById('prevAmount').value = "0.00";
@@ -184,14 +184,21 @@
             return;
         }
 
-        fetch(`/AmmountTransection/GetPreviousBalance?accountId=${accountId}`)
-            .then(response => response.json())
+        console.log(`Fetching previous balance for accountId: ${accountId}`);
+        fetch(`/AmountTransaction/GetPreviousBalance?accountId=${accountId}`)
+            .then(response => {
+                console.log(`Response status: ${response.status}`);
+                if (!response.ok) throw new Error(`Server returned ${response.status}`);
+                return response.json();
+            })
             .then(data => {
                 document.getElementById('prevAmount').value = data.amount.toFixed(2);
+                console.log(`Previous balance updated: ${data.amount}`);
                 updateBalances();
             })
             .catch(error => {
                 console.error('Error fetching previous balance:', error);
+                showAlert(`Failed to fetch previous balance: ${error.message}`, 'danger');
                 document.getElementById('prevAmount').value = "0.00";
                 updateBalances();
             });
@@ -203,15 +210,21 @@
         updateBalances();
     }
 
-    function fetchBillNo(type) {
-        fetch(`/AmmountTransection/GetNextBillNo?type=${type}`)
+          function fetchBillNo(type) {
+        console.log(`Fetching bill number for type: ${type}`);
+        fetch(`/AmountTransaction/GetNextBillNo?type=${type}`)
             .then(response => {
+                console.log(`Response status: ${response.status}`);
                 if (!response.ok) throw new Error('Network response was not ok');
                 return response.json();
             })
             .then(data => {
-                if (data.success) document.getElementById('billNoInput').value = data.billNo;
-                else throw new Error(data.error);
+                if (data.success) {
+                    document.getElementById('billNoInput').value = data.billNo;
+                    console.log(`Bill number updated: ${data.billNo}`);
+                } else {
+                    throw new Error(data.error);
+                }
             })
             .catch(error => {
                 console.error('Error fetching bill number:', error);
@@ -276,10 +289,10 @@
         transition: all 0.3s ease;
     }
 
-    .form-control:focus, .form-select:focus {
-        border-color: #3498db;
-        box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
-    }
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
 
     .input-group-text {
         border-radius: 8px 0 0 8px;
@@ -292,15 +305,15 @@
         transition: all 0.3s ease;
     }
 
-    .btn-gradient.btn-danger {
-        background: linear-gradient(135deg, #e74c3c, #c0392b);
-    }
+        .btn-gradient.btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
 
-    .btn-gradient:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        color: white;
-    }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
 
     label {
         color: #2c3e50;

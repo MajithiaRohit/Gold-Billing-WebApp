@@ -66,18 +66,18 @@ namespace Gold_Billing_Web_App.Controllers
             if (!new[] { "Payment", "Receive" }.Contains(type))
             {
                 _logger.LogWarning("Invalid transaction type: {Type}", type);
-                return BadRequest("Invalid transaction type");
+                return BadRequest(new { success = false, error = "Invalid transaction type" });
             }
 
             try
             {
                 string billNo = GenerateSequentialBillNo(type);
-                return Json(new { success = true, billNo });
+                return Ok(new { success = true, billNo });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating bill number for type {Type}", type);
-                return Json(new { success = false, error = $"Error generating bill number: {ex.Message}" });
+                return StatusCode(500, new { success = false, error = $"Error generating bill number: {ex.Message}" });
             }
         }
 
@@ -193,6 +193,12 @@ namespace Gold_Billing_Web_App.Controllers
 
             model.Type = Request.Form["Type"].FirstOrDefault() ?? "Payment";
 
+            // Remove User from ModelState since it’s not submitted
+            if (ModelState.ContainsKey("User"))
+            {
+                ModelState.Remove("User");
+            }
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Select(kvp => new
@@ -219,7 +225,6 @@ namespace Gold_Billing_Web_App.Controllers
                     return Json(new { success = false, error = "Account not found or you do not have access to it." });
                 }
 
-                // Calculate the amount adjustment for the new transaction
                 decimal newAmountAdjustment = 0;
                 string groupName = account.GroupAccount?.GroupName ?? "";
                 if (groupName == "Supplier")
@@ -231,7 +236,6 @@ namespace Gold_Billing_Web_App.Controllers
                     newAmountAdjustment = model.Type == "Receive" ? -model.Amount : model.Amount;
                 }
 
-                // If this is an update, reverse the previous transaction's effect
                 decimal previousAmountAdjustment = 0;
                 if (existingTransaction != null)
                 {
@@ -244,7 +248,6 @@ namespace Gold_Billing_Web_App.Controllers
                         previousAmountAdjustment = existingTransaction.Type == "Receive" ? existingTransaction.Amount : -existingTransaction.Amount;
                     }
 
-                    // Update the existing transaction
                     existingTransaction.Date = model.Date;
                     existingTransaction.AccountId = model.AccountId;
                     existingTransaction.Type = model.Type;
@@ -255,14 +258,10 @@ namespace Gold_Billing_Web_App.Controllers
                 }
                 else
                 {
-                    // Add a new transaction
                     _context.AmountTransactions.Add(model);
                 }
 
-                // Adjust the account balance
                 account.Amount = account.Amount - previousAmountAdjustment + newAmountAdjustment;
-
-                // Update LastUpdated since the Amount has changed
                 account.LastUpdated = DateTime.Now;
 
                 await _context.SaveChangesAsync();
