@@ -32,7 +32,7 @@ namespace Gold_Billing_Web_App.Controllers
         {
             var userId = GetCurrentUserId();
             return _context.Accounts
-                .Where(a => a.UserId == userId)
+                .Where(a => a.UserId == userId && (a.GroupAccount.GroupName == "Customer" || a.GroupAccount.GroupName == "Supplier"))
                 .Include(a => a.GroupAccount)
                 .Select(a => new AccountDropDownModel
                 {

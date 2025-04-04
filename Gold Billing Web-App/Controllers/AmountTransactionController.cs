@@ -1,13 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Gold_Billing_Web_App.Models;
-using Gold_Billing_Web_App.Session;
-using System.Security.Claims;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Gold_Billing_Web_App.Models;
+using Gold_Billing_Web_App.Session;
+using System.Security.Claims;
 
 namespace Gold_Billing_Web_App.Controllers
 {
@@ -37,7 +37,7 @@ namespace Gold_Billing_Web_App.Controllers
         {
             var userId = GetCurrentUserId();
             return _context.Accounts
-                .Where(a => a.UserId == userId)
+                .Where(a => a.UserId == userId && (a.GroupAccount.GroupName == "Customer" || a.GroupAccount.GroupName == "Supplier"))
                 .Include(a => a.GroupAccount)
                 .Select(a => new AccountDropDownModel
                 {
@@ -50,7 +50,6 @@ namespace Gold_Billing_Web_App.Controllers
 
         private List<PaymentModeDropDownModel> SetPaymentModeDropDown()
         {
-            // Removed UserId filter to make payment modes common for all users
             return _context.PaymentModes
                 .Select(pm => new PaymentModeDropDownModel
                 {
@@ -66,18 +65,18 @@ namespace Gold_Billing_Web_App.Controllers
             if (!new[] { "Payment", "Receive" }.Contains(type))
             {
                 _logger.LogWarning("Invalid transaction type: {Type}", type);
-                return BadRequest(new { success = false, error = "Invalid transaction type" });
+                return BadRequest("Invalid transaction type");
             }
 
             try
             {
                 string billNo = GenerateSequentialBillNo(type);
-                return Ok(new { success = true, billNo });
+                return Json(new { success = true, billNo });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating bill number for type {Type}", type);
-                return StatusCode(500, new { success = false, error = $"Error generating bill number: {ex.Message}" });
+                return Json(new { success = false, error = $"Error generating bill number: {ex.Message}" });
             }
         }
 
@@ -193,7 +192,6 @@ namespace Gold_Billing_Web_App.Controllers
 
             model.Type = Request.Form["Type"].FirstOrDefault() ?? "Payment";
 
-            // Remove User from ModelState since it’s not submitted
             if (ModelState.ContainsKey("User"))
             {
                 ModelState.Remove("User");
@@ -215,37 +213,132 @@ namespace Gold_Billing_Web_App.Controllers
                 var existingTransaction = await _context.AmountTransactions
                     .FirstOrDefaultAsync(t => t.BillNo == model.BillNo && t.UserId == userId);
 
-                var account = await _context.Accounts
+                var selectedAccount = await _context.Accounts
                     .Include(a => a.GroupAccount)
                     .FirstOrDefaultAsync(a => a.AccountId == model.AccountId && a.UserId == userId);
 
-                if (account == null)
+                if (selectedAccount == null)
                 {
                     _logger.LogWarning("Account not found for AccountId: {AccountId} and UserId: {UserId}", model.AccountId, userId);
-                    return Json(new { success = false, error = "Account not found or you do not have access to it." });
+                    return Json(new { success = false, error = "Selected account not found." });
                 }
 
-                decimal newAmountAdjustment = 0;
-                string groupName = account.GroupAccount?.GroupName ?? "";
-                if (groupName == "Supplier")
+                var paymentMode = await _context.PaymentModes
+                    .FirstOrDefaultAsync(pm => pm.Id == model.PaymentModeId);
+
+                if (paymentMode == null)
                 {
-                    newAmountAdjustment = model.Type == "Payment" ? -model.Amount : model.Amount;
-                }
-                else if (groupName == "Customer")
-                {
-                    newAmountAdjustment = model.Type == "Receive" ? -model.Amount : model.Amount;
+                    _logger.LogWarning("Payment mode not found for PaymentModeId: {PaymentModeId}", model.PaymentModeId);
+                    return Json(new { success = false, error = "Payment mode not found." });
                 }
 
-                decimal previousAmountAdjustment = 0;
+                decimal selectedAccountAdjustment = 0;
+                string selectedGroupName = selectedAccount.GroupAccount?.GroupName ?? "";
+                if (selectedGroupName == "Supplier")
+                {
+                    selectedAccountAdjustment = model.Type == "Payment" ? -model.Amount : model.Amount;
+                }
+                else if (selectedGroupName == "Customer")
+                {
+                    selectedAccountAdjustment = model.Type == "Receive" ? -model.Amount : model.Amount;
+                }
+
+                var bankModes = new[] { "RTGS", "NEFT", "CHEQUE", "GPAY", "PHONEPE" };
+                bool isBankMode = bankModes.Contains(paymentMode.ModeName, StringComparer.OrdinalIgnoreCase);
+                bool isCashMode = paymentMode.ModeName.Equals("CASH", StringComparison.OrdinalIgnoreCase);
+
+                AccountModel? paymentAccount = null;
+                if (isBankMode)
+                {
+                    paymentAccount = await _context.Accounts
+                        .Include(a => a.GroupAccount)
+                        .FirstOrDefaultAsync(a => a.UserId == userId && a.GroupAccount.GroupName == "Bank");
+
+                    if (paymentAccount == null)
+                    {
+                        var bankGroup = await _context.GroupAccounts
+                            .FirstOrDefaultAsync(g => g.GroupName == "Bank" && g.UserId == userId);
+                        if (bankGroup == null)
+                        {
+                            bankGroup = new AccountGroupModel { GroupName = "Bank", UserId = userId };
+                            _context.GroupAccounts.Add(bankGroup);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        paymentAccount = new AccountModel
+                        {
+                            AccountName = "Default Bank Account",
+                            AccountGroupId = bankGroup.Id,
+                            UserId = userId,
+                            OpeningDate = DateTime.Now,
+                            Amount = 0,
+                            Fine = 0,
+                            LastUpdated = DateTime.Now,
+                            Address = "N/A",
+                            City = "N/A",
+                            MobileNo = "N/A",
+                            PhoneNo = "N/A"
+                        };
+                        _context.Accounts.Add(paymentAccount);
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Created default bank account for UserId: {UserId}", userId);
+                    }
+                }
+                else if (isCashMode)
+                {
+                    paymentAccount = await _context.Accounts
+                        .Include(a => a.GroupAccount)
+                        .FirstOrDefaultAsync(a => a.UserId == userId && a.GroupAccount.GroupName == "Cash");
+
+                    if (paymentAccount == null)
+                    {
+                        var cashGroup = await _context.GroupAccounts
+                            .FirstOrDefaultAsync(g => g.GroupName == "Cash" && g.UserId == userId);
+                        if (cashGroup == null)
+                        {
+                            cashGroup = new AccountGroupModel { GroupName = "Cash", UserId = userId };
+                            _context.GroupAccounts.Add(cashGroup);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        paymentAccount = new AccountModel
+                        {
+                            AccountName = "Cash Account",
+                            AccountGroupId = cashGroup.Id,
+                            UserId = userId,
+                            OpeningDate = DateTime.Now,
+                            Amount = 0,
+                            Fine = 0,
+                            LastUpdated = DateTime.Now,
+                            Address = "N/A",
+                            City = "N/A",
+                            MobileNo = "N/A",
+                            PhoneNo = "N/A"
+                        };
+                        _context.Accounts.Add(paymentAccount);
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Created cash account for UserId: {UserId}", userId);
+                    }
+                }
+
+                decimal paymentAccountAdjustment = 0;
+                if (paymentAccount != null)
+                {
+                    paymentAccountAdjustment = model.Type == "Payment" ? model.Amount : -model.Amount;
+                    paymentAccount.Amount += paymentAccountAdjustment;
+                    paymentAccount.LastUpdated = DateTime.Now;
+                }
+
+                decimal previousSelectedAccountAdjustment = 0;
                 if (existingTransaction != null)
                 {
-                    if (groupName == "Supplier")
+                    if (selectedGroupName == "Supplier")
                     {
-                        previousAmountAdjustment = existingTransaction.Type == "Payment" ? existingTransaction.Amount : -existingTransaction.Amount;
+                        previousSelectedAccountAdjustment = existingTransaction.Type == "Payment" ? existingTransaction.Amount : -existingTransaction.Amount;
                     }
-                    else if (groupName == "Customer")
+                    else if (selectedGroupName == "Customer")
                     {
-                        previousAmountAdjustment = existingTransaction.Type == "Receive" ? existingTransaction.Amount : -existingTransaction.Amount;
+                        previousSelectedAccountAdjustment = existingTransaction.Type == "Receive" ? existingTransaction.Amount : -existingTransaction.Amount;
                     }
 
                     existingTransaction.Date = model.Date;
@@ -261,11 +354,16 @@ namespace Gold_Billing_Web_App.Controllers
                     _context.AmountTransactions.Add(model);
                 }
 
-                account.Amount = account.Amount - previousAmountAdjustment + newAmountAdjustment;
-                account.LastUpdated = DateTime.Now;
+                selectedAccount.Amount = selectedAccount.Amount - previousSelectedAccountAdjustment + selectedAccountAdjustment;
+                selectedAccount.LastUpdated = DateTime.Now;
 
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Transaction saved successfully for BillNo: {BillNo}", model.BillNo);
+                if (paymentAccount != null)
+                {
+                    _logger.LogInformation("Updated payment account {AccountName} (Id: {AccountId}) with adjustment: {Adjustment}",
+                        paymentAccount.AccountName, paymentAccount.AccountId, paymentAccountAdjustment);
+                }
 
                 string redirectUrl = Url.Action("Index", "Home")!;
                 return Json(new { success = true, redirectUrl });

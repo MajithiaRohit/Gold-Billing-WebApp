@@ -14,16 +14,16 @@ namespace Gold_Billing_Web_App.Models
         [Required(ErrorMessage = "Account group is required.")]
         public int AccountGroupId { get; set; }
 
-        public string Address { get; set; }
-        public string City { get; set; }
-        public string Pincode { get; set; }
-        public string MobileNo { get; set; }
-        public string PhoneNo { get; set; }
+        public string Address { get; set; } = "N/A"; // Default value
+        public string City { get; set; } = "N/A";
+        public string Pincode { get; set; } = "N/A";
+        public string MobileNo { get; set; } = "N/A";
+        public string PhoneNo { get; set; } = "N/A";
 
         [EmailAddress(ErrorMessage = "Invalid email address.")]
-        public string Email { get; set; }
+        public string Email { get; set; } = "N/A";
 
-        public decimal Fine { get; set; }
+        public decimal Fine { get; set; } 
         public decimal Amount { get; set; }
 
         [Required(ErrorMessage = "Opening date is required.")]
