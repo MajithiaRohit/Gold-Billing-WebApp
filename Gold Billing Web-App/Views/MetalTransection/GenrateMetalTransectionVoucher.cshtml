@@ -6,18 +6,6 @@
 <div class="card shadow-lg border-0 rounded-3 mt-5 mx-auto" style="background: linear-gradient(135deg, skyblue, #dfe6e9);">
     <div class="card-body p-4">
         <h3 class="text-center fw-bold mb-4" style="color: #2d3436; letter-spacing: 1px; text-transform: uppercase;">@ViewBag.Title</h3>
-        @if (!ViewData.ModelState.IsValid)
-        {
-            <div class="alert alert-danger shadow-sm rounded-3" role="alert">
-                <h4 class="alert-heading fw-bold">Validation Errors</h4>
-                <ul class="mb-0">
-                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                    {
-                        <li>@error.ErrorMessage</li>
-                    }
-                </ul>
-            </div>
-        }
 
         <form asp-action="AddMetalTransaction" method="post" id="metalTransactionForm" class="row g-4">
             @Html.AntiForgeryToken()
@@ -33,7 +21,6 @@
                 <div class="input-group">
                     <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
                     <select asp-for="SelectedAccountId" id="accountSelect" class="form-control shadow-sm" onchange="fetchPreviousBalance(); syncAccountIds();" required>
-
                         <option value="">Select Account</option>
                         @foreach (var account in ViewBag.AccountDropDown)
                         {
@@ -177,6 +164,20 @@
                     <button type="button" class="btn btn-gradient btn-primary shadow-sm mb-3 ms-3" onclick="addNewRow()">
                         <i class="bi bi-plus-circle ms-2"></i>Add New Row
                     </button>
+
+                    <!-- Moved Validation Errors Below Footer -->
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger shadow-sm rounded-3 mt-3" role="alert">
+                            <h4 class="alert-heading fw-bold">Validation Errors</h4>
+                            <ul class="mb-0">
+                                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                                {
+                                    <li>@error.ErrorMessage</li>
+                                }
+                            </ul>
+                        </div>
+                    }
                 </div>
             </div>
 
@@ -210,13 +211,15 @@
     });
 
     function showAlert(message, type) {
-        const alertContainer = document.getElementById('alertContainer');
+        const alertContainer = document.createElement('div');
         alertContainer.innerHTML = `
             <div class="alert alert-${type} alert-dismissible fade show shadow-sm rounded-3" role="alert">
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
+        document.body.appendChild(alertContainer);
+        setTimeout(() => alertContainer.remove(), 5000);
     }
 
     function calculateFine(element) {
@@ -364,7 +367,7 @@
             if (data.success) {
                 Swal.fire({
                     title: 'Success!',
-                    text: 'Transaction has been successfully saved!',
+                    text: 'Transaction has been successfully saved and stock updated!',
                     icon: 'success',
                     confirmButtonColor: '#2ecc71',
                     timer: 2000,
@@ -393,10 +396,10 @@
         transition: all 0.3s ease;
     }
 
-    .form-control:focus, .form-select:focus {
-        border-color: #3498db;
-        box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
-    }
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
 
     .input-group-text {
         border-radius: 8px 0 0 8px;
@@ -409,15 +412,15 @@
         transition: all 0.3s ease;
     }
 
-    .btn-gradient.btn-danger {
-        background: linear-gradient(135deg, #e74c3c, #c0392b);
-    }
+        .btn-gradient.btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
 
-    .btn-gradient:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        color: white;
-    }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
 
     label {
         color: #2c3e50;

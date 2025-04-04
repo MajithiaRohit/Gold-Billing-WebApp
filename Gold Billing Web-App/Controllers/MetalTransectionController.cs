@@ -225,7 +225,19 @@ namespace Gold_Billing_Web_App.Controllers
 
             try
             {
-                decimal totalFine = 0;
+                // Fetch account and determine if it's a Supplier or Customer
+                var account = await _context.Accounts
+                    .Include(a => a.GroupAccount)
+                    .FirstOrDefaultAsync(a => a.AccountId == model.SelectedAccountId && a.UserId == userId);
+
+                if (account == null)
+                {
+                    throw new InvalidOperationException("Selected account not found.");
+                }
+
+                bool isSupplier = account.GroupAccount?.GroupName?.ToLower() == "supplier";
+                decimal totalFineAdjustment = 0;
+
                 var existingTransactions = _context.MetalTransactions.Where(t => t.BillNo == model.BillNo && t.UserId == userId);
                 if (existingTransactions.Any())
                 {
@@ -241,30 +253,123 @@ namespace Gold_Billing_Web_App.Controllers
                     item.Narration = model.Narration;
                     item.UserId = userId;
 
+                    // Calculate Fine
                     item.Fine = (item.GrossWeight ?? 0) * (item.Tunch ?? 0) / 100;
-
                     decimal fineAdjustment = item.Fine ?? 0;
-                    if (model.Type == "Payment")
+
+                    // Adjust fine based on account type and transaction type
+                    if (isSupplier)
                     {
-                        fineAdjustment = -fineAdjustment;
+                        if (model.Type == "Payment")
+                        {
+                            // User pays metal to supplier: reduce supplier's fine
+                            fineAdjustment = -fineAdjustment;
+                        }
+                        else if (model.Type == "Receipt")
+                        {
+                            // User receives metal from supplier: increase supplier's fine
+                            fineAdjustment = fineAdjustment;
+                        }
+                    }
+                    else // Customer
+                    {
+                        if (model.Type == "Payment")
+                        {
+                            // User gives metal to customer: increase customer's fine
+                            fineAdjustment = fineAdjustment;
+                        }
+                        else if (model.Type == "Receipt")
+                        {
+                            // User receives metal from customer: reduce customer's fine
+                            fineAdjustment = -fineAdjustment;
+                        }
                     }
 
-                    totalFine += fineAdjustment;
+                    totalFineAdjustment += fineAdjustment;
+
+                    // Update OpeningStock
+                    var openingStock = _context.OpeningStocks
+                        .FirstOrDefault(os => os.ItemId == item.ItemId && os.UserId == userId);
+                    if (openingStock == null)
+                    {
+                        openingStock = new OpeningStockModel
+                        {
+                            ItemId = item.ItemId ?? 0,
+                            UserId = userId,
+                            StockType = model.Type,
+                            BillNo = model.BillNo ?? "",
+                            Date = model.Date,
+                            Pc = 0, // Initialize to 0, no change during updates
+                            Weight = 0, // Initialize to 0, adjust below
+                            Tunch = item.Tunch ?? 0,
+                            Fine = 0, // Initialize to 0, adjust below
+                            NetWt = 0, // Initialize to 0, adjust below
+                            Amount = 0,
+                            LastUpdated = DateTime.Now,
+                            Narration = model.Narration
+                        };
+                        _context.OpeningStocks.Add(openingStock);
+                    }
+
+                    // Adjust stock based on account type and transaction type (Pc remains unchanged)
+                    if (isSupplier)
+                    {
+                        if (model.Type == "Payment")
+                        {
+                            // User pays metal to supplier: reduce stock
+                            openingStock.Weight = (openingStock.Weight ?? 0) - (item.GrossWeight ?? 0);
+                            openingStock.Fine = (openingStock.Fine ?? 0) - (item.Fine ?? 0);
+                            openingStock.NetWt = (openingStock.NetWt ?? 0) - (item.GrossWeight ?? 0);
+                            // Pc not adjusted
+                        }
+                        else if (model.Type == "Receipt")
+                        {
+                            // User receives metal from supplier: increase stock
+                            openingStock.Weight = (openingStock.Weight ?? 0) + (item.GrossWeight ?? 0);
+                            openingStock.Fine = (openingStock.Fine ?? 0) + (item.Fine ?? 0);
+                            openingStock.NetWt = (openingStock.NetWt ?? 0) + (item.GrossWeight ?? 0);
+                            // Pc not adjusted
+                        }
+                    }
+                    else // Customer
+                    {
+                        if (model.Type == "Payment")
+                        {
+                            // User gives metal to customer: reduce stock
+                            openingStock.Weight = (openingStock.Weight ?? 0) - (item.GrossWeight ?? 0);
+                            openingStock.Fine = (openingStock.Fine ?? 0) - (item.Fine ?? 0);
+                            openingStock.NetWt = (openingStock.NetWt ?? 0) - (item.GrossWeight ?? 0);
+                            // Pc not adjusted
+                        }
+                        else if (model.Type == "Receipt")
+                        {
+                            // User receives metal from customer: increase stock
+                            openingStock.Weight = (openingStock.Weight ?? 0) + (item.GrossWeight ?? 0);
+                            openingStock.Fine = (openingStock.Fine ?? 0) + (item.Fine ?? 0);
+                            openingStock.NetWt = (openingStock.NetWt ?? 0) + (item.GrossWeight ?? 0);
+                            // Pc not adjusted
+                        }
+                    }
+
+                    openingStock.Tunch = item.Tunch ?? openingStock.Tunch;
+                    openingStock.Date = model.Date;
+                    openingStock.StockType = model.Type;
+                    openingStock.BillNo = model.BillNo ?? "";
+                    openingStock.LastUpdated = DateTime.Now;
+                    openingStock.Narration = model.Narration;
 
                     _context.MetalTransactions.Add(item);
                 }
 
-                var account = await _context.Accounts
-                    .FirstOrDefaultAsync(a => a.AccountId == model.SelectedAccountId && a.UserId == userId);
-
+                // Update account balance
                 if (account != null)
                 {
-                    account.Fine += totalFine;
-                    account.Amount += totalFine; // Assuming Amount is updated similarly; adjust if needed
+                    account.Fine += totalFineAdjustment;
+                    account.Amount += totalFineAdjustment;
                 }
 
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Transaction saved successfully for BillNo: {BillNo}", model.BillNo);
+                _logger.LogInformation("Transaction and stock updated successfully for BillNo: {BillNo}", model.BillNo);
 
                 string redirectUrl = Url.Action("Index", "Home")!;
                 return Json(new { success = true, redirectUrl });
