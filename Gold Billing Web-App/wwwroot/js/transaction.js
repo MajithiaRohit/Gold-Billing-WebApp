@@ -309,15 +309,23 @@ function updatePreviousBalance() {
         return;
     }
 
-    fetch(`/Transaction/GetPreviousBalance?accountId=${accountId}&transactionType=${window.transactionType}`)
+    fetch(`/Transaction/GetPreviousBalance?accountId=${accountId}`, { // Removed unused transactionType param
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
         .then(response => response.json())
         .then(data => {
             document.getElementById('prevFine').value = data.fine.toFixed(2);
             document.getElementById('prevAmount').value = data.amount.toFixed(2);
-            document.getElementById('prevDate').textContent = data.lastUpdated ? `Last Updated: ${new Date(data.lastUpdated).toLocaleDateString()}` : '';
+            document.getElementById('prevDate').textContent = data.date ? `Last Updated: ${new Date(data.date).toLocaleDateString()}` : '';
             updateTotalBalance();
         })
-        .catch(error => console.error('Error fetching previous balance:', error));
+        .catch(error => {
+            console.error('Error fetching previous balance:', error);
+            document.getElementById('prevFine').value = '0.00';
+            document.getElementById('prevAmount').value = '0.00';
+            document.getElementById('prevDate').textContent = 'Error fetching balance';
+            updateTotalBalance();
+        });
 }
 
 function updateTotalBalance() {

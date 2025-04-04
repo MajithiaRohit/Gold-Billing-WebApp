@@ -228,7 +228,9 @@ namespace Gold_Billing_Web_App.Controllers
 
             try
             {
-                var account = await _context.Accounts.FirstOrDefaultAsync(a => a.AccountId == SelectedAccountId && a.UserId == userId);
+                var account = await _context.Accounts
+                    .Include(a => a.GroupAccount) // Include GroupAccount if needed for group-specific logic
+                    .FirstOrDefaultAsync(a => a.AccountId == SelectedAccountId && a.UserId == userId);
                 if (account == null)
                 {
                     _logger.LogWarning("Invalid account for AccountId: {AccountId}", SelectedAccountId);
@@ -246,6 +248,10 @@ namespace Gold_Billing_Web_App.Controllers
                     _context.Transactions.RemoveRange(existingTransactions);
                 }
 
+                // Calculate total Fine and Amount for the transaction
+                decimal totalFine = 0m;
+                decimal totalAmount = 0m;
+
                 foreach (var item in model.Items)
                 {
                     item.AccountId = SelectedAccountId;
@@ -261,10 +267,34 @@ namespace Gold_Billing_Web_App.Controllers
 
                     _context.Transactions.Add(item);
                     await UpdateStock(item);
+
+                    // Accumulate totals
+                    totalFine += item.Fine ?? 0;
+                    totalAmount += item.Amount ?? 0;
                 }
 
+                // Update account balance based on transaction type
+                switch (model.TransactionType)
+                {
+                    case "Purchase":
+                    case "SaleReturn":
+                        account.Fine += totalFine;
+                        account.Amount += totalAmount;
+                        break;
+                    case "Sale":
+                    case "PurchaseReturn":
+                        account.Fine -= totalFine;
+                        account.Amount -= totalAmount;
+                        break;
+                }
+                account.LastUpdated = DateTime.Now;
+
+                // Ensure account changes are saved
+                _context.Accounts.Update(account);
+
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Transaction saved successfully for BillNo: {BillNo}", model.BillNo);
+                _logger.LogInformation("Transaction saved successfully for BillNo: {BillNo}, Account updated: Fine={Fine}, Amount={Amount}",
+                    model.BillNo, account.Fine, account.Amount);
 
                 return Json(new { success = true, redirectUrl = Url.Action("ViewStock", "OpeningStock"), message = "Transaction saved successfully!" });
             }
@@ -275,7 +305,6 @@ namespace Gold_Billing_Web_App.Controllers
             }
         }
 
-
         private async Task UpdateStock(TransactionModel item)
         {
             var stock = await _context.OpeningStocks.FirstOrDefaultAsync(s => s.ItemId == item.ItemId && s.UserId == item.UserId);
@@ -285,7 +314,9 @@ namespace Gold_Billing_Web_App.Controllers
                 {
                     ItemId = item.ItemId!.Value,
                     UserId = item.UserId,
-                    BillNo = "Opening",
+                    BillNo = item.BillNo, // Use transaction BillNo instead of "Opening"
+                    Date = item.Date,     // Required field, use transaction date
+                    StockType = item.TransactionType, // Set to "Purchase", "Sale", etc.
                     LastUpdated = DateTime.Now
                 };
                 _context.OpeningStocks.Add(stock);
@@ -317,8 +348,14 @@ namespace Gold_Billing_Web_App.Controllers
                     break;
             }
             stock.LastUpdated = DateTime.Now;
+            if (stock.Date == default) // Ensure Date is always set
+            {
+                stock.Date = item.Date;
+            }
+
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Stock updated for ItemId: {ItemId}, UserId: {UserId}, NetWt: {NetWt}", stock.ItemId, stock.UserId, stock.NetWt);
+            _logger.LogInformation("Stock updated for ItemId: {ItemId}, UserId: {UserId}, NetWt: {NetWt}, StockType: {StockType}",
+                stock.ItemId, stock.UserId, stock.NetWt, stock.StockType);
         }
 
         private async Task UpdateStockOnDelete(TransactionModel item)
