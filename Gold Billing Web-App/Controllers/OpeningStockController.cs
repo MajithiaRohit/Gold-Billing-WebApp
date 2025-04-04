@@ -178,6 +178,7 @@ namespace Gold_Billing_Web_App.Controllers
                 {
                     case "Gold Jewelry":
                         if (!item.Weight.HasValue || item.Weight <= 0) return Json(new { success = false, error = $"Gross Weight is required for row {model.Items.IndexOf(item) + 1}." });
+                        if (!item.Tunch.HasValue || item.Tunch <= 0) return Json(new { success = false, error = $"Tunch is required for row {model.Items.IndexOf(item) + 1}." });
                         if (!item.Wastage.HasValue || item.Wastage <= 0) return Json(new { success = false, error = $"Wastage is required for row {model.Items.IndexOf(item) + 1}." });
                         break;
                     case "PC Gold Jewelry":
@@ -187,6 +188,7 @@ namespace Gold_Billing_Web_App.Controllers
                     case "PC/Weight Jewelry":
                         if (!item.Pc.HasValue || item.Pc <= 0) return Json(new { success = false, error = $"Pc is required for row {model.Items.IndexOf(item) + 1}." });
                         if (!item.Weight.HasValue || item.Weight <= 0) return Json(new { success = false, error = $"Gross Weight is required for row {model.Items.IndexOf(item) + 1}." });
+                        if (!item.Tunch.HasValue || item.Tunch <= 0) return Json(new { success = false, error = $"Tunch is required for row {model.Items.IndexOf(item) + 1}." });
                         if (!item.Wastage.HasValue || item.Wastage <= 0) return Json(new { success = false, error = $"Wastage is required for row {model.Items.IndexOf(item) + 1}." });
                         if (!item.Rate.HasValue || item.Rate <= 0) return Json(new { success = false, error = $"Rate is required for row {model.Items.IndexOf(item) + 1}." });
                         break;
@@ -203,7 +205,7 @@ namespace Gold_Billing_Web_App.Controllers
                 if (existingStocks.Any())
                 {
                     _context.OpeningStocks.RemoveRange(existingStocks);
-                    await _context.SaveChangesAsync(); // Ensure removal is committed before adding new items
+                    await _context.SaveChangesAsync();
                 }
 
                 bool isOpeningStock = model.BillNo.StartsWith("OS");
@@ -248,14 +250,9 @@ namespace Gold_Billing_Web_App.Controllers
         {
             try
             {
-                _logger.LogInformation("DeleteOpeningStock endpoint hit. Headers: {Headers}", Request.Headers);
-                _logger.LogInformation("Form data: {Form}", Request.Form);
                 var userId = GetCurrentUserId();
-                _logger.LogInformation("DeleteOpeningStock called with billNo: {BillNo}, userId: {UserId}", billNo, userId);
-
                 if (string.IsNullOrEmpty(billNo))
                 {
-                    _logger.LogWarning("BillNo is null or empty.");
                     return Json(new { success = false, error = "Bill number is required." });
                 }
 
@@ -265,7 +262,6 @@ namespace Gold_Billing_Web_App.Controllers
 
                 if (!stocksToDelete.Any())
                 {
-                    _logger.LogWarning("No stocks found for billNo: {BillNo}, userId: {UserId}", billNo, userId);
                     return Json(new { success = false, error = "Bill not found." });
                 }
 
@@ -352,7 +348,6 @@ namespace Gold_Billing_Web_App.Controllers
         {
             var userId = GetCurrentUserId();
 
-            // Fetch Opening Stock
             var stockItems = _context.OpeningStocks
                 .Where(os => os.UserId == userId && os.ItemId == itemId)
                 .Include(os => os.Item)
@@ -361,7 +356,7 @@ namespace Gold_Billing_Web_App.Controllers
                 {
                     BillNo = os.BillNo,
                     Type = os.StockType,
-                    Sign = "+", // Opening stock always adds
+                    Sign = "+",
                     ItemName = os.Item.Name,
                     Pc = os.Pc,
                     Weight = os.Weight,
@@ -375,7 +370,6 @@ namespace Gold_Billing_Web_App.Controllers
                 })
                 .ToList();
 
-            // Fetch Transactions
             var transactions = _context.Transactions
                 .Where(t => t.UserId == userId && t.ItemId == itemId)
                 .Include(t => t.Item)
@@ -384,7 +378,7 @@ namespace Gold_Billing_Web_App.Controllers
                 {
                     BillNo = t.BillNo,
                     Type = t.TransactionType,
-                    Sign = t.TransactionType == "Purchase" || t.TransactionType == "SaleReturn" ? "+" : "-", // + for add, - for subtract
+                    Sign = t.TransactionType == "Purchase" || t.TransactionType == "SaleReturn" ? "+" : "-",
                     ItemName = t.Item.Name,
                     Pc = t.Pc,
                     Weight = t.Weight,
@@ -398,22 +392,20 @@ namespace Gold_Billing_Web_App.Controllers
                 })
                 .ToList();
 
-            // Combine and sort by date
             var allEntries = stockItems.Concat(transactions)
                 .OrderBy(e => e.Date)
                 .ToList();
 
-            // If no entries exist, fetch ItemName from Items table and return empty list
             if (!allEntries.Any())
             {
                 var item = _context.Items.FirstOrDefault(i => i.Id == itemId && i.UserId == userId);
-                if (item == null) return NotFound(); // Item doesn't exist
+                if (item == null) return NotFound();
 
                 var model = new StockDetailsViewModel
                 {
                     ItemId = itemId,
                     ItemName = item.Name,
-                    Entries = new List<StockEntry>(), // Empty list
+                    Entries = new List<StockEntry>(),
                     TotalPc = 0,
                     TotalWeight = 0,
                     TotalNetWt = 0,
@@ -423,7 +415,6 @@ namespace Gold_Billing_Web_App.Controllers
                 return View(model);
             }
 
-            // If entries exist, proceed as normal
             var stockModel = new StockDetailsViewModel
             {
                 ItemId = itemId,

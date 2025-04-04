@@ -58,32 +58,43 @@
                                     </select>
                                     <span asp-validation-for="Items[i].ItemId" class="text-danger"></span>
                                 </td>
-                                <td><input asp-for="Items[i].Pc" class="form-control pc-input text-center shadow-sm" style="width: 100%; border-radius: 10px; border: none; background: #fff; padding: 8px; font-size: 14px; color: #333;" /></td>
-                                <td><input asp-for="Items[i].Weight" class="form-control weight-input text-center shadow-sm" style="width: 100%; border-radius: 10px; border: none; background: #fff; padding: 8px; font-size: 14px; color: #333;" /></td>
-                                <td><input asp-for="Items[i].Less" class="form-control less-input text-center shadow-sm" style="width: 100%; border-radius: 10px; border: none; background: #fff; padding: 8px; font-size: 14px; color: #333;" /></td>
-                                <td><input asp-for="Items[i].NetWt" class="form-control netwt-input text-center shadow-sm" readonly style="width: 100%; border-radius: 10px; background: #e9ecef; border: none; padding: 8px; font-size: 14px; color: #555;" /></td>
-                                <td><input asp-for="Items[i].Tunch" class="form-control tunch-input text-center shadow-sm" style="width: 100%; border-radius: 10px; border: none; background: #fff; padding: 8px; font-size: 14px; color: #333;" /></td>
-                                <td><input asp-for="Items[i].Wastage" class="form-control wastage-input text-center shadow-sm" style="width: 100%; border-radius: 10px; border: none; background: #fff; padding: 8px; font-size: 14px; color: #333;" /></td>
-                                <td><input asp-for="Items[i].TW" class="form-control tw-input text-center shadow-sm" readonly style="width: 100%; border-radius: 10px; background: #e9ecef; border: none; padding: 8px; font-size: 14px; color: #555;" /></td>
-                                <td><input asp-for="Items[i].Rate" class="form-control rate-input text-center shadow-sm" style="width: 100%; border-radius: 10px; border: none; background: #fff; padding: 8px; font-size: 14px; color: #333;" /></td>
-                                <td><input asp-for="Items[i].Fine" class="form-control fine-input text-center shadow-sm" readonly style="width: 100%; border-radius: 10px; background: #e9ecef; border: none; padding: 8px; font-size: 14px; color: #555;" /></td>
-                                <td><input asp-for="Items[i].Amount" class="form-control amount-input text-center shadow-sm" readonly style="width: 100%; border-radius: 10px; background: #e9ecef; border: none; padding: 8px; font-size: 14px; color: #555;" /></td>
+                                <td><input asp-for="Items[i].Pc" class="form-control pc-input text-center shadow-sm" style="width: 100%;" /></td>
+                                <td><input asp-for="Items[i].Weight" class="form-control weight-input text-center shadow-sm" style="width: 100%;" /></td>
+                                <td><input asp-for="Items[i].Less" class="form-control less-input text-center shadow-sm" style="width: 100%;" /></td>
+                                <td><input asp-for="Items[i].NetWt" class="form-control netwt-input text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                                <td><input asp-for="Items[i].Tunch" class="form-control tunch-input text-center shadow-sm" style="width: 100%;" /></td>
+                                <td><input asp-for="Items[i].Wastage" class="form-control wastage-input text-center shadow-sm" style="width: 100%;" /></td>
+                                <td><input asp-for="Items[i].TW" class="form-control tw-input text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                                <td><input asp-for="Items[i].Rate" class="form-control rate-input text-center shadow-sm" style="width: 100%;" /></td>
+                                <td><input asp-for="Items[i].Fine" class="form-control fine-input text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                                <td><input asp-for="Items[i].Amount" class="form-control amount-input text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
                                 <td>
                                     @if (i > 0)
                                     {
-                                        <button type="button" class="btn btn-danger btn-sm remove-row-btn shadow-sm" style="border-radius: 50%; padding: 8px 12px; background: linear-gradient(to right, #ef4444, #f87171); border: none; transition: all 0.3s ease;"><i class="bi bi-trash" style="font-size: 14px;"></i></button>
+                                        <button type="button" class="btn btn-danger btn-sm remove-row-btn shadow-sm" style="border-radius: 50%; padding: 8px 12px; background: linear-gradient(to right, #ef4444, #f87171); border: none;"><i class="bi bi-trash"></i></button>
                                     }
                                 </td>
                             </tr>
                         }
                     </tbody>
-                    <tfoot>
-                        <tr style="background: linear-gradient(145deg, #f0f4f8, #e2e8f0);">
+                    <tfoot style="background: linear-gradient(145deg, #f0f4f8, #e2e8f0);">
+                        <tr class="text-center">
+                            <td class="fw-bold">Total</td>
+                            <td></td>
+                            <td><input id="totalGrWt" class="form-control text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                            <td><input id="totalLess" class="form-control text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                            <td><input id="totalNetWt" class="form-control text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                            <td></td>
+                            <td></td>
+                            <td><input id="totalTW" class="form-control text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                            <td></td>
+                            <td><input id="totalFine" class="form-control text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                            <td><input id="totalAmount" class="form-control text-center shadow-sm" readonly style="width: 100%; background: #e9ecef;" /></td>
+                            <td></td>
+                        </tr>
+                        <tr>
                             <td colspan="12" class="text-center" style="padding: 10px;">
-                                <button type="button" class="btn btn-add-row shadow-lg" style="border-radius: 50px; padding: 10px 25px; background: linear-gradient(135deg, #10b981, #34d399); color: white; font-weight: 600; font-size: 15px; position: relative; overflow: hidden; transition: all 0.4s ease; width: 150px;">
-                                    <span style="position: relative; z-index: 1;">Add Row</span>
-                                    <span class="btn-shine" style="position: absolute; top: -50%; left: -150%; width: 200%; height: 200%; background: linear-gradient(120deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 70%); transform: skewX(-25deg); animation: shine 2s infinite;"></span>
-                                </button>
+                                <button type="button" class="btn btn-add-row shadow-lg" style="border-radius: 50px; padding: 10px 25px; background: linear-gradient(135deg, #10b981, #34d399); color: white; font-weight: 600;">Add Row</button>
                             </td>
                         </tr>
                     </tfoot>
@@ -91,7 +102,7 @@
             </div>
 
             <div class="mt-5 text-center d-flex justify-content-center gap-3">
-                <button type="submit" class="btn btn-gradient btn-primary shadow-sm" style="border-radius: 50px; padding: 12px 30px;">Save</button>
+                <button type="submit" id="saveButton" class="btn btn-gradient btn-primary shadow-sm" style="border-radius: 50px; padding: 12px 30px;">Save</button>
                 @if (ViewBag.IsExisting)
                 {
                     <button type="button" id="deleteBillBtn" class="btn btn-gradient btn-danger shadow-sm" data-bill-no="@Model.BillNo" style="border-radius: 50px; padding: 12px 30px;">Delete</button>
@@ -109,15 +120,13 @@
 <script>
     const addOpeningStockUrl = '@Url.Action("AddOpeningStock", "OpeningStock")';
     const deleteOpeningStockUrl = '@Url.Action("DeleteOpeningStock", "OpeningStock")';
-    setupFormSubmission(addOpeningStockUrl, deleteOpeningStockUrl);
-    setupEventListeners();
-
-    // Bind "Add Row" button inside the table
-    document.querySelector('.btn-add-row').addEventListener('click', addNewRow);
+    document.addEventListener('DOMContentLoaded', () => {
+        setupFormSubmission(addOpeningStockUrl, deleteOpeningStockUrl);
+        setupEventListeners();
+    });
 </script>
 
 <style>
-    /* Button Gradient Base */
     .btn-gradient {
         background: linear-gradient(135deg, #3b82f6, #1e40af);
         border: none;
@@ -127,112 +136,59 @@
         font-weight: 500;
         font-size: 15px;
     }
-
-        .btn-gradient:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-        }
-
+    .btn-gradient:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
     .btn-danger {
         background: linear-gradient(135deg, #ef4444, #b91c1c);
     }
-
     .btn-success {
         background: linear-gradient(135deg, #10b981, #047857);
     }
-
     .btn-secondary {
         background: linear-gradient(135deg, #6b7280, #4b5563);
     }
-
-    /* Fancy Add Row Button */
     .btn-add-row:hover {
         transform: scale(1.05) translateY(-2px);
         box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
     }
-
-    /* Input Styling */
     .form-control, .form-select {
         transition: all 0.3s ease;
         border: none;
         background: #fff;
         box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
     }
-
-        .form-control:hover, .form-select:hover {
-            background: #f8fafc;
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
-        }
-
-        .form-control:focus, .form-select:focus {
-            background: #fff;
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
-            outline: none;
-        }
-
-    /* Table Styling */
+    .form-control:hover, .form-select:hover {
+        background: #f8fafc;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    }
+    .form-control:focus, .form-select:focus {
+        background: #fff;
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+        outline: none;
+    }
     .table th, .table td {
         vertical-align: middle;
         padding: 10px;
     }
-
     .table-striped tbody tr:nth-of-type(odd) {
         background: #f9fafb;
     }
-
     .table-hover tbody tr:hover {
         background: linear-gradient(145deg, #eff6ff, #dbeafe);
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
-
-    /* Table Footer */
     tfoot {
         border-top: 2px solid #e2e8f0;
     }
-
-        tfoot td {
-            padding: 15px !important;
-        }
-
-    /* Animations */
+    tfoot td {
+        padding: 15px !important;
+    }
     @@keyframes fadeInDown {
-        from
-
-    {
-        opacity: 0;
-        transform: translateY(-20px);
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
-    }
-
-    @@keyframes shine {
-        0%
-
-    {
-        left: -150%;
-    }
-
-    20% {
-        left: 150%;
-    }
-
-    100% {
-        left: 150%;
-    }
-
-    }
-
-    /* Shadow and Depth */
-    .shadow {
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .shadow-sm {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
+    .shadow { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+    .shadow-sm { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
 </style>
