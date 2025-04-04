@@ -28,6 +28,7 @@
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="Type" id="transactionType" />
+            <input type="hidden" asp-for="UserId" />
 
             <div class="col-md-6">
                 <label class="form-label fw-medium">Account Name</label>
@@ -181,10 +182,10 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        fetchPreviousBalance();
-        fetchBillNo(document.querySelector('input[name="Type"]:checked')?.value || 'GoldPurchaseRate');
-        updateBalances();
-    });
+          fetchPreviousBalance();
+          fetchBillNo(document.querySelector('input[name="Type"]:checked')?.value || 'GoldPurchaseRate');
+          updateBalances();
+      });
 
     function showAlert(message, type) {
         const alertContainer = document.getElementById('alertContainer');
@@ -206,8 +207,17 @@
             return;
         }
 
-        fetch(`/RateCutTransection/GetPreviousBalance?accountId=${accountId}`)
-            .then(response => response.json())
+        fetch(`/RateCutTransaction/GetPreviousBalance?accountId=${accountId}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Server returned ${response.status}: ${text}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 document.getElementById('prevFine').value = data.fine.toFixed(3);
                 document.getElementById('prevAmount').value = data.amount.toFixed(2);
@@ -220,7 +230,7 @@
                 console.error('Error fetching previous balance:', error);
                 document.getElementById('prevFine').value = "0.000";
                 document.getElementById('prevAmount').value = "0.00";
-                document.getElementById('lastBalanceDate').innerHTML = "Error fetching date";
+                document.getElementById('lastBalanceDate').innerHTML = "Error fetching date: " + error.message;
                 updateBalances();
             });
     }
@@ -232,9 +242,18 @@
         updateBalances();
     }
 
-    function fetchBillNo(type) {
-        fetch(`/RateCutTransection/GetNextBillNo?type=${type}`)
-            .then(response => response.json())
+       function fetchBillNo(type) {
+        fetch(`/RateCutTransaction/GetNextBillNo?type=${type}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Server returned ${response.status}: ${text}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     document.getElementById('billNoInput').value = data.billNo;
@@ -276,65 +295,22 @@
         document.getElementById('totalAmount').value = (prevAmount + amountAdjustment).toFixed(2);
     }
 
-    document.getElementById('rateCutForm').addEventListener('submit', function (e) {
+       document.getElementById('rateCutForm').addEventListener('submit', function (e) {
         e.preventDefault();
-        let isFormValid = true;
-        let errorMessages = [];
-
-        document.querySelectorAll('.text-danger').forEach(span => span.innerHTML = '');
-
-        if (!document.getElementById('accountSelect').value) {
-            document.getElementById('account-error').innerHTML = 'Please select an account.';
-            errorMessages.push('Account selection is required.');
-            isFormValid = false;
-        }
-
-        if (!document.getElementById('Date').value) {
-            document.querySelector('span[data-valmsg-for="Date"]').innerHTML = 'Date is required.';
-            errorMessages.push('Please specify a transaction date.');
-            isFormValid = false;
-        }
-
-        let weight = parseFloat(document.getElementById('Weight').value) || 0;
-        if (weight <= 0) {
-            document.querySelector('span[data-valmsg-for="Weight"]').innerHTML = 'Weight must be greater than 0.';
-            errorMessages.push('Weight must be greater than 0.');
-            isFormValid = false;
-        }
-
-        let tunch = parseFloat(document.getElementById('Tunch').value) || 0;
-        if (tunch <= 0 || tunch > 100) {
-            document.querySelector('span[data-valmsg-for="Tunch"]').innerHTML = 'Tunch must be between 0 and 100.';
-            errorMessages.push('Tunch must be between 0 and 100.');
-            isFormValid = false;
-        }
-
-        let rate = parseFloat(document.getElementById('Rate').value) || 0;
-        if (rate <= 0) {
-            document.querySelector('span[data-valmsg-for="Rate"]').innerHTML = 'Rate must be greater than 0.';
-            errorMessages.push('Rate must be greater than 0.');
-            isFormValid = false;
-        }
-
-        let narration = document.getElementById('Narration').value;
-        if (narration.length > 500) {
-            document.querySelector('span[data-valmsg-for="Narration"]').innerHTML = 'Narration must not exceed 500 characters.';
-            errorMessages.push('Narration must not exceed 500 characters.');
-            isFormValid = false;
-        }
-
-        if (!isFormValid) {
-            let alertMessage = errorMessages.length > 0 ? errorMessages.join('<br>') : 'Please correct all validation errors.';
-            showAlert(alertMessage, 'danger');
-            return;
-        }
-
         let formData = new FormData(this);
         fetch(this.action, {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(`Server returned ${response.status}: ${text}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 Swal.fire({
@@ -345,15 +321,25 @@
                     timer: 2000,
                     timerProgressBar: true
                 }).then(() => {
-                    window.location.href = data.redirectUrl;
+                    window.location.href = '/RateCutTransaction/GenerateRateCutVoucher';
                 });
             } else {
-                showAlert(data.error || 'Failed to save the transaction.', 'danger');
+                Swal.fire({
+                    title: 'Error!',
+                    text: data.error || 'Failed to save the transaction.',
+                    icon: 'error',
+                    confirmButtonColor: '#e74c3c'
+                });
             }
         })
         .catch(error => {
             console.error('Error during save:', error);
-            showAlert('An error occurred while saving the transaction: ' + error.message, 'danger');
+            Swal.fire({
+                title: 'Error!',
+                text: 'An error occurred while saving: ' + error.message,
+                icon: 'error',
+                confirmButtonColor: '#e74c3c'
+            });
         });
     });
 </script>
@@ -368,10 +354,10 @@
         transition: all 0.3s ease;
     }
 
-    .form-control:focus, .form-select:focus {
-        border-color: #3498db;
-        box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
-    }
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
 
     .input-group-text {
         border-radius: 8px 0 0 8px;
@@ -385,15 +371,15 @@
         transition: all 0.3s ease;
     }
 
-    .btn-gradient.btn-danger {
-        background: linear-gradient(135deg, #e74c3c, #c0392b);
-    }
+        .btn-gradient.btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
 
-    .btn-gradient:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        color: white;
-    }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
 
     label {
         color: #2c3e50;
